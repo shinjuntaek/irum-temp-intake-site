@@ -478,6 +478,7 @@
       @media (max-width:760px) { .side{display:none}.layout{display:block}.top{height:64px;padding:0 18px}.content{padding:20px 16px 44px}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{min-height:94px}.drawer{width:100%} }
 
 
+
       /* Full IRUM OS temporary workspace layer */
       .os-page { max-width:1600px; margin:0 auto; padding:28px 30px 56px; }
       .os-head { display:flex; align-items:end; justify-content:space-between; gap:16px; margin-bottom:24px; }
@@ -497,8 +498,11 @@
       .workspace-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(315px,1fr)); gap:12px; margin-top:18px; }
       .workspace-card { overflow:hidden; border:1px solid #e2ddd4; background:#fff; cursor:pointer; text-align:left; transition:border .16s,box-shadow .16s; }
       .workspace-card:hover { border-color:#cfbf9b; box-shadow:0 4px 18px rgba(38,31,20,.08); }
-      .workspace-card-main { display:grid; grid-template-columns:96px minmax(0,1fr); }
-      .workspace-photo { display:grid; min-height:176px; place-items:center; background:#f2efe9; color:#8f877a; font-size:10px; font-weight:700; text-align:center; }
+      .workspace-card-main { display:grid; grid-template-columns:88px minmax(0,1fr); min-height:154px; height:154px; }
+      .workspace-photo { position:relative; display:grid; width:88px; height:154px; min-height:154px; place-items:center; overflow:hidden; background:#f2efe9; color:#8f877a; font-size:10px; font-weight:700; text-align:center; }
+      .workspace-photo img { position:absolute; inset:0; display:block; width:88px; height:154px; max-width:none; max-height:none; object-fit:cover; object-position:center; }
+      .os-profile-photo img { width:100%; height:100%; object-fit:cover; object-position:center; }
+      .workspace-photo .photo-count { position:absolute; right:7px; bottom:7px; border:1px solid rgba(255,255,255,.7); background:rgba(28,24,18,.72); padding:3px 5px; color:#fff; font-size:9px; font-weight:700; }
       .workspace-card-body { min-width:0; padding:13px; }
       .workspace-card-top,.workspace-card-bottom { display:flex; justify-content:space-between; gap:8px; }
       .workspace-name { overflow:hidden; margin:0; color:#2e2922; font-size:14px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
@@ -532,7 +536,7 @@
       .os-list li:last-child { border-bottom:0; }
       .os-workspace { display:grid; grid-template-columns:minmax(0,1fr) 292px; gap:18px; }
       .os-profile-head { display:grid; grid-template-columns:180px minmax(0,1fr); overflow:hidden; border:1px solid #e5e0d7; background:#fff; }
-      .os-profile-photo { display:grid; min-height:242px; place-items:center; background:#f2efe9; color:#928a7e; font-size:11px; text-align:center; }
+      .os-profile-photo { position:relative; display:grid; min-height:242px; place-items:center; overflow:hidden; background:#f2efe9; color:#928a7e; font-size:11px; text-align:center; }
       .os-profile-copy { padding:20px; }
       .os-profile-copy h2 { margin:3px 0 0; font-size:28px; letter-spacing:-.045em; }
       .os-profile-meta { margin:10px 0 0; color:#625b50; font-size:13px; line-height:1.7; }
@@ -955,6 +959,8 @@
       }
 
 
+
+
       let temporaryConsultationEntries = [];
       let osApplicantView = "card";
       let osApplicantGender = "all";
@@ -1040,6 +1046,8 @@
       osOperationalPage=async function(target){await osOperationalPageBase(target);const types={members:["member"],social:["social_participant"],hostleads:["host_submission","host_submission_photo"]};const photos=(types[target]||[]).flatMap((type)=>osOps(type)).filter((row)=>Array.isArray(row.operational_photo_refs)&&row.operational_photo_refs.length);if(!photos.length)return;const panel='<section class="os-panel" style="margin-top:18px"><div class="os-panel-head"><div><h2>프로필 · 검수 사진</h2><p>외부 private Storage에 복제된 사진입니다. 열람 링크는 10분 뒤 만료됩니다.</p></div><span class="os-chip">'+photos.length+'건</span></div><ul class="os-list">'+photos.map((row)=>'<li><span><b>'+osEsc(row.applicant_name||row.displayName||row.storageKey||"사진")+'</b><br/><small>읽기 전용 Snapshot · private</small></span>'+osOperationalPhotoMarkup(row)+'</li>').join("")+'</ul></section>';document.querySelector(".os-page")?.insertAdjacentHTML("beforeend",panel);osBindOperationalPhotos();};
       function osUnavailable(target){if(["prechecks","members","matching","social","hostleads","admins"].includes(target)) return osOperationalPage(target);const labels={settings:"설정"};osShell(target,labels[target]||"운영 화면","IRUM OS",'<section class="os-page"><div class="os-muted-page"><b>중단 기간 임시 운영 화면입니다.</b><p>원본 CRM 변경 없이 Snapshot과 임시 접수를 안전하게 운영합니다.</p></div></section>');}
       /* END OPERATIONAL SNAPSHOT MENU BINDINGS */
+
+
 
 
 
