@@ -121,6 +121,8 @@
         font-size: 12px;
         margin: 10px 0;
       }
+      .login-helper { margin-top:16px; color:#6e6b63; font-size:12px; line-height:1.6; }
+      .link-button { display:inline; padding:0; border:0; background:transparent; color:#8a6c1d; font:inherit; font-weight:700; text-decoration:underline; cursor:pointer; }
       .layout {
         display: grid;
         grid-template-columns: 242px minmax(0, 1fr);
@@ -561,8 +563,13 @@
         if (!response.ok) throw new Error(data.error || "ADMIN_READ_FAILED");
         return data;
       }
+      function resetRedirectUrl() {
+        const firstSegment = location.hostname.endsWith("github.io") ? `/${location.pathname.split("/").filter(Boolean)[0]}` : "";
+        return `${location.origin}${firstSegment}/admin/reset`;
+      }
       function login() {
-        app.innerHTML = `<main class="login"><section class="login-card"><div class="brand"><span class="brand-mark">IO</span>IRUM OS <small>· TEMPORARY</small></div><h1>임시 운영자 로그인</h1><p>Type C 기간의 외부 접수 데이터를 확인하는 전용 콘솔입니다. 일반 신청자는 접근할 수 없습니다.</p><div class="field"><label>이메일</label><input id="email" type="email" autocomplete="email"/></div><div class="field"><label>비밀번호</label><input id="password" type="password" autocomplete="current-password"/></div><p class="login-error" id="login-error"></p><button class="primary" id="login">로그인</button></section></main>`;
+        const justReset = new URLSearchParams(location.search).get("reset") === "complete";
+        app.innerHTML = `<main class="login"><section class="login-card"><div class="brand"><span class="brand-mark">IO</span>IRUM OS <small>· TEMPORARY</small></div><h1>임시 운영자 로그인</h1><p>Type C 기간의 외부 접수 데이터를 확인하는 전용 콘솔입니다. 일반 신청자는 접근할 수 없습니다.</p><div class="field"><label>이메일</label><input id="email" type="email" autocomplete="email"/></div><div class="field"><label>비밀번호</label><input id="password" type="password" autocomplete="current-password"/></div><p class="login-error" id="login-error">${justReset ? "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요." : ""}</p><button class="primary" id="login">로그인</button><p class="login-helper">비밀번호를 잊으셨나요? <button class="link-button" id="forgot-password" type="button">재설정 링크 받기</button></p></section></main>`;
         document.getElementById("login").onclick = async () => {
           const button = document.getElementById("login");
           button.disabled = true;
@@ -580,6 +587,25 @@
             return;
           }
           dashboard();
+        };
+        document.getElementById("forgot-password").onclick = async () => {
+          const email = document.getElementById("email").value.trim();
+          const errorTarget = document.getElementById("login-error");
+          if (!email) { errorTarget.textContent = "비밀번호 재설정 링크를 받을 이메일을 입력해 주세요."; return; }
+          const button = document.getElementById("forgot-password");
+          button.disabled = true;
+          try {
+            const response = await fetch(`${config.url}/auth/v1/recover`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: config.key },
+              body: JSON.stringify({ email, options: { redirectTo: resetRedirectUrl() } }),
+            });
+            if (!response.ok) throw new Error("RECOVERY_REQUEST_FAILED");
+            errorTarget.style.color = "#15704d";
+            errorTarget.textContent = "재설정 링크를 이메일로 보냈습니다. 받은편지함과 스팸함을 확인해 주세요.";
+          } catch {
+            errorTarget.textContent = "재설정 링크를 보내지 못했습니다. 잠시 후 다시 시도해 주세요.";
+          } finally { button.disabled = false; }
         };
       }
       function payload(record) {
