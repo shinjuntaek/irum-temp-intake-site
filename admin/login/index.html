@@ -463,7 +463,6 @@
   </head>
   <body>
     <div id="app"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
       const config = {
         url: "https://wiesmommcmwwwkwufgqg.supabase.co",
@@ -471,7 +470,47 @@
         endpoint:
           "https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-intake-submit",
       };
-      const client = window.supabase.createClient(config.url, config.key);
+      const sessionKey = "irum-temp-admin-session-v1";
+      const readSession = () => {
+        try {
+          const session = JSON.parse(sessionStorage.getItem(sessionKey) || "null");
+          if (!session?.access_token) return null;
+          if (session.expires_at && session.expires_at * 1000 <= Date.now() + 30_000) {
+            sessionStorage.removeItem(sessionKey);
+            return null;
+          }
+          return session;
+        } catch {
+          sessionStorage.removeItem(sessionKey);
+          return null;
+        }
+      };
+      const client = {
+        auth: {
+          getSession: async () => ({ data: { session: readSession() } }),
+          signInWithPassword: async ({ email, password }) => {
+            try {
+              const response = await fetch(`${config.url}/auth/v1/token?grant_type=password`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", apikey: config.key },
+                body: JSON.stringify({ email, password }),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok || !data.access_token) {
+                return { error: { code: data.code || "AUTH_ERROR", message: data.msg || data.message || "로그인을 완료하지 못했습니다." } };
+              }
+              sessionStorage.setItem(sessionKey, JSON.stringify(data));
+              return { data: { session: data }, error: null };
+            } catch {
+              return { error: { code: "NETWORK_ERROR", message: "인증 서버에 연결하지 못했습니다." } };
+            }
+          },
+          signOut: async () => {
+            sessionStorage.removeItem(sessionKey);
+            return { error: null };
+          },
+        },
+      };
       const app = document.getElementById("app");
       let records = [];
       let legacyRecords = [];
@@ -516,8 +555,11 @@
             password: document.getElementById("password").value,
           });
           if (error) {
+            const code = String(error.code || "").toUpperCase();
             document.getElementById("login-error").textContent =
-              "로그인 정보를 확인해주세요.";
+              code === "INVALID_CREDENTIALS"
+                ? "이메일 또는 비밀번호가 일치하지 않습니다. 임시 관리자 계정으로 다시 확인해 주세요."
+                : `로그인을 완료하지 못했습니다. (${code || "AUTH_ERROR"}) 잠시 후 다시 시도해 주세요.`;
             button.disabled = false;
             return;
           }
