@@ -302,6 +302,10 @@
         background: #edf8f1;
         color: var(--ok);
       }
+      .badge.snapshot {
+        background: #fff5d7;
+        color: #7a5700;
+      }
       .empty {
         padding: 54px 24px;
         text-align: center;
@@ -410,6 +414,51 @@
           width: 100%;
         }
       }
+
+      /* IRUM OS visual parity layer: the temporary console keeps the original information architecture,
+         while only exposing the safe temporary intake and read-only Snapshot actions. */
+      body { background:#f6f6f2; color:#24221f; font-family:Pretendard,Arial,sans-serif; }
+      .layout { grid-template-columns:248px minmax(0,1fr); background:#f6f6f2; }
+      .side { position:sticky; top:0; height:100vh; padding:0 0 14px; overflow:auto; background:#171614; border:0; color:#fff; }
+      .side .brand { height:72px; padding:0 19px; gap:12px; border-bottom:1px solid rgba(255,255,255,.1); color:#fff; font-size:14px; font-weight:700; }
+      .side .brand small { display:block; margin-bottom:2px; color:#c59c2a; font:700 10px "DM Mono",monospace; letter-spacing:.18em; }
+      .brand-mark { width:30px; height:30px; border-radius:0; background:#c59c2a; color:#171614; font-weight:700; }
+      .menu-label { margin:22px 0 7px; padding:0 16px; color:rgba(255,255,255,.38); font:600 10px "DM Mono",monospace; letter-spacing:.14em; }
+      .menu { min-height:40px; gap:12px; padding:0 16px; border-left:2px solid transparent; color:rgba(255,255,255,.62); font-size:13px; transition:background .16s,color .16s; }
+      .menu:hover { background:rgba(255,255,255,.06); color:#fff; }
+      .menu.active { border-left-color:#c59c2a; background:rgba(255,255,255,.09); color:#f2cc68; font-weight:700; }
+      .menu i { width:14px; color:inherit; font-size:12px; }
+      .nav-scope { margin-left:auto; border:1px solid rgba(255,255,255,.18); padding:2px 5px; color:rgba(255,255,255,.53); font-size:9px; font-weight:700; }
+      .main { background:#f6f6f2; }
+      .top { position:sticky; top:0; z-index:3; height:72px; padding:0 28px; border-bottom:1px solid #e5e2da; background:rgba(253,252,249,.96); backdrop-filter:blur(12px); }
+      .title small { color:#a37d1d; font:600 10px "DM Mono",monospace; letter-spacing:.14em; }
+      .title h1 { color:#25221e; font-size:19px; font-weight:700; }
+      .operator { color:#817b70; }
+      .avatar { background:#c59c2a; color:#171614; }
+      .content { max-width:1500px; padding:28px 30px 56px; }
+      .notice { margin-bottom:20px; border:1px solid #e8ddbd; background:#fffaf0; color:#69531d; }
+      .stat-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+      .stat { min-height:108px; padding:18px; border:1px solid #e5e2da; background:#fff; box-shadow:0 1px 1px rgba(35,31,25,.02); }
+      .stat span { color:#837c70; font-size:11px; }
+      .stat b { color:#2a2722; font-size:26px; }
+      .toolbar { align-items:center; margin:24px 0 12px; }
+      .search { height:42px; border-color:#dedad0; background:#fff; }
+      .search:focus { border-color:#b48a20; box-shadow:0 0 0 3px rgba(197,156,42,.14); }
+      .table-wrap { border-color:#e5e2da; box-shadow:0 1px 1px rgba(35,31,25,.02); }
+      .table { min-width:850px; }
+      .table th { background:#fbfaf7; border-color:#ece8df; color:#8b8478; font-weight:700; }
+      .table td { border-color:#f0ede7; color:#3c3832; }
+      .table tr:hover { background:#fffcf6; }
+      .badge { border-radius:999px; padding:4px 8px; }
+      .drawer { width:min(100%,590px); box-shadow:-18px 0 56px rgba(20,18,14,.2); }
+      .drawer-top { border-color:#e5e2da; background:#fdfcf9; }
+      .drawer-body { padding:28px; }
+      .detail-grid { border-color:#e5e2da; }
+      .detail-grid div { border-color:#e5e2da; }
+      .detail-grid div:nth-child(odd) { background:#fbfaf7; color:#777064; }
+      .photo { border-color:#e5e2da; background:#fbfaf7; }
+      @media (max-width:760px) { .side{display:none}.layout{display:block}.top{height:64px;padding:0 18px}.content{padding:20px 16px 44px}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{min-height:94px}.drawer{width:100%} }
+
     </style>
   </head>
   <body>
@@ -425,6 +474,7 @@
       const client = window.supabase.createClient(config.url, config.key);
       const app = document.getElementById("app");
       let records = [];
+      let legacyRecords = [];
       let selected = null;
       const esc = (value = "") =>
         String(value).replace(
@@ -490,15 +540,78 @@
         });
       }
       function dashboard() {
-        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span>IRUM OS</div><p class="menu-label">TEMPORARY OPERATIONS</p><button class="menu active"><i>●</i>임시 접수 DB</button><button class="menu" id="import"><i>◌</i>CRM Import Preview</button><p class="menu-label">SYSTEM</p><button class="menu" id="logout"><i>↗</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>IRUM OS · EXTERNAL INTAKE</small><h1>임시 접수 운영</h1></div><div class="operator"><span>외부 저장소 연결됨</span><span class="avatar">A</span></div></header><section class="content"><p class="notice">이 화면은 Type C 기간의 외부 접수만 표시합니다. 실제 IRUM CRM 생성은 복구 후 Import Preview 승인 시점에만 진행합니다.</p><div class="stat-grid"><article class="stat"><span>전체 접수</span><b id="total">–</b></article><article class="stat"><span>1:1 매칭</span><b id="matching">–</b></article><article class="stat"><span>소셜 모임</span><b id="social">–</b></article><article class="stat"><span>사진 등록</span><b id="photos">–</b></article></div><div class="toolbar"><input id="search" class="search" placeholder="이름 또는 연락처로 검색"/><button class="menu" id="refresh">↻ 새로고침</button></div><div class="table-wrap"><table class="table"><thead><tr><th>접수 시각</th><th>신청자</th><th>유형</th><th>연락처</th><th>동의</th><th>사진</th></tr></thead><tbody id="rows"></tbody></table></div></section></section></main><aside class="drawer" id="drawer"></aside>`;
+        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span><span><small>IRUM OS</small>운영 콘솔</span></div><p class="menu-label">홈</p><button class="menu active" id="dashboard"><i>□</i>대시보드</button><p class="menu-label">회원 운영</p><button class="menu" id="intake"><i>□</i>신청자 <span class="nav-scope">임시</span></button><button class="menu" id="legacy"><i>□</i>기존 신청자 <span class="nav-scope">읽기</span></button><p class="menu-label">업무 관리</p><button class="menu" id="import"><i>□</i>CRM Import Preview</button><p class="menu-label">시스템 관리</p><button class="menu" id="logout"><i>□</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>IRUM OS · TEMPORARY DASHBOARD</small><h1>대시보드</h1></div><div class="operator"><span>외부 저장소 연결됨</span><span class="avatar">A</span></div></header><section class="content"><p class="notice"><b>중단 기간 운영 화면.</b> 임시 접수와 기존 상담 Snapshot을 분리해 열람합니다. 기존 IRUM CRM 생성·수정은 복구 후 승인형 Import 절차에서만 진행합니다.</p><div class="stat-grid"><article class="stat"><span>전체 접수</span><b id="total">–</b></article><article class="stat"><span>1:1 매칭</span><b id="matching">–</b></article><article class="stat"><span>소셜 모임</span><b id="social">–</b></article><article class="stat"><span>사진 등록</span><b id="photos">–</b></article></div><div class="toolbar"><input id="search" class="search" placeholder="이름 또는 연락처로 검색"/><button class="menu" id="refresh">↻ 새로고침</button></div><div class="table-wrap"><table class="table"><thead><tr><th>접수 시각</th><th>신청자</th><th>유형</th><th>연락처</th><th>동의</th><th>사진</th></tr></thead><tbody id="rows"></tbody></table></div></section></section></main><aside class="drawer" id="drawer"></aside>`;
         document.getElementById("logout").onclick = async () => {
           await client.auth.signOut();
           login();
         };
         document.getElementById("refresh").onclick = load;
         document.getElementById("import").onclick = importPreview;
+        document.getElementById("legacy").onclick = legacyDashboard;
         document.getElementById("search").oninput = renderRows;
         load();
+      }
+      function legacyProfile(record) {
+        return record.snapshot?.profile || {};
+      }
+      function legacyConsultation(record) {
+        return record.snapshot?.consultation || {};
+      }
+      async function legacyDashboard() {
+        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span><span><small>IRUM OS</small>운영 콘솔</span></div><p class="menu-label">홈</p><button class="menu" id="dashboard"><i>□</i>대시보드</button><p class="menu-label">회원 운영</p><button class="menu" id="intake"><i>□</i>신청자 <span class="nav-scope">임시</span></button><button class="menu active" id="legacy"><i>□</i>기존 신청자 <span class="nav-scope">읽기</span></button><p class="menu-label">업무 관리</p><button class="menu" id="import"><i>□</i>CRM Import Preview</button><p class="menu-label">시스템 관리</p><button class="menu" id="logout"><i>□</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>IRUM OS · LEGACY CONSULTATION</small><h1>기존 상담 Snapshot <span class="badge snapshot">읽기 전용</span></h1></div><div class="operator"><span>Snapshot 데이터 · 수정 불가</span><span class="avatar">A</span></div></header><section class="content"><p class="notice"><b>상담 연속성 전용 화면.</b> 중단 직전 기준의 기존 IRUM 신청자·운영 메모·상담 상태를 열람합니다. 원본 CRM이나 Snapshot은 이 화면에서 수정할 수 없으며, 사진은 권한 확인 후 10분 링크로만 열립니다.</p><div class="stat-grid"><article class="stat"><span>기존 상담 대상</span><b id="legacy-total">–</b></article><article class="stat"><span>여성</span><b id="legacy-female">–</b></article><article class="stat"><span>남성</span><b id="legacy-male">–</b></article><article class="stat"><span>사진 보유</span><b id="legacy-photos">–</b></article></div><div class="toolbar"><input id="legacy-search" class="search" placeholder="이름 또는 연락처로 검색"/><button class="menu" id="legacy-refresh">↻ Snapshot 새로고침</button></div><div class="table-wrap"><table class="table"><thead><tr><th>원본 갱신</th><th>신청자</th><th>상담 상태</th><th>담당 상담원</th><th>다음 액션</th><th>사진</th></tr></thead><tbody id="legacy-rows"></tbody></table></div></section></section></main><aside class="drawer" id="drawer"></aside>`;
+        document.getElementById("dashboard").onclick = dashboard;
+        document.getElementById("intake").onclick = dashboard;
+        document.getElementById("import").onclick = importPreview;
+        document.getElementById("logout").onclick = async () => { await client.auth.signOut(); login(); };
+        document.getElementById("legacy-refresh").onclick = loadLegacy;
+        document.getElementById("legacy-search").oninput = renderLegacyRows;
+        await loadLegacy();
+      }
+      async function loadLegacy() {
+        try {
+          const data = await invokeAdmin("snapshot-list");
+          legacyRecords = data.records || [];
+          const profiles = legacyRecords.map(legacyProfile);
+          document.getElementById("legacy-total").textContent = legacyRecords.length;
+          document.getElementById("legacy-female").textContent = profiles.filter((p) => p.gender === "female").length;
+          document.getElementById("legacy-male").textContent = profiles.filter((p) => p.gender === "male").length;
+          document.getElementById("legacy-photos").textContent = legacyRecords.filter((r) => (r.photo_refs || []).length).length;
+          renderLegacyRows();
+        } catch (error) {
+          document.getElementById("legacy-rows").innerHTML = `<tr><td colspan="6" class="empty">기존 상담 Snapshot을 불러올 권한이 없거나 아직 baseline Snapshot이 실행되지 않았습니다.</td></tr>`;
+        }
+      }
+      function renderLegacyRows() {
+        const q = document.getElementById("legacy-search").value.trim().toLowerCase();
+        const list = legacyRecords.filter((r) => {
+          const p = legacyProfile(r);
+          return `${p.name || ""} ${p.phone || ""}`.toLowerCase().includes(q);
+        });
+        document.getElementById("legacy-rows").innerHTML = list.length
+          ? list.map((r) => {
+              const p = legacyProfile(r), c = legacyConsultation(r);
+              const status = c.consultationStatus === "in_progress" ? "상담중" : c.consultationStatus === "completed" ? "상담완료" : "상담전";
+              return `<tr data-legacy-id="${r.source_application_id}"><td>${esc(formatDate(r.source_updated_at || r.exported_at))}</td><td><div class="name">${esc(p.name || "이름 미입력")}</div><div class="sub">${esc(p.birthYear || "-")} · ${esc(p.job || "-")} · ${esc(p.phone || "-")}</div></td><td><span class="badge snapshot">${status}</span></td><td>${esc(c.consultantName || "미배정")}</td><td>${esc(c.nextActionLabel || c.nextAction || "-")}</td><td>${(r.photo_refs || []).length}장</td></tr>`;
+            }).join("")
+          : `<tr><td colspan="6" class="empty">조건에 맞는 기존 상담 Snapshot이 없습니다.</td></tr>`;
+        document.querySelectorAll("tr[data-legacy-id]").forEach((row) => row.onclick = () => openLegacyDetail(legacyRecords.find((r) => r.source_application_id === Number(row.dataset.legacyId))));
+      }
+      function openLegacyDetail(record) {
+        const p = legacyProfile(record), c = legacyConsultation(record), s = record.snapshot?.screening || {};
+        const drawer = document.getElementById("drawer");
+        drawer.innerHTML = `<header class="drawer-top"><div><b>${esc(p.name || "이름 미입력")}</b><div class="sub">기존 IRUM 신청자 #${esc(record.source_application_id)} · 읽기 전용</div></div><button class="menu" id="close">닫기</button></header><section class="drawer-body"><span class="badge snapshot">기존 상담 Snapshot · 읽기 전용</span><div class="detail-grid"><div>원본 최종 갱신</div><div>${esc(formatDate(record.source_updated_at || record.exported_at))}</div><div>연락처 / 이메일</div><div>${esc(p.phone || "-")} / ${esc(p.email || "-")}</div><div>출생연도 / 성별</div><div>${esc(p.birthYear || "-")} / ${esc(p.gender === "female" ? "여성" : p.gender === "male" ? "남성" : "-")}</div><div>직업 / 학력</div><div>${esc(p.job || "-")} / ${esc(p.education || "-")}</div><div>지역 / MBTI</div><div>${esc(p.region || "-")} / ${esc(p.mbti || "-")}</div><div>상담 상태 / 상담원</div><div>${esc(c.consultationStatus === "in_progress" ? "상담중" : c.consultationStatus === "completed" ? "상담완료" : "상담전")} / ${esc(c.consultantName || "미배정")}</div><div>다음 액션</div><div>${esc(c.nextActionLabel || c.nextAction || "-")} ${c.nextActionDueAt ? `· ${esc(formatDate(c.nextActionDueAt))}` : ""}</div><div>운영 등급 / 우선도</div><div>${esc(s.finalGrade || "-")} / ${esc(s.consultationPriority || "-")}</div><div>신청 메모</div><div>${esc(p.memo || "-")}</div><div>상담 메모</div><div>${esc((record.snapshot?.notes || []).map((n) => n.content).filter(Boolean).join("\n\n") || "-")}</div></div><h3>기존 사진</h3><div class="photo-list">${(record.photo_refs || []).map((photo, index) => `<div class="photo"><b>사진 ${index + 1}</b><br/><span>비공개 Snapshot 보관</span><br/><button data-legacy-path="${esc(photo.snapshot_path)}">10분 열람 링크</button></div>`).join("") || '<p class="sub">복제된 사진이 없습니다.</p>'}</div></section>`;
+        drawer.classList.add("open");
+        document.getElementById("close").onclick = () => drawer.classList.remove("open");
+        drawer.querySelectorAll("[data-legacy-path]").forEach((button) => button.onclick = () => openLegacyPhoto(button.dataset.legacyPath));
+      }
+      async function openLegacyPhoto(path) {
+        try {
+          const data = await invokeAdmin("snapshot-photo-url", { path });
+          if (!data.signed_url) throw new Error("PHOTO_READ_FAILED");
+          window.open(data.signed_url, "_blank", "noopener,noreferrer");
+        } catch (error) {
+          alert("사진 열람 권한이 없거나 Snapshot 사진이 아직 준비되지 않았습니다.");
+        }
       }
       function importPreview() {
         const ready = records.filter((record) => {
@@ -510,7 +623,7 @@
           );
         });
         const attention = records.filter((record) => !ready.includes(record));
-        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span>IRUM OS</div><p class="menu-label">TEMPORARY OPERATIONS</p><button class="menu" id="intake"><i>●</i>임시 접수 DB</button><button class="menu active"><i>◌</i>CRM Import Preview</button><p class="menu-label">SYSTEM</p><button class="menu" id="logout"><i>↗</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>RECOVERY HANDOFF · READ ONLY</small><h1>CRM Import Preview</h1></div><div class="operator"><span>원본 데이터 변경 없음</span><span class="avatar">A</span></div></header><section class="content"><p class="notice"><b>승인형 인계 원칙.</b> 현재 화면은 복구 후 IRUM CRM Import Preview에서 사용할 원본 점검 목록입니다. 이 임시 시스템에서는 Applicant를 생성하거나 원본을 수정하지 않습니다.</p><div class="stat-grid"><article class="stat"><span>원본 접수</span><b>${records.length}</b></article><article class="stat"><span>인계 예정</span><b>${ready.length}</b></article><article class="stat"><span>보완 필요</span><b>${attention.length}</b></article><article class="stat"><span>사진 대기</span><b>${records.filter((r) => (payload(r).photo_refs || []).length === 0).length}</b></article></div><div class="toolbar"><div class="sub">연락처 정규화값·신청 유형·외부 접수 ID를 기준으로 중복을 판정하고, 사진은 IRUM Storage 이전 성공 뒤에만 연결합니다.</div><button class="menu" id="export">↓ 원본 Manifest</button></div><div class="table-wrap"><table class="table"><thead><tr><th>상태</th><th>신청자</th><th>유형</th><th>사진</th><th>인계 조건</th></tr></thead><tbody>${
+        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span><span><small>IRUM OS</small>운영 콘솔</span></div><p class="menu-label">홈</p><button class="menu" id="dashboard"><i>□</i>대시보드</button><p class="menu-label">회원 운영</p><button class="menu" id="intake"><i>□</i>신청자 <span class="nav-scope">임시</span></button><button class="menu" id="legacy"><i>□</i>기존 신청자 <span class="nav-scope">읽기</span></button><p class="menu-label">업무 관리</p><button class="menu active" id="import"><i>□</i>CRM Import Preview</button><p class="menu-label">시스템 관리</p><button class="menu" id="logout"><i>□</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>RECOVERY HANDOFF · READ ONLY</small><h1>CRM Import Preview</h1></div><div class="operator"><span>원본 데이터 변경 없음</span><span class="avatar">A</span></div></header><section class="content"><p class="notice"><b>승인형 인계 원칙.</b> 현재 화면은 복구 후 IRUM CRM Import Preview에서 사용할 원본 점검 목록입니다. 이 임시 시스템에서는 Applicant를 생성하거나 원본을 수정하지 않습니다.</p><div class="stat-grid"><article class="stat"><span>원본 접수</span><b>${records.length}</b></article><article class="stat"><span>인계 예정</span><b>${ready.length}</b></article><article class="stat"><span>보완 필요</span><b>${attention.length}</b></article><article class="stat"><span>사진 대기</span><b>${records.filter((r) => (payload(r).photo_refs || []).length === 0).length}</b></article></div><div class="toolbar"><div class="sub">연락처 정규화값·신청 유형·외부 접수 ID를 기준으로 중복을 판정하고, 사진은 IRUM Storage 이전 성공 뒤에만 연결합니다.</div><button class="menu" id="export">↓ 원본 Manifest</button></div><div class="table-wrap"><table class="table"><thead><tr><th>상태</th><th>신청자</th><th>유형</th><th>사진</th><th>인계 조건</th></tr></thead><tbody>${
           records.length
             ? records
                 .map((record) => {
@@ -521,7 +634,9 @@
                 .join("")
             : `<tr><td colspan="5" class="empty">아직 임시 접수가 없습니다.</td></tr>`
         }</tbody></table></div></section></section></main>`;
+        document.getElementById("dashboard").onclick = dashboard;
         document.getElementById("intake").onclick = dashboard;
+        document.getElementById("legacy").onclick = legacyDashboard;
         document.getElementById("logout").onclick = async () => {
           await client.auth.signOut();
           login();
