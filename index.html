@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta
+      name="keywords"
+      content="이룸, 프라이빗 매칭, 소셜 모임, 임시 신청, 프리미엄 소개"
+    />
+    <title>이룸 | 프라이빗 매칭 및 소셜 모임 임시 신청</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;600;700&family=Pretendard:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #0e0b07;
+        --ink-2: #17130d;
+        --gold: #c59c2a;
+        --gold-bright: #e0bd58;
+        --cream: #f3ecdd;
+        --cream-2: #e9ddc8;
+        --muted: #a89e91;
+        --line: rgba(229, 208, 158, 0.24);
+        --danger: #ce8071;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        background: var(--ink);
+      }
+      body {
+        margin: 0;
+        min-width: 320px;
+        background: var(--ink);
+        color: var(--cream);
+        font-family: Pretendard, Arial, sans-serif;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .shell {
+        min-height: 100vh;
+        background:
+          radial-gradient(
+            ellipse 85% 68% at 68% 20%,
+            rgba(197, 156, 42, 0.16),
+            transparent 56%
+          ),
+          var(--ink);
+      }
+      .nav {
+        height: 78px;
+        max-width: 1280px;
+        margin: auto;
+        padding: 0 38px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(243, 236, 221, 0.08);
+      }
+      .brand {
+        display: inline-flex;
+        flex-direction: column;
+        line-height: 1;
+        gap: 3px;
+        font-family: "Noto Serif KR", serif;
+        letter-spacing: -0.06em;
+      }
+      .brand small {
+        color: var(--gold);
+        font-size: 10px;
+        letter-spacing: 0.11em;
+        font-style: italic;
+      }
+      .brand strong {
+        font-size: 25px;
+        font-weight: 600;
+      }
+      .nav-links {
+        display: flex;
+        gap: 34px;
+        align-items: center;
+        color: #c8c0b3;
+        font-size: 14px;
+      }
+      .nav-links a:hover,
+      .nav-links a.current {
+        color: var(--gold-bright);
+      }
+      .hero {
+        max-width: 1280px;
+        margin: 0 auto;
+        min-height: calc(100vh - 78px);
+        padding: clamp(72px, 10vw, 142px) 38px 72px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+        gap: 72px;
+        align-items: center;
+      }
+      .eyebrow {
+        color: var(--gold);
+        letter-spacing: 0.18em;
+        font-size: 11px;
+        font-weight: 700;
+        margin-bottom: 20px;
+      }
+      h1 {
+        max-width: 690px;
+        margin: 0;
+        font-family: "Noto Serif KR", serif;
+        font-weight: 500;
+        font-size: clamp(41px, 5.2vw, 70px);
+        line-height: 1.26;
+        letter-spacing: -0.065em;
+      }
+      h1 em {
+        color: var(--gold-bright);
+        font-style: normal;
+      }
+      .lead {
+        max-width: 455px;
+        margin: 25px 0 38px;
+        color: #c4bcae;
+        font-size: 16px;
+        line-height: 1.8;
+      }
+      .cta-row {
+        display: flex;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        min-height: 56px;
+        padding: 0 27px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 13px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: var(--cream);
+        font-weight: 700;
+        transition:
+          transform 0.16s ease,
+          background 0.16s ease,
+          border-color 0.16s ease;
+      }
+      .btn:active {
+        transform: scale(0.98);
+      }
+      .btn.primary {
+        background: var(--gold);
+        border-color: var(--gold);
+        color: #17120a;
+      }
+      .btn.primary:hover {
+        background: var(--gold-bright);
+      }
+      .btn.secondary:hover {
+        border-color: var(--gold);
+        background: rgba(197, 156, 42, 0.1);
+      }
+      .visual {
+        position: relative;
+        min-height: 470px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .visual::before {
+        content: "";
+        position: absolute;
+        width: 390px;
+        height: 390px;
+        border: 1px solid rgba(224, 189, 88, 0.38);
+        border-radius: 50%;
+      }
+      .visual::after {
+        content: "";
+        position: absolute;
+        width: 290px;
+        height: 290px;
+        background: radial-gradient(
+          circle,
+          rgba(230, 190, 82, 0.28),
+          rgba(48, 34, 14, 0.04) 62%,
+          transparent 68%
+        );
+        border-radius: 50%;
+        filter: blur(8px);
+      }
+      .insight {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 390px);
+        padding: 29px;
+        background: linear-gradient(
+          135deg,
+          rgba(39, 31, 21, 0.96),
+          rgba(18, 14, 9, 0.92)
+        );
+        border: 1px solid var(--line);
+        box-shadow: 0 30px 70px rgba(0, 0, 0, 0.38);
+      }
+      .insight-label {
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+      }
+      .insight h2 {
+        margin: 16px 0 20px;
+        font-family: "Noto Serif KR", serif;
+        font-size: 25px;
+        font-weight: 500;
+        line-height: 1.55;
+        letter-spacing: -0.045em;
+      }
+      .insight-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: rgba(243, 236, 221, 0.12);
+        border: 1px solid rgba(243, 236, 221, 0.12);
+      }
+      .insight-grid div {
+        padding: 17px;
+        background: #19140e;
+      }
+      .insight-grid span {
+        display: block;
+        color: #9f968a;
+        font-size: 11px;
+        margin-bottom: 7px;
+      }
+      .insight-grid b {
+        font-size: 13px;
+        color: #f3ecdd;
+      }
+      .page {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 54px 24px 100px;
+      }
+      .back {
+        color: #bdb3a6;
+        font-size: 13px;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 28px;
+      }
+      .back:hover {
+        color: var(--gold-bright);
+      }
+      .form-title {
+        font-family: "Noto Serif KR", serif;
+        font-size: clamp(30px, 4vw, 45px);
+        font-weight: 500;
+        letter-spacing: -0.06em;
+        margin: 0 0 12px;
+      }
+      .form-copy {
+        color: #bcb3a7;
+        line-height: 1.7;
+        margin: 0 0 33px;
+      }
+      .notice {
+        padding: 15px 17px;
+        margin-bottom: 24px;
+        background: rgba(197, 156, 42, 0.08);
+        border: 1px solid rgba(197, 156, 42, 0.26);
+        color: #d9cfbd;
+        font-size: 13px;
+        line-height: 1.65;
+      }
+      .progress {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+        margin-bottom: 28px;
+      }
+      .progress div {
+        height: 3px;
+        background: #40382c;
+      }
+      .progress div.active {
+        background: var(--gold);
+      }
+      .card {
+        padding: clamp(22px, 4vw, 42px);
+        background: rgba(25, 20, 14, 0.92);
+        border: 1px solid var(--line);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+      }
+      .step-label {
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+      }
+      .step-title {
+        font-family: "Noto Serif KR", serif;
+        font-size: 27px;
+        font-weight: 500;
+        letter-spacing: -0.05em;
+        margin: 12px 0 30px;
+      }
+      .field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        margin-bottom: 18px;
+      }
+      .field.full {
+        grid-column: 1/-1;
+      }
+      label {
+        font-size: 13px;
+        color: #ece4d6;
+        font-weight: 600;
+      }
+      label span {
+        color: var(--gold);
+        margin-left: 3px;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        color: #f3ecdd;
+        background: #0f0c08;
+        border: 1px solid rgba(235, 220, 188, 0.2);
+        padding: 14px 15px;
+        outline: none;
+        border-radius: 0;
+      }
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--gold);
+        box-shadow: 0 0 0 3px rgba(197, 156, 42, 0.13);
+      }
+      select option {
+        color: #17130d;
+      }
+      textarea {
+        min-height: 118px;
+        resize: vertical;
+        line-height: 1.6;
+      }
+      .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+      }
+      .choice {
+        position: relative;
+      }
+      .choice input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .choice span {
+        display: block;
+        padding: 12px 15px;
+        border: 1px solid rgba(235, 220, 188, 0.2);
+        font-size: 13px;
+        color: #c9c0b4;
+      }
+      .choice input:checked + span {
+        color: #18130c;
+        border-color: var(--gold);
+        background: var(--gold);
+        font-weight: 700;
+      }
+      .file-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 15px;
+        background: #0f0c08;
+        border: 1px dashed rgba(235, 220, 188, 0.33);
+      }
+      .file-row input {
+        display: none;
+      }
+      .file-trigger {
+        flex: 0 0 auto;
+        color: var(--cream);
+        border: 1px solid rgba(235, 220, 188, 0.26);
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .file-name {
+        color: #aaa094;
+        font-size: 12px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .check {
+        display: flex;
+        gap: 11px;
+        align-items: flex-start;
+        padding: 15px;
+        border: 1px solid rgba(235, 220, 188, 0.16);
+        color: #c8c0b4;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .check input {
+        flex: 0 0 auto;
+        width: 17px;
+        height: 17px;
+        accent-color: var(--gold);
+        margin: 2px 0 0;
+      }
+      .actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 35px;
+      }
+      .actions .btn {
+        min-width: 128px;
+      }
+      .error {
+        display: none;
+        margin-top: 16px;
+        color: #f2b5a8;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .error.show {
+        display: block;
+      }
+      .success {
+        text-align: center;
+        padding: 45px 18px;
+      }
+      .success .mark {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 20px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--gold);
+        color: var(--gold);
+        font-size: 23px;
+      }
+      .success h2 {
+        margin: 0 0 12px;
+        font-family: "Noto Serif KR", serif;
+        font-weight: 500;
+        font-size: 31px;
+        letter-spacing: -0.05em;
+      }
+      .success p {
+        margin: 0;
+        color: #bdb4a8;
+        line-height: 1.75;
+      }
+      .footer {
+        padding: 30px 24px;
+        border-top: 1px solid rgba(243, 236, 221, 0.08);
+        color: #80786e;
+        text-align: center;
+        font-size: 11px;
+        line-height: 1.7;
+      }
+      @media (max-width: 760px) {
+        .nav {
+          height: 68px;
+          padding: 0 20px;
+        }
+        .nav-links {
+          display: none;
+        }
+        .hero {
+          min-height: auto;
+          grid-template-columns: 1fr;
+          padding: 68px 23px 72px;
+          gap: 42px;
+        }
+        .visual {
+          min-height: 340px;
+        }
+        .visual::before {
+          width: 290px;
+          height: 290px;
+        }
+        .insight {
+          width: 100%;
+          padding: 23px;
+        }
+        h1 {
+          font-size: 43px;
+        }
+        .lead {
+          font-size: 15px;
+        }
+        .cta-row {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .page {
+          padding: 35px 16px 72px;
+        }
+        .field-grid {
+          grid-template-columns: 1fr;
+        }
+        .field.full {
+          grid-column: auto;
+        }
+        .actions .btn {
+          min-width: 0;
+          flex: 1;
+        }
+        .card {
+          padding: 24px 19px;
+        }
+        .step-title {
+          font-size: 24px;
+        }
+        .notice {
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      const app = document.getElementById("app");
+      const githubPagesBase = location.hostname.endsWith("github.io")
+        ? `/${location.pathname.split("/").filter(Boolean)[0] || ""}`
+        : "";
+      function currentViewUrl() {
+        const fallback = new URLSearchParams(location.search).get("irum_path");
+        return fallback
+          ? new URL(fallback, location.origin)
+          : new URL(location.href);
+      }
+      function currentRoute() {
+        const pathname = currentViewUrl().pathname;
+        const route = githubPagesBase && pathname.startsWith(githubPagesBase)
+          ? pathname.slice(githubPagesBase.length) || "/"
+          : pathname;
+        return route.replace(/\/$/, "") || "/";
+      }
+      function hostedHref(path) {
+        return `${githubPagesBase}${path}`;
+      }
+      const routes = {
+        matching: "/apply/matching",
+        social: "/apply/social",
+        tier: "/tier-check",
+      };
+      const formState = {
+        journey: "matching",
+        step: 1,
+        name: "",
+        gender: "",
+        birthYear: "",
+        phone: "010-",
+        job: "",
+        region: "",
+        education: "",
+        mbti: "",
+        appeal: "",
+        schedule: "",
+        photo1: null,
+        photo2: null,
+        consent: false,
+      };
+      const utm = Object.fromEntries(
+        new URLSearchParams(currentViewUrl().search).entries(),
+      );
+      // Publishable key only. All privileged writes and signed uploads are handled by the Edge Function.
+      const IRUM_TEMP_CONFIG = {
+        supabaseUrl: "https://wiesmommcmwwwkwufgqg.supabase.co",
+        publishableKey: "sb_publishable_Y_9qyDnB3KYXKllIPJq9iQ_2xyyQO9f",
+        submitEndpoint:
+          "https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-intake-submit",
+      };
+      const invokeTemporaryIntake = async (body) => {
+        const response = await fetch(IRUM_TEMP_CONFIG.submitEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: IRUM_TEMP_CONFIG.publishableKey,
+            Authorization: `Bearer ${IRUM_TEMP_CONFIG.publishableKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok)
+          throw new Error(data.error || "SUBMISSION_SAVE_FAILED");
+        return data;
+      };
+      window.IRUM_TEMP_API = {
+        async submit(payload, files) {
+          const idempotencyKey = crypto.randomUUID();
+          const created = await invokeTemporaryIntake({
+            action: "create",
+            payload,
+            idempotency_key: idempotencyKey,
+          });
+          const photoPaths = [];
+          for (const file of files) {
+            const signed = await invokeTemporaryIntake({
+              action: "signed-upload",
+              submission_id: created.submission_id,
+              photo: { name: file.name, type: file.type, size: file.size },
+            });
+            const upload = await fetch(signed.signed_url, {
+              method: "PUT",
+              headers: { "Content-Type": file.type },
+              body: file,
+            });
+            if (!upload.ok) throw new Error("PHOTO_UPLOAD_FAILED");
+            photoPaths.push(signed.path);
+          }
+          await invokeTemporaryIntake({
+            action: "complete",
+            submission_id: created.submission_id,
+            photos: photoPaths,
+          });
+        },
+      };
+
+      function nav() {
+        return `<header class="nav"><a class="brand" href="${hostedHref("/")}" onclick="go(event,'/')"><small>premium</small><strong>이룸</strong></a><nav class="nav-links"><a href="${hostedHref("/")}" onclick="go(event,'/')">이룸 소개</a><a href="${hostedHref(routes.matching)}" onclick="go(event,'${routes.matching}')">검증 기반 1:1 매칭</a><a href="${hostedHref(routes.social)}" onclick="go(event,'${routes.social}')">프라이빗 소셜 모임</a></nav></header>`;
+      }
+      function footer() {
+        return `<footer class="footer">IRUM 임시 접수 페이지 · 개인정보는 임시 운영 목적 및 복구 후 IRUM CRM 인계를 위해 수집됩니다.<br/>제출 시스템은 외부 보안 저장소 연결 후에만 운영합니다.</footer>`;
+      }
+      function home() {
+        return `<main class="shell">${nav()}<section class="hero"><div><p class="eyebrow">CURATED PRIVATE CONNECTION</p><h1>검증된 인연을 위한<br/><em>프라이빗 연결</em></h1><p class="lead">이룸은 가볍게 소모되는 만남이 아니라, 서로의 결을 존중하는 연결을 설계합니다.</p><div class="cta-row"><a class="btn primary" href="${hostedHref(routes.matching)}" onclick="go(event,'${routes.matching}')">1:1 매칭 신청 <b>→</b></a><a class="btn secondary" href="${hostedHref(routes.social)}" onclick="go(event,'${routes.social}')">모임 신청 <b>→</b></a></div></div><div class="visual"><article class="insight"><p class="insight-label">IRUM PRIVATE STANDARD</p><h2>한 사람을 이해하는 과정부터<br/>만남의 시작은 달라집니다.</h2><div class="insight-grid"><div><span>01</span><b>프로필 확인</b></div><div><span>02</span><b>가치관 대화</b></div><div><span>03</span><b>개별 심사</b></div><div><span>04</span><b>맞춤 연결</b></div></div></article></div></section>${footer()}</main>`;
+      }
+      function radio(name, value, label, checked) {
+        return `<label class="choice"><input type="radio" name="${name}" value="${value}" ${checked ? "checked" : ""}/><span>${label}</span></label>`;
+      }
+      function form() {
+        const social = formState.journey === "social";
+        const title = social
+          ? "프라이빗 소셜 모임 신청"
+          : "검증 기반 1:1 매칭 신청";
+        const descriptor = social
+          ? "참석 가능한 일정과 프로필을 남겨주시면 개별적으로 안내드리겠습니다."
+          : "기본 정보와 프로필을 검토한 뒤, 개별 안내를 드리겠습니다.";
+        let content = "";
+        if (formState.step === 1)
+          content = `<p class="step-label">STEP 01 · 기본 정보</p><h1 class="step-title">먼저, 기본 정보를 알려주세요.</h1><div class="field-grid"><div class="field"><label>이름<span>*</span></label><input data-key="name" value="${formState.name}" placeholder="실명을 입력해주세요" /></div><div class="field"><label>성별<span>*</span></label><div class="choice-row">${radio("gender", "male", "남성", formState.gender === "male")}${radio("gender", "female", "여성", formState.gender === "female")}</div></div><div class="field"><label>출생연도<span>*</span></label><input data-key="birthYear" inputmode="numeric" maxlength="4" value="${formState.birthYear}" placeholder="예: 1994" /></div><div class="field"><label>휴대폰 번호<span>*</span></label><input data-key="phone" inputmode="numeric" maxlength="13" value="${formState.phone}" placeholder="010-0000-0000" /></div></div>`;
+        if (formState.step === 2)
+          content = `<p class="step-label">STEP 02 · 프로필</p><h1 class="step-title">당신의 결을 조금 더 알려주세요.</h1><div class="field-grid"><div class="field"><label>직업<span>*</span></label><input data-key="job" value="${formState.job}" placeholder="현재 직업을 입력해주세요" /></div><div class="field"><label>주 활동 지역<span>*</span></label><input data-key="region" value="${formState.region}" placeholder="예: 서울 강남구" /></div><div class="field"><label>학력</label><input data-key="education" value="${formState.education}" placeholder="최종 학력을 입력해주세요" /></div><div class="field"><label>MBTI</label><input data-key="mbti" maxlength="4" value="${formState.mbti}" placeholder="예: ENFJ" /></div>${social ? `<div class="field full"><label>참석 희망 일정<span>*</span></label><div class="choice-row">${radio("schedule", "next", "다음 모임 희망", formState.schedule === "next")}${radio("schedule", "contact", "일정 개별 안내 요청", formState.schedule === "contact")}</div></div>` : ""}<div class="field full"><label>나를 가장 잘 보여주는 매력 포인트<span>*</span></label><textarea data-key="appeal" placeholder="대화에서 중요하게 생각하는 것, 일상, 성향 등을 자유롭게 적어주세요.">${formState.appeal}</textarea></div></div>`;
+        if (formState.step === 3)
+          content = `<p class="step-label">STEP 03 · 사진</p><h1 class="step-title">최근 사진을 등록해주세요.</h1><p class="form-copy">프로필 확인을 위한 사진이며, 검토 목적 외 외부에 공개하지 않습니다.</p><div class="field"><label>사진 1<span>*</span></label><div class="file-row"><label class="file-trigger" for="photo1">파일 선택</label><input id="photo1" type="file" accept="image/jpeg,image/png,image/webp"/><span class="file-name" id="photo1-name">${formState.photo1?.name || "JPG, PNG, WEBP 형식의 사진을 선택해주세요."}</span></div></div><div class="field"><label>사진 2<span>*</span></label><div class="file-row"><label class="file-trigger" for="photo2">파일 선택</label><input id="photo2" type="file" accept="image/jpeg,image/png,image/webp"/><span class="file-name" id="photo2-name">${formState.photo2?.name || "JPG, PNG, WEBP 형식의 사진을 선택해주세요."}</span></div></div>`;
+        if (formState.step === 4)
+          content = `<p class="step-label">STEP 04 · 동의 및 제출</p><h1 class="step-title">마지막으로 확인해주세요.</h1><div class="check"><input id="consent" type="checkbox" ${formState.consent ? "checked" : ""}/><label for="consent">임시 접수 운영 목적의 개인정보 수집·이용 및, 서비스 복구 후 IRUM CRM으로의 안전한 인계 가능성에 동의합니다.<span>*</span></label></div><p class="form-copy" style="margin-top:18px">제출 전에는 외부 저장소가 실제 연결되어 있는지 확인해야 합니다. 개인정보와 사진은 광고 분석 도구에 전송하지 않습니다.</p>`;
+        return `<main class="shell">${nav()}<section class="page"><a class="back" href="${hostedHref("/")}" onclick="go(event,'/')">← 이룸 소개로 돌아가기</a><h1 class="form-title">${title}</h1><p class="form-copy">${descriptor}</p><p class="notice">임시 운영 페이지입니다. 신청 정보는 외부 보안 저장소에 보관되며, IRUM 서비스 복구 후 검토를 거쳐 CRM에 인계됩니다.</p><div class="progress">${[1, 2, 3, 4].map((n) => `<div class="${n <= formState.step ? "active" : ""}"></div>`).join("")}</div><article class="card">${content}<p class="error" id="error"></p><div class="actions">${formState.step > 1 ? '<button class="btn secondary" onclick="previousStep()">이전</button>' : "<span></span>"}<button class="btn primary" onclick="nextStep()">${formState.step === 4 ? "신청 제출" : "다음"} <b>→</b></button></div></article></section>${footer()}</main>`;
+      }
+      function tier() {
+        return `<main class="shell">${nav()}<section class="page"><a class="back" href="${hostedHref("/")}" onclick="go(event,'/')">← 이룸 소개로 돌아가기</a><article class="card"><p class="step-label">IRUM PRE-CHECK</p><h1 class="step-title">나에게 맞는 연결을<br/>먼저 확인해보세요.</h1><p class="form-copy">현재 임시 운영 중에는 간단한 사전 확인 후 맞춤 신청 페이지로 안내합니다.</p><a class="btn primary" href="${hostedHref(routes.matching)}" onclick="go(event,'${routes.matching}')">1:1 매칭 신청으로 이동 <b>→</b></a></article></section>${footer()}</main>`;
+      }
+      function render() {
+        const path = currentRoute();
+        if (path === routes.matching) {
+          formState.journey = "matching";
+          app.innerHTML = form();
+        } else if (path === routes.social) {
+          formState.journey = "social";
+          app.innerHTML = form();
+        } else if (path === routes.tier) {
+          app.innerHTML = tier();
+        } else {
+          app.innerHTML = home();
+        }
+        bindForm();
+      }
+      function go(e, path) {
+        e.preventDefault();
+        history.pushState({}, "", hostedHref(path));
+        formState.step = 1;
+        render();
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+      function bindForm() {
+        document.querySelectorAll("[data-key]").forEach((el) =>
+          el.addEventListener("input", () => {
+            let value = el.value;
+            if (el.dataset.key === "phone") {
+              value = value
+                .replace(/\D/g, "")
+                .slice(0, 11)
+                .replace(/(\d{3})(\d{0,4})(\d{0,4})/, (_, a, b, c) =>
+                  [a, b, c].filter(Boolean).join("-"),
+                );
+              el.value = value;
+            }
+            formState[el.dataset.key] = value;
+          }),
+        );
+        document
+          .querySelectorAll('input[name="gender"],input[name="schedule"]')
+          .forEach((el) =>
+            el.addEventListener("change", () => {
+              formState[el.name] = el.value;
+            }),
+          );
+        ["photo1", "photo2"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el)
+            el.addEventListener("change", () => {
+              const f = el.files?.[0];
+              if (f) {
+                if (f.size > 8 * 1024 * 1024) {
+                  showError("사진 파일은 8MB 이하만 등록할 수 있습니다.");
+                  el.value = "";
+                  return;
+                }
+                formState[id] = f;
+                document.getElementById(id + "-name").textContent = f.name;
+              }
+            });
+        });
+        const consent = document.getElementById("consent");
+        if (consent)
+          consent.addEventListener(
+            "change",
+            () => (formState.consent = consent.checked),
+          );
+      }
+      function showError(text) {
+        const el = document.getElementById("error");
+        if (el) {
+          el.textContent = text;
+          el.classList.add("show");
+        }
+      }
+      function validate() {
+        if (formState.step === 1) {
+          if (
+            !formState.name.trim() ||
+            !formState.gender ||
+            !/^\d{4}$/.test(formState.birthYear) ||
+            !/^010-\d{4}-\d{4}$/.test(formState.phone)
+          )
+            return "이름, 성별, 4자리 출생연도, 010-0000-0000 형식의 휴대폰 번호를 확인해주세요.";
+        }
+        if (formState.step === 2) {
+          if (
+            !formState.job.trim() ||
+            !formState.region.trim() ||
+            !formState.appeal.trim()
+          )
+            return "직업, 주 활동 지역, 매력 포인트는 필수입니다.";
+          if (formState.journey === "social" && !formState.schedule)
+            return "참석 희망 일정을 선택해주세요.";
+        }
+        if (formState.step === 3 && !formState.photo1)
+          return "사진 1장을 등록해주세요.";
+        if (formState.step === 4 && !formState.consent)
+          return "개인정보 수집·이용 동의가 필요합니다.";
+        return "";
+      }
+      async function nextStep() {
+        const error = validate();
+        if (error) {
+          showError(error);
+          return;
+        }
+        if (formState.step < 4) {
+          formState.step++;
+          render();
+          window.scrollTo({ top: 0, behavior: "instant" });
+          return;
+        }
+        const payload = {
+          external_submission_id: crypto.randomUUID(),
+          submission_type: formState.journey,
+          profile: { ...formState, photo1: undefined, photo2: undefined },
+          marketing: {
+            entry_path: location.pathname,
+            referrer: document.referrer,
+            utm,
+          },
+          consent_at: new Date().toISOString(),
+          consent_version: "temporary-v1",
+        };
+        try {
+          await window.IRUM_TEMP_API.submit(
+            payload,
+            [formState.photo1, formState.photo2].filter(Boolean),
+          );
+          app.innerHTML = `<main class="shell">${nav()}<section class="page"><article class="card success"><div class="mark">✓</div><h2>신청이 접수되었습니다.</h2><p>입력하신 정보를 검토한 뒤 개별적으로 안내드리겠습니다.<br/>IRUM과의 좋은 연결을 준비하겠습니다.</p></article></section>${footer()}</main>`;
+        } catch (e) {
+          const message =
+            {
+              EXTERNAL_STORAGE_NOT_CONFIGURED:
+                "외부 보안 저장소 연결 전에는 실제 신청을 받을 수 없습니다.",
+              INVALID_PHOTO:
+                "사진은 JPG, PNG 또는 WEBP 형식이며 8MB 이하여야 합니다.",
+              PHOTO_UPLOAD_FAILED:
+                "사진 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+              SUBMISSION_SAVE_FAILED:
+                "신청 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            }[e.message] ||
+            "신청 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.";
+          showError(message);
+        }
+      }
+      function previousStep() {
+        formState.step = Math.max(1, formState.step - 1);
+        render();
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+      addEventListener("popstate", render);
+      render();
+    </script>
+  </body>
+</html>

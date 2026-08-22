@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>IRUM OS · 임시 접수 운영</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&family=Pretendard:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --navy: #16233c;
+        --ink: #18202e;
+        --muted: #6e7785;
+        --line: #e6e9ef;
+        --bg: #f6f7f9;
+        --gold: #c59c2a;
+        --gold-soft: #fff9e8;
+        --ok: #15704d;
+        --warn: #a56700;
+        --danger: #b54747;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Pretendard, Manrope, sans-serif;
+        font-size: 14px;
+      }
+      .login {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .login-card {
+        width: min(100%, 430px);
+        padding: 38px;
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: 0 25px 70px rgba(22, 35, 60, 0.12);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        color: var(--navy);
+        font:
+          700 18px Manrope,
+          sans-serif;
+        letter-spacing: -0.04em;
+      }
+      .brand-mark {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        background: var(--navy);
+        color: #fff;
+        font:
+          500 11px "DM Mono",
+          monospace;
+      }
+      .login h1 {
+        margin: 32px 0 8px;
+        font-size: 26px;
+        letter-spacing: -0.05em;
+      }
+      .login p {
+        margin: 0 0 26px;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 15px;
+      }
+      .field label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #424b5a;
+      }
+      .field input {
+        height: 46px;
+        border: 1px solid #d9dee8;
+        padding: 0 13px;
+        outline: none;
+        font: inherit;
+      }
+      .field input:focus {
+        border-color: var(--navy);
+        box-shadow: 0 0 0 3px rgba(22, 35, 60, 0.09);
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+      }
+      .primary {
+        height: 47px;
+        width: 100%;
+        border: 0;
+        background: var(--navy);
+        color: #fff;
+        font-weight: 700;
+      }
+      .primary:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+      .login-error {
+        min-height: 18px;
+        color: var(--danger);
+        font-size: 12px;
+        margin: 10px 0;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 242px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      .side {
+        padding: 22px 15px;
+        background: #fff;
+        border-right: 1px solid var(--line);
+      }
+      .side .brand {
+        padding: 0 8px 28px;
+      }
+      .menu-label {
+        margin: 19px 8px 8px;
+        color: #9aa3b0;
+        font:
+          500 10px "DM Mono",
+          monospace;
+        letter-spacing: 0.12em;
+      }
+      .menu {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        width: 100%;
+        padding: 11px 10px;
+        border: 0;
+        background: transparent;
+        color: #5e6877;
+        text-align: left;
+      }
+      .menu.active {
+        background: #eef1f6;
+        color: var(--navy);
+        font-weight: 700;
+      }
+      .menu i {
+        font-style: normal;
+        color: var(--gold);
+      }
+      .main {
+        min-width: 0;
+      }
+      .top {
+        height: 70px;
+        padding: 0 34px;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .title small {
+        display: block;
+        color: #8992a0;
+        font:
+          500 10px "DM Mono",
+          monospace;
+        letter-spacing: 0.11em;
+      }
+      .title h1 {
+        margin: 3px 0 0;
+        font-size: 18px;
+        letter-spacing: -0.04em;
+      }
+      .operator {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #5d6675;
+        font-size: 12px;
+      }
+      .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #e9edf2;
+        color: var(--navy);
+        font-weight: 700;
+      }
+      .content {
+        padding: 30px 34px 56px;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 13px;
+        margin-bottom: 22px;
+      }
+      .stat {
+        padding: 18px;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      .stat span {
+        display: block;
+        color: #8992a0;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .stat b {
+        display: block;
+        margin-top: 8px;
+        font:
+          600 24px Manrope,
+          sans-serif;
+        letter-spacing: -0.06em;
+      }
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 12px;
+      }
+      .search {
+        flex: 1;
+        max-width: 360px;
+        height: 43px;
+        border: 1px solid var(--line);
+        padding: 0 13px;
+        background: #fff;
+        outline: 0;
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 840px;
+      }
+      .table th {
+        padding: 12px 15px;
+        background: #fafbfd;
+        border-bottom: 1px solid var(--line);
+        color: #84909f;
+        text-align: left;
+        font-size: 11px;
+      }
+      .table td {
+        padding: 15px;
+        border-bottom: 1px solid #eef0f4;
+        vertical-align: middle;
+      }
+      .table tr {
+        cursor: pointer;
+      }
+      .table tr:hover {
+        background: #fafbfd;
+      }
+      .name {
+        font-weight: 700;
+      }
+      .sub {
+        margin-top: 4px;
+        color: #7b8593;
+        font-size: 12px;
+      }
+      .badge {
+        display: inline-flex;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .badge.matching {
+        background: #edf2fb;
+        color: #315c9f;
+      }
+      .badge.social {
+        background: #f8f0fa;
+        color: #84478d;
+      }
+      .badge.consent {
+        background: #edf8f1;
+        color: var(--ok);
+      }
+      .empty {
+        padding: 54px 24px;
+        text-align: center;
+        color: #7a8492;
+      }
+      .drawer {
+        position: fixed;
+        inset: 0 0 0 auto;
+        width: min(100%, 520px);
+        background: #fff;
+        box-shadow: -18px 0 50px rgba(20, 26, 37, 0.14);
+        transform: translateX(105%);
+        transition: transform 0.2s ease;
+        z-index: 5;
+        overflow: auto;
+      }
+      .drawer.open {
+        transform: translateX(0);
+      }
+      .drawer-top {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        padding: 20px 25px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .drawer-body {
+        padding: 26px;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: 125px 1fr;
+        gap: 0;
+        border-top: 1px solid var(--line);
+        border-left: 1px solid var(--line);
+        margin-top: 18px;
+      }
+      .detail-grid div {
+        min-height: 46px;
+        padding: 12px;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        word-break: break-word;
+      }
+      .detail-grid div:nth-child(odd) {
+        background: #fafbfd;
+        color: #77818f;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .photo-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 11px;
+        margin-top: 14px;
+      }
+      .photo {
+        padding: 12px;
+        border: 1px solid var(--line);
+        font-size: 12px;
+        color: #5e6877;
+      }
+      .photo button {
+        margin-top: 8px;
+        border: 1px solid #d4dae3;
+        background: #fff;
+        padding: 7px 9px;
+        font-size: 11px;
+      }
+      .notice {
+        padding: 13px 15px;
+        background: var(--gold-soft);
+        border: 1px solid #f0dfa7;
+        color: #80611c;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      @media (max-width: 760px) {
+        .layout {
+          display: block;
+        }
+        .side {
+          display: none;
+        }
+        .top {
+          padding: 0 18px;
+        }
+        .content {
+          padding: 21px 16px;
+        }
+        .stat-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .toolbar {
+          display: block;
+        }
+        .search {
+          max-width: none;
+          width: 100%;
+          margin-bottom: 10px;
+        }
+        .drawer {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      const config = {
+        url: "https://wiesmommcmwwwkwufgqg.supabase.co",
+        key: "sb_publishable_Y_9qyDnB3KYXKllIPJq9iQ_2xyyQO9f",
+        endpoint:
+          "https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-intake-submit",
+      };
+      const client = window.supabase.createClient(config.url, config.key);
+      const app = document.getElementById("app");
+      let records = [];
+      let selected = null;
+      const esc = (value = "") =>
+        String(value).replace(
+          /[&<>'"]/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              "'": "&#39;",
+              '"': "&quot;",
+            })[c],
+        );
+      async function invokeAdmin(action, body = {}) {
+        const {
+          data: { session },
+        } = await client.auth.getSession();
+        if (!session) throw new Error("UNAUTHENTICATED");
+        const response = await fetch(config.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: config.key,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ action, ...body }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "ADMIN_READ_FAILED");
+        return data;
+      }
+      function login() {
+        app.innerHTML = `<main class="login"><section class="login-card"><div class="brand"><span class="brand-mark">IO</span>IRUM OS <small>· TEMPORARY</small></div><h1>임시 운영자 로그인</h1><p>Type C 기간의 외부 접수 데이터를 확인하는 전용 콘솔입니다. 일반 신청자는 접근할 수 없습니다.</p><div class="field"><label>이메일</label><input id="email" type="email" autocomplete="email"/></div><div class="field"><label>비밀번호</label><input id="password" type="password" autocomplete="current-password"/></div><p class="login-error" id="login-error"></p><button class="primary" id="login">로그인</button></section></main>`;
+        document.getElementById("login").onclick = async () => {
+          const button = document.getElementById("login");
+          button.disabled = true;
+          const { error } = await client.auth.signInWithPassword({
+            email: document.getElementById("email").value,
+            password: document.getElementById("password").value,
+          });
+          if (error) {
+            document.getElementById("login-error").textContent =
+              "로그인 정보를 확인해주세요.";
+            button.disabled = false;
+            return;
+          }
+          dashboard();
+        };
+      }
+      function payload(record) {
+        return record.payload || {};
+      }
+      function phone(record) {
+        return payload(record).profile?.phone || "-";
+      }
+      function name(record) {
+        return payload(record).profile?.name || "이름 미입력";
+      }
+      function formatDate(value) {
+        return new Date(value).toLocaleString("ko-KR", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+      }
+      function dashboard() {
+        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span>IRUM OS</div><p class="menu-label">TEMPORARY OPERATIONS</p><button class="menu active"><i>●</i>임시 접수 DB</button><button class="menu" id="import"><i>◌</i>CRM Import Preview</button><p class="menu-label">SYSTEM</p><button class="menu" id="logout"><i>↗</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>IRUM OS · EXTERNAL INTAKE</small><h1>임시 접수 운영</h1></div><div class="operator"><span>외부 저장소 연결됨</span><span class="avatar">A</span></div></header><section class="content"><p class="notice">이 화면은 Type C 기간의 외부 접수만 표시합니다. 실제 IRUM CRM 생성은 복구 후 Import Preview 승인 시점에만 진행합니다.</p><div class="stat-grid"><article class="stat"><span>전체 접수</span><b id="total">–</b></article><article class="stat"><span>1:1 매칭</span><b id="matching">–</b></article><article class="stat"><span>소셜 모임</span><b id="social">–</b></article><article class="stat"><span>사진 등록</span><b id="photos">–</b></article></div><div class="toolbar"><input id="search" class="search" placeholder="이름 또는 연락처로 검색"/><button class="menu" id="refresh">↻ 새로고침</button></div><div class="table-wrap"><table class="table"><thead><tr><th>접수 시각</th><th>신청자</th><th>유형</th><th>연락처</th><th>동의</th><th>사진</th></tr></thead><tbody id="rows"></tbody></table></div></section></section></main><aside class="drawer" id="drawer"></aside>`;
+        document.getElementById("logout").onclick = async () => {
+          await client.auth.signOut();
+          login();
+        };
+        document.getElementById("refresh").onclick = load;
+        document.getElementById("import").onclick = importPreview;
+        document.getElementById("search").oninput = renderRows;
+        load();
+      }
+      function importPreview() {
+        const ready = records.filter((record) => {
+          const p = payload(record);
+          return (
+            p.status === "submitted" &&
+            p.consent_at &&
+            (p.photo_refs || []).length
+          );
+        });
+        const attention = records.filter((record) => !ready.includes(record));
+        app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span>IRUM OS</div><p class="menu-label">TEMPORARY OPERATIONS</p><button class="menu" id="intake"><i>●</i>임시 접수 DB</button><button class="menu active"><i>◌</i>CRM Import Preview</button><p class="menu-label">SYSTEM</p><button class="menu" id="logout"><i>↗</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>RECOVERY HANDOFF · READ ONLY</small><h1>CRM Import Preview</h1></div><div class="operator"><span>원본 데이터 변경 없음</span><span class="avatar">A</span></div></header><section class="content"><p class="notice"><b>승인형 인계 원칙.</b> 현재 화면은 복구 후 IRUM CRM Import Preview에서 사용할 원본 점검 목록입니다. 이 임시 시스템에서는 Applicant를 생성하거나 원본을 수정하지 않습니다.</p><div class="stat-grid"><article class="stat"><span>원본 접수</span><b>${records.length}</b></article><article class="stat"><span>인계 예정</span><b>${ready.length}</b></article><article class="stat"><span>보완 필요</span><b>${attention.length}</b></article><article class="stat"><span>사진 대기</span><b>${records.filter((r) => (payload(r).photo_refs || []).length === 0).length}</b></article></div><div class="toolbar"><div class="sub">연락처 정규화값·신청 유형·외부 접수 ID를 기준으로 중복을 판정하고, 사진은 IRUM Storage 이전 성공 뒤에만 연결합니다.</div><button class="menu" id="export">↓ 원본 Manifest</button></div><div class="table-wrap"><table class="table"><thead><tr><th>상태</th><th>신청자</th><th>유형</th><th>사진</th><th>인계 조건</th></tr></thead><tbody>${
+          records.length
+            ? records
+                .map((record) => {
+                  const p = payload(record),
+                    ok = ready.includes(record);
+                  return `<tr><td><span class="badge ${ok ? "consent" : "matching"}">${ok ? "인계 예정" : "보완 필요"}</span></td><td><div class="name">${esc(name(record))}</div><div class="sub">외부 접수 #${record.id}</div></td><td>${p.submission_type === "social" ? "소셜" : "1:1 매칭"}</td><td>${(p.photo_refs || []).length}장</td><td>${ok ? "동의·사진·원본 완료" : "동의 또는 사진 상태 확인 필요"}</td></tr>`;
+                })
+                .join("")
+            : `<tr><td colspan="5" class="empty">아직 임시 접수가 없습니다.</td></tr>`
+        }</tbody></table></div></section></section></main>`;
+        document.getElementById("intake").onclick = dashboard;
+        document.getElementById("logout").onclick = async () => {
+          await client.auth.signOut();
+          login();
+        };
+        document.getElementById("export").onclick = () => {
+          const manifest = records.map(({ id, created_at, payload }) => ({
+            external_record_id: id,
+            received_at: created_at,
+            payload,
+          }));
+          const href = URL.createObjectURL(
+            new Blob([JSON.stringify(manifest, null, 2)], {
+              type: "application/json",
+            }),
+          );
+          const link = document.createElement("a");
+          link.href = href;
+          link.download = `irum-temporary-intake-manifest-${new Date().toISOString().slice(0, 10)}.json`;
+          link.click();
+          URL.revokeObjectURL(href);
+        };
+      }
+      async function load() {
+        try {
+          const data = await invokeAdmin("admin-list");
+          records = data.records || [];
+          const kinds = records.map(payload);
+          document.getElementById("total").textContent = records.length;
+          document.getElementById("matching").textContent = kinds.filter(
+            (x) => x.submission_type === "matching",
+          ).length;
+          document.getElementById("social").textContent = kinds.filter(
+            (x) => x.submission_type === "social",
+          ).length;
+          document.getElementById("photos").textContent = kinds.filter(
+            (x) => (x.photo_refs || []).length,
+          ).length;
+          renderRows();
+        } catch (error) {
+          document.getElementById("rows").innerHTML =
+            `<tr><td colspan="6" class="empty">접수 목록을 불러올 권한이 없습니다. 임시 관리자 allowlist와 로그인 계정을 확인해주세요.</td></tr>`;
+        }
+      }
+      function renderRows() {
+        const q = document.getElementById("search").value.trim().toLowerCase();
+        const list = records.filter((r) =>
+          `${name(r)} ${phone(r)}`.toLowerCase().includes(q),
+        );
+        document.getElementById("rows").innerHTML = list.length
+          ? list
+              .map((r) => {
+                const p = payload(r);
+                return `<tr data-id="${r.id}"><td>${esc(formatDate(r.created_at))}</td><td><div class="name">${esc(name(r))}</div><div class="sub">${esc(p.profile?.birthYear || "-")} · ${esc(p.profile?.job || "-")}</div></td><td><span class="badge ${p.submission_type === "social" ? "social" : "matching"}">${p.submission_type === "social" ? "소셜" : "1:1 매칭"}</span></td><td>${esc(phone(r))}</td><td><span class="badge consent">동의</span></td><td>${(p.photo_refs || []).length}장</td></tr>`;
+              })
+              .join("")
+          : `<tr><td colspan="6" class="empty">조건에 맞는 접수가 없습니다.</td></tr>`;
+        document
+          .querySelectorAll("tr[data-id]")
+          .forEach(
+            (row) =>
+              (row.onclick = () =>
+                openDetail(
+                  records.find((r) => r.id === Number(row.dataset.id)),
+                )),
+          );
+      }
+      async function openDetail(record) {
+        selected = record;
+        const p = payload(record),
+          profile = p.profile || {},
+          drawer = document.getElementById("drawer");
+        drawer.innerHTML = `<header class="drawer-top"><div><b>${esc(name(record))}</b><div class="sub">임시 접수 #${record.id}</div></div><button class="menu" id="close">닫기</button></header><section class="drawer-body"><span class="badge ${p.submission_type === "social" ? "social" : "matching"}">${p.submission_type === "social" ? "프라이빗 소셜" : "1:1 매칭"}</span><div class="detail-grid"><div>접수 시각</div><div>${esc(formatDate(record.created_at))}</div><div>연락처</div><div>${esc(profile.phone || "-")}</div><div>출생연도 / 성별</div><div>${esc(profile.birthYear || "-")} / ${esc(profile.gender || "-")}</div><div>직업 / 지역</div><div>${esc(profile.job || "-")} / ${esc(profile.region || "-")}</div><div>학력 / MBTI</div><div>${esc(profile.education || "-")} / ${esc(profile.mbti || "-")}</div><div>매력 포인트</div><div>${esc(profile.appeal || "-")}</div><div>유입 UTM</div><div>${esc(JSON.stringify(p.marketing?.utm || {}))}</div><div>동의 기록</div><div>${esc(p.consent_at || "-")} · ${esc(p.consent_version || "-")}</div></div><h3>제출 사진</h3><div class="photo-list">${(p.photo_refs || []).map((photo) => `<div class="photo"><b>${esc(photo.name)}</b><br/><span>${esc(photo.mime || "")}</span><br/><button data-path="${esc(photo.path)}">10분 열람 링크</button></div>`).join("") || '<p class="sub">등록된 사진이 없습니다.</p>'}</div></section>`;
+        drawer.classList.add("open");
+        document.getElementById("close").onclick = () =>
+          drawer.classList.remove("open");
+        drawer
+          .querySelectorAll("[data-path]")
+          .forEach(
+            (button) => (button.onclick = () => openPhoto(button.dataset.path)),
+          );
+      }
+      async function openPhoto(path) {
+        try {
+          const data = await invokeAdmin("admin-photo-url", {
+            submission_id: selected?.id,
+            path,
+          });
+          if (!data.signed_url) throw new Error("PHOTO_READ_FAILED");
+          window.open(data.signed_url, "_blank", "noopener,noreferrer");
+        } catch (error) {
+          alert(
+            "사진 열람 권한이 없습니다. 임시 관리자 allowlist와 로그인 계정을 확인해주세요.",
+          );
+        }
+      }
+      (async () => {
+        const {
+          data: { session },
+        } = await client.auth.getSession();
+        session ? dashboard() : login();
+      })();
+    </script>
+  </body>
+</html>

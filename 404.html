@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>이룸 임시 페이지로 이동 중</title>
+  </head>
+  <body>
+    <script>
+      const pieces = location.pathname.split("/").filter(Boolean);
+      const githubPagesBase = location.hostname.endsWith("github.io") && pieces.length
+        ? `/${pieces.shift()}`
+        : "";
+      const route = `/${pieces.join("/")}`.replace(/\/$/, "") || "/";
+      const requested = `${route}${location.search}${location.hash}`;
+      location.replace(
+        `${githubPagesBase || "/"}?irum_path=${encodeURIComponent(requested)}`,
+      );
+    </script>
+  </body>
+</html>
