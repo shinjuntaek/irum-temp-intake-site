@@ -457,6 +457,22 @@
       .detail-grid div { border-color:#e5e2da; }
       .detail-grid div:nth-child(odd) { background:#fbfaf7; color:#777064; }
       .photo { border-color:#e5e2da; background:#fbfaf7; }
+      .consultation-panel { margin-top:24px; border-top:1px solid #e5e2da; padding-top:20px; }
+      .consultation-panel h3 { margin:0 0 6px; color:#27231e; font-size:15px; }
+      .consultation-help { margin:0 0 14px; color:#847c70; font-size:12px; line-height:1.55; }
+      .consultation-form { display:grid; gap:10px; padding:15px; border:1px solid #e5e2da; background:#fbfaf7; }
+      .consultation-form textarea { min-height:100px; width:100%; resize:vertical; border:1px solid #dcd7cd; padding:11px; font:inherit; line-height:1.55; outline:0; }
+      .consultation-form textarea:focus,.consultation-form select:focus,.consultation-form input:focus { border-color:#b48a20; box-shadow:0 0 0 3px rgba(197,156,42,.12); }
+      .consultation-meta { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+      .consultation-meta select,.consultation-meta input { height:38px; min-width:0; border:1px solid #dcd7cd; background:#fff; padding:0 9px; font:inherit; outline:0; }
+      .consultation-save { height:40px; border:0; background:#171614; color:#fff; font-size:12px; font-weight:700; }
+      .consultation-save:disabled { opacity:.55; cursor:wait; }
+      .consultation-entry { padding:13px 0; border-bottom:1px solid #ece8df; }
+      .consultation-entry:last-child { border-bottom:0; }
+      .consultation-entry-head { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#847c70; font-size:11px; }
+      .consultation-entry p { margin:8px 0 0; white-space:pre-wrap; color:#3c3832; font-size:13px; line-height:1.65; }
+      .consultation-entry-action { margin-top:7px; color:#776027; font-size:11px; }
+      @media (max-width:760px) { .consultation-meta { grid-template-columns:1fr; } }
       @media (max-width:760px) { .side{display:none}.layout{display:block}.top{height:64px;padding:0 18px}.content{padding:20px 16px 44px}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat{min-height:94px}.drawer{width:100%} }
 
     </style>
@@ -581,6 +597,53 @@
           timeStyle: "short",
         });
       }
+      const consultationStatusLabel = (status) => ({ before: "상담전", in_progress: "상담중", completed: "상담완료" })[status] || "상태 미지정";
+      function consultationPanel(subjectType, subjectId) {
+        return `<section class="consultation-panel" id="consultation-panel"><h3>임시 상담 기록</h3><p class="consultation-help">이 메모는 Type C 기간 동안 외부 Supabase에만 append-only로 저장됩니다. 원본 IRUM CRM은 변경하지 않으며, 복구 후 Import Preview에 함께 포함됩니다.</p><form class="consultation-form" id="consultation-form"><textarea id="consultation-note" maxlength="10000" required placeholder="상담 내용, 확인 사항, 보완 요청 등을 기록해 주세요."></textarea><div class="consultation-meta"><select id="consultation-status"><option value="">상담 상태 변경 없음</option><option value="before">상담전</option><option value="in_progress">상담중</option><option value="completed">상담완료</option></select><input id="consultation-next-action" maxlength="500" placeholder="다음 액션 (선택)"/><input id="consultation-due-at" type="datetime-local"/></div><button class="consultation-save" type="submit">상담 기록 저장</button></form><div id="consultation-entries"><p class="sub">상담 기록을 불러오는 중입니다.</p></div></section>`;
+      }
+      function renderConsultationEntries(entries) {
+        const target = document.getElementById("consultation-entries");
+        if (!target) return;
+        target.innerHTML = entries.length ? entries.map((entry) => `<article class="consultation-entry"><div class="consultation-entry-head"><span>${esc(entry.created_by_email || "임시 관리자")} · ${esc(formatDate(entry.created_at))}</span>${entry.consultation_status ? `<span class="badge snapshot">${esc(consultationStatusLabel(entry.consultation_status))}</span>` : ""}</div><p>${esc(entry.note_text)}</p>${entry.next_action ? `<div class="consultation-entry-action">다음 액션 · ${esc(entry.next_action)}${entry.next_action_due_at ? ` · ${esc(formatDate(entry.next_action_due_at))}` : ""}</div>` : ""}</article>`).join("") : `<p class="sub">아직 임시 상담 기록이 없습니다.</p>`;
+      }
+      async function mountConsultationPanel(subjectType, subjectId) {
+        const panel = document.getElementById("consultation-panel");
+        if (!panel) return;
+        const entriesTarget = document.getElementById("consultation-entries");
+        const refresh = async () => {
+          try {
+            const data = await invokeAdmin("consultation-list", { subject_type: subjectType, subject_id: subjectId });
+            renderConsultationEntries(data.records || []);
+          } catch {
+            if (entriesTarget) entriesTarget.innerHTML = `<p class="sub">상담 기록 저장소를 준비 중이거나 열람 권한이 없습니다.</p>`;
+          }
+        };
+        document.getElementById("consultation-form").onsubmit = async (event) => {
+          event.preventDefault();
+          const button = document.querySelector("#consultation-form .consultation-save");
+          button.disabled = true;
+          try {
+            await invokeAdmin("consultation-add", {
+              subject_type: subjectType,
+              subject_id: subjectId,
+              note_text: document.getElementById("consultation-note").value,
+              consultation_status: document.getElementById("consultation-status").value || null,
+              next_action: document.getElementById("consultation-next-action").value,
+              next_action_due_at: document.getElementById("consultation-due-at").value || null,
+            });
+            document.getElementById("consultation-note").value = "";
+            document.getElementById("consultation-status").value = "";
+            document.getElementById("consultation-next-action").value = "";
+            document.getElementById("consultation-due-at").value = "";
+            await refresh();
+          } catch (error) {
+            alert("상담 기록을 저장하지 못했습니다. 로그인 상태와 임시 상담 저장소 준비 상태를 확인해 주세요.");
+          } finally {
+            button.disabled = false;
+          }
+        };
+        await refresh();
+      }
       function dashboard() {
         app.innerHTML = `<main class="layout"><aside class="side"><div class="brand"><span class="brand-mark">IO</span><span><small>IRUM OS</small>운영 콘솔</span></div><p class="menu-label">홈</p><button class="menu active" id="dashboard"><i>□</i>대시보드</button><p class="menu-label">회원 운영</p><button class="menu" id="intake"><i>□</i>신청자 <span class="nav-scope">임시</span></button><button class="menu" id="legacy"><i>□</i>기존 신청자 <span class="nav-scope">읽기</span></button><p class="menu-label">업무 관리</p><button class="menu" id="import"><i>□</i>CRM Import Preview</button><p class="menu-label">시스템 관리</p><button class="menu" id="logout"><i>□</i>로그아웃</button></aside><section class="main"><header class="top"><div class="title"><small>IRUM OS · TEMPORARY DASHBOARD</small><h1>대시보드</h1></div><div class="operator"><span>외부 저장소 연결됨</span><span class="avatar">A</span></div></header><section class="content"><p class="notice"><b>중단 기간 운영 화면.</b> 임시 접수와 기존 상담 Snapshot을 분리해 열람합니다. 기존 IRUM CRM 생성·수정은 복구 후 승인형 Import 절차에서만 진행합니다.</p><div class="stat-grid"><article class="stat"><span>전체 접수</span><b id="total">–</b></article><article class="stat"><span>1:1 매칭</span><b id="matching">–</b></article><article class="stat"><span>소셜 모임</span><b id="social">–</b></article><article class="stat"><span>사진 등록</span><b id="photos">–</b></article></div><div class="toolbar"><input id="search" class="search" placeholder="이름 또는 연락처로 검색"/><button class="menu" id="refresh">↻ 새로고침</button></div><div class="table-wrap"><table class="table"><thead><tr><th>접수 시각</th><th>신청자</th><th>유형</th><th>연락처</th><th>동의</th><th>사진</th></tr></thead><tbody id="rows"></tbody></table></div></section></section></main><aside class="drawer" id="drawer"></aside>`;
         document.getElementById("logout").onclick = async () => {
@@ -641,10 +704,11 @@
       function openLegacyDetail(record) {
         const p = legacyProfile(record), c = legacyConsultation(record), s = record.snapshot?.screening || {};
         const drawer = document.getElementById("drawer");
-        drawer.innerHTML = `<header class="drawer-top"><div><b>${esc(p.name || "이름 미입력")}</b><div class="sub">기존 IRUM 신청자 #${esc(record.source_application_id)} · 읽기 전용</div></div><button class="menu" id="close">닫기</button></header><section class="drawer-body"><span class="badge snapshot">기존 상담 Snapshot · 읽기 전용</span><div class="detail-grid"><div>원본 최종 갱신</div><div>${esc(formatDate(record.source_updated_at || record.exported_at))}</div><div>연락처 / 이메일</div><div>${esc(p.phone || "-")} / ${esc(p.email || "-")}</div><div>출생연도 / 성별</div><div>${esc(p.birthYear || "-")} / ${esc(p.gender === "female" ? "여성" : p.gender === "male" ? "남성" : "-")}</div><div>직업 / 학력</div><div>${esc(p.job || "-")} / ${esc(p.education || "-")}</div><div>지역 / MBTI</div><div>${esc(p.region || "-")} / ${esc(p.mbti || "-")}</div><div>상담 상태 / 상담원</div><div>${esc(c.consultationStatus === "in_progress" ? "상담중" : c.consultationStatus === "completed" ? "상담완료" : "상담전")} / ${esc(c.consultantName || "미배정")}</div><div>다음 액션</div><div>${esc(c.nextActionLabel || c.nextAction || "-")} ${c.nextActionDueAt ? `· ${esc(formatDate(c.nextActionDueAt))}` : ""}</div><div>운영 등급 / 우선도</div><div>${esc(s.finalGrade || "-")} / ${esc(s.consultationPriority || "-")}</div><div>신청 메모</div><div>${esc(p.memo || "-")}</div><div>상담 메모</div><div>${esc((record.snapshot?.notes || []).map((n) => n.content).filter(Boolean).join("\n\n") || "-")}</div></div><h3>기존 사진</h3><div class="photo-list">${(record.photo_refs || []).map((photo, index) => `<div class="photo"><b>사진 ${index + 1}</b><br/><span>비공개 Snapshot 보관</span><br/><button data-legacy-path="${esc(photo.snapshot_path)}">10분 열람 링크</button></div>`).join("") || '<p class="sub">복제된 사진이 없습니다.</p>'}</div></section>`;
+        drawer.innerHTML = `<header class="drawer-top"><div><b>${esc(p.name || "이름 미입력")}</b><div class="sub">기존 IRUM 신청자 #${esc(record.source_application_id)} · 읽기 전용</div></div><button class="menu" id="close">닫기</button></header><section class="drawer-body"><span class="badge snapshot">기존 상담 Snapshot · 읽기 전용</span><div class="detail-grid"><div>원본 최종 갱신</div><div>${esc(formatDate(record.source_updated_at || record.exported_at))}</div><div>연락처 / 이메일</div><div>${esc(p.phone || "-")} / ${esc(p.email || "-")}</div><div>출생연도 / 성별</div><div>${esc(p.birthYear || "-")} / ${esc(p.gender === "female" ? "여성" : p.gender === "male" ? "남성" : "-")}</div><div>직업 / 학력</div><div>${esc(p.job || "-")} / ${esc(p.education || "-")}</div><div>지역 / MBTI</div><div>${esc(p.region || "-")} / ${esc(p.mbti || "-")}</div><div>상담 상태 / 상담원</div><div>${esc(c.consultationStatus === "in_progress" ? "상담중" : c.consultationStatus === "completed" ? "상담완료" : "상담전")} / ${esc(c.consultantName || "미배정")}</div><div>다음 액션</div><div>${esc(c.nextActionLabel || c.nextAction || "-")} ${c.nextActionDueAt ? `· ${esc(formatDate(c.nextActionDueAt))}` : ""}</div><div>운영 등급 / 우선도</div><div>${esc(s.finalGrade || "-")} / ${esc(s.consultationPriority || "-")}</div><div>신청 메모</div><div>${esc(p.memo || "-")}</div><div>상담 메모</div><div>${esc((record.snapshot?.notes || []).map((n) => n.content).filter(Boolean).join("\n\n") || "-")}</div></div>${consultationPanel("legacy_snapshot", String(record.source_application_id))}<h3>기존 사진</h3><div class="photo-list">${(record.photo_refs || []).map((photo, index) => `<div class="photo"><b>사진 ${index + 1}</b><br/><span>비공개 Snapshot 보관</span><br/><button data-legacy-path="${esc(photo.snapshot_path)}">10분 열람 링크</button></div>`).join("") || '<p class="sub">복제된 사진이 없습니다.</p>'}</div></section>`;
         drawer.classList.add("open");
         document.getElementById("close").onclick = () => drawer.classList.remove("open");
         drawer.querySelectorAll("[data-legacy-path]").forEach((button) => button.onclick = () => openLegacyPhoto(button.dataset.legacyPath));
+        mountConsultationPanel("legacy_snapshot", String(record.source_application_id));
       }
       async function openLegacyPhoto(path) {
         try {
@@ -683,12 +747,13 @@
           await client.auth.signOut();
           login();
         };
-        document.getElementById("export").onclick = () => {
-          const manifest = records.map(({ id, created_at, payload }) => ({
+        document.getElementById("export").onclick = async () => {
+          const consultationData = await invokeAdmin("consultation-import-manifest").catch(() => ({ records: [] }));
+          const manifest = { temporary_submissions: records.map(({ id, created_at, payload }) => ({
             external_record_id: id,
             received_at: created_at,
             payload,
-          }));
+          })), temporary_consultation_entries: consultationData.records || [] };
           const href = URL.createObjectURL(
             new Blob([JSON.stringify(manifest, null, 2)], {
               type: "application/json",
@@ -750,7 +815,7 @@
         const p = payload(record),
           profile = p.profile || {},
           drawer = document.getElementById("drawer");
-        drawer.innerHTML = `<header class="drawer-top"><div><b>${esc(name(record))}</b><div class="sub">임시 접수 #${record.id}</div></div><button class="menu" id="close">닫기</button></header><section class="drawer-body"><span class="badge ${p.submission_type === "social" ? "social" : "matching"}">${p.submission_type === "social" ? "프라이빗 소셜" : "1:1 매칭"}</span><div class="detail-grid"><div>접수 시각</div><div>${esc(formatDate(record.created_at))}</div><div>연락처</div><div>${esc(profile.phone || "-")}</div><div>출생연도 / 성별</div><div>${esc(profile.birthYear || "-")} / ${esc(profile.gender || "-")}</div><div>직업 / 지역</div><div>${esc(profile.job || "-")} / ${esc(profile.region || "-")}</div><div>학력 / MBTI</div><div>${esc(profile.education || "-")} / ${esc(profile.mbti || "-")}</div><div>매력 포인트</div><div>${esc(profile.appeal || "-")}</div><div>유입 UTM</div><div>${esc(JSON.stringify(p.marketing?.utm || {}))}</div><div>동의 기록</div><div>${esc(p.consent_at || "-")} · ${esc(p.consent_version || "-")}</div></div><h3>제출 사진</h3><div class="photo-list">${(p.photo_refs || []).map((photo) => `<div class="photo"><b>${esc(photo.name)}</b><br/><span>${esc(photo.mime || "")}</span><br/><button data-path="${esc(photo.path)}">10분 열람 링크</button></div>`).join("") || '<p class="sub">등록된 사진이 없습니다.</p>'}</div></section>`;
+        drawer.innerHTML = `<header class="drawer-top"><div><b>${esc(name(record))}</b><div class="sub">임시 접수 #${record.id}</div></div><button class="menu" id="close">닫기</button></header><section class="drawer-body"><span class="badge ${p.submission_type === "social" ? "social" : "matching"}">${p.submission_type === "social" ? "프라이빗 소셜" : "1:1 매칭"}</span><div class="detail-grid"><div>접수 시각</div><div>${esc(formatDate(record.created_at))}</div><div>연락처</div><div>${esc(profile.phone || "-")}</div><div>출생연도 / 성별</div><div>${esc(profile.birthYear || "-")} / ${esc(profile.gender || "-")}</div><div>직업 / 지역</div><div>${esc(profile.job || "-")} / ${esc(profile.region || "-")}</div><div>학력 / MBTI</div><div>${esc(profile.education || "-")} / ${esc(profile.mbti || "-")}</div><div>매력 포인트</div><div>${esc(profile.appeal || "-")}</div><div>유입 UTM</div><div>${esc(JSON.stringify(p.marketing?.utm || {}))}</div><div>동의 기록</div><div>${esc(p.consent_at || "-")} · ${esc(p.consent_version || "-")}</div></div>${consultationPanel("temporary_submission", String(record.id))}<h3>제출 사진</h3><div class="photo-list">${(p.photo_refs || []).map((photo) => `<div class="photo"><b>${esc(photo.name)}</b><br/><span>${esc(photo.mime || "")}</span><br/><button data-path="${esc(photo.path)}">10분 열람 링크</button></div>`).join("") || '<p class="sub">등록된 사진이 없습니다.</p>'}</div></section>`;
         drawer.classList.add("open");
         document.getElementById("close").onclick = () =>
           drawer.classList.remove("open");
@@ -759,6 +824,7 @@
           .forEach(
             (button) => (button.onclick = () => openPhoto(button.dataset.path)),
           );
+        mountConsultationPanel("temporary_submission", String(record.id));
       }
       async function openPhoto(path) {
         try {
