@@ -591,6 +591,7 @@
           "https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-secondary-profile",
       };
       const sessionKey = "irum-temp-admin-session-v1";
+      const secondaryIssuedLinksKey = "irum-temp-secondary-issued-links-v1";
       const readSession = () => {
         try {
           const session = JSON.parse(sessionStorage.getItem(sessionKey) || "null");
@@ -627,6 +628,7 @@
           },
           signOut: async () => {
             sessionStorage.removeItem(sessionKey);
+            sessionStorage.removeItem(secondaryIssuedLinksKey);
             return { error: null };
           },
         },
@@ -1183,6 +1185,40 @@
       const secondaryStatusLabel = (status) => ({ pending:"미열람", in_progress:"작성중", submitted:"제출완료", expired:"만료", revoked:"폐기" })[status] || status;
       const secondaryTypeLabel = (type) => ({ profile_female:"여성 2차 프로필", profile_male:"남성 2차 프로필", social_event:"모임 2차 인증" })[type] || type;
       const secondaryDate = (value) => value ? new Date(value).toLocaleString("ko-KR", { dateStyle:"medium", timeStyle:"short" }) : "–";
+      const readSecondaryIssuedLinks = () => {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(secondaryIssuedLinksKey) || "{}");
+          return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+        } catch {
+          sessionStorage.removeItem(secondaryIssuedLinksKey);
+          return {};
+        }
+      };
+      const rememberSecondaryIssuedLink = (formId, rawUrl) => {
+        if (!formId || !rawUrl) return;
+        const stored = readSecondaryIssuedLinks();
+        stored[String(formId)] = String(rawUrl);
+        sessionStorage.setItem(secondaryIssuedLinksKey, JSON.stringify(stored));
+      };
+      const forgetSecondaryIssuedLink = (formId) => {
+        const stored = readSecondaryIssuedLinks();
+        delete stored[String(formId)];
+        sessionStorage.setItem(secondaryIssuedLinksKey, JSON.stringify(stored));
+      };
+      const copySecondaryIssuedLink = async (button) => {
+        const input = button?.parentElement?.querySelector("[data-secondary-url]");
+        const rawUrl = input?.value || "";
+        if (!rawUrl) return;
+        try {
+          await navigator.clipboard.writeText(rawUrl);
+        } catch {
+          input.focus();
+          input.select();
+          document.execCommand("copy");
+          input.setSelectionRange(0, 0);
+        }
+        button.textContent = "복사 완료";
+      };
       const secondaryEvents = () => operationalRecords
         .filter((record) => record.source_type === "social_event")
         .map((record) => ({ id:String(record.source_id), ...(record.payload || {}) }))
@@ -1208,9 +1244,17 @@
           const documents = result.documents || [];
           const options = secondaryFormOptions(item);
           const events = secondaryEvents();
+          const issuedLinks = readSecondaryIssuedLinks();
           const rows = forms.map((form) => {
             const docs = documents.filter((document) => document.form_id === form.id);
-            return `<article style="border:1px solid #ded9d0;background:#fff;padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><div><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><p class="workspace-sub">${osEsc(secondaryStatusLabel(form.status))} · 만료 ${osEsc(secondaryDate(form.expires_at))} · TOKEN ${osEsc(form.token_prefix)}…</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}</div>${["pending","in_progress"].includes(form.status)?`<button class="menu" data-secondary-revoke="${osEsc(form.id)}" style="width:auto">링크 폐기</button>`:""}</div>${form.draft_saved_at?`<p class="workspace-sub">마지막 자동저장 ${osEsc(secondaryDate(form.draft_saved_at))} · revision ${osEsc(form.draft_revision)}</p>`:""}${form.submitted_at?`<p class="workspace-sub">제출 ${osEsc(secondaryDate(form.submitted_at))}</p>`:""}<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">${docs.map((document)=>`<button class="menu" data-secondary-document="${osEsc(document.id)}" data-secondary-form="${osEsc(form.id)}" style="width:auto" ${document.status==="verified"?"":"disabled"}>${osEsc(document.document_type)} · ${osEsc(document.status)}</button>`).join("")||'<span class="workspace-sub">서류 없음</span>'}</div></article>`;
+            const isActive = ["pending","in_progress"].includes(form.status);
+            const cachedUrl = isActive ? String(issuedLinks[String(form.id)] || "") : "";
+            const linkPanel = cachedUrl
+              ? `<div class="notice" style="margin-top:10px"><b>고객 전달 링크</b><input class="input" data-secondary-url readonly value="${osEsc(cachedUrl)}" style="margin-top:7px"/><button class="menu primary" data-secondary-copy style="width:auto;margin-top:8px">링크 복사</button></div>`
+              : isActive
+                ? '<p class="workspace-sub" style="margin-top:10px">보안을 위해 URL 원문은 발급한 관리자 탭에서만 다시 표시됩니다. 링크 주소가 보이지 않으면 기존 링크를 폐기한 뒤 새로 발급해주세요.</p>'
+                : "";
+            return `<article style="border:1px solid #ded9d0;background:#fff;padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><div><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><p class="workspace-sub">${osEsc(secondaryStatusLabel(form.status))} · 만료 ${osEsc(secondaryDate(form.expires_at))} · TOKEN ${osEsc(form.token_prefix)}…</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}</div>${isActive?`<button class="menu" data-secondary-revoke="${osEsc(form.id)}" style="width:auto">링크 폐기</button>`:""}</div>${form.draft_saved_at?`<p class="workspace-sub">마지막 자동저장 ${osEsc(secondaryDate(form.draft_saved_at))} · revision ${osEsc(form.draft_revision)}</p>`:""}${form.submitted_at?`<p class="workspace-sub">제출 ${osEsc(secondaryDate(form.submitted_at))}</p>`:""}${linkPanel}<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">${docs.map((document)=>`<button class="menu" data-secondary-document="${osEsc(document.id)}" data-secondary-form="${osEsc(form.id)}" style="width:auto" ${document.status==="verified"?"":"disabled"}>${osEsc(document.document_type)} · ${osEsc(document.status)}</button>`).join("")||'<span class="workspace-sub">서류 없음</span>'}</div></article>`;
           }).join("") || '<p class="workspace-sub">아직 발급된 2차 신청 링크가 없습니다.</p>';
           const canIssue = options.length > 0;
           target.innerHTML = `<div style="border:1px solid #d8d0c5;background:#faf8f4;padding:15px"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px"><label class="field"><label>폼 유형</label><select id="secondary-form-type">${options.map(([value,label])=>`<option value="${osEsc(value)}">${osEsc(label)}</option>`).join("")}</select></label><label class="field"><label>유효기간</label><select id="secondary-expiry"><option value="7">7일</option><option value="14" selected>14일</option><option value="30">30일</option></select></label></div><label class="field" id="secondary-event-wrap" style="display:none;margin-top:10px"><label>담당 모임 일정</label><select id="secondary-event"><option value="">이벤트를 선택해주세요</option>${events.map((event)=>`<option value="${osEsc(event.id)}">${osEsc(event.title||"IRUM SOCIAL")} · ${osEsc(secondaryDate(event.startsAt))}</option>`).join("")}</select></label><button class="os-action" id="secondary-issue" style="margin-top:12px" ${canIssue?"":"disabled"}>개인화 링크 발급</button>${!canIssue?'<p class="workspace-sub">성별 또는 신청 서비스가 확인되지 않아 발급 가능한 폼이 없습니다.</p>':""}<div id="secondary-raw-link"></div><div id="secondary-error" class="login-error"></div></div><div style="margin-top:14px">${rows}</div>`;
@@ -1238,9 +1282,7 @@
                 social_event_id:event?.id || null,
                 event_snapshot:event ? { title:event.title || "IRUM SOCIAL", startsAt:event.startsAt, location:event.location || "개별 안내", hostName:event.hostName || event.host_name || "" } : null,
               });
-              const rawTarget = document.getElementById("secondary-raw-link");
-              rawTarget.innerHTML = `<div class="notice" style="margin-top:12px"><b>이 URL은 지금 한 번만 확인할 수 있습니다.</b><input class="input" id="secondary-issued-url" readonly value="${osEsc(issued.raw_url)}"/><button class="menu primary" id="secondary-copy" style="width:auto;margin-top:8px">링크 복사</button></div>`;
-              document.getElementById("secondary-copy").onclick = async () => { await navigator.clipboard.writeText(issued.raw_url); document.getElementById("secondary-copy").textContent = "복사 완료"; };
+              rememberSecondaryIssuedLink(issued.form?.id, issued.raw_url);
               await mountSecondaryPanel(item);
             } catch (error) {
               errorTarget.textContent = error.code === "ACTIVE_LINK_EXISTS" ? "같은 유형의 활성 링크가 이미 있습니다. 기존 링크를 폐기한 뒤 재발급해주세요." : error.message || "링크 발급에 실패했습니다.";
@@ -1248,9 +1290,10 @@
           };
           target.querySelectorAll("[data-secondary-revoke]").forEach((button) => button.onclick = async () => {
             if (!confirm("이 2차 신청 링크를 폐기할까요? 기존 링크는 즉시 사용할 수 없게 됩니다.")) return;
-            try { await invokeSecondaryAdmin("secondary-admin-revoke", { form_id:button.dataset.secondaryRevoke }); await mountSecondaryPanel(item); }
+            try { await invokeSecondaryAdmin("secondary-admin-revoke", { form_id:button.dataset.secondaryRevoke }); forgetSecondaryIssuedLink(button.dataset.secondaryRevoke); await mountSecondaryPanel(item); }
             catch { alert("링크를 폐기하지 못했습니다."); }
           });
+          target.querySelectorAll("[data-secondary-copy]").forEach((button) => button.onclick = () => copySecondaryIssuedLink(button));
           target.querySelectorAll("[data-secondary-document]").forEach((button) => button.onclick = async () => {
             try {
               const opened = await invokeSecondaryAdmin("secondary-admin-document-url", { form_id:button.dataset.secondaryForm, document_id:button.dataset.secondaryDocument });
