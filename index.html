@@ -844,18 +844,6 @@ section[aria-label*="Notifications"] {
     grid-column: span 1 / span 1;
   }
 }
-
-  .temporary-notice-backdrop{position:fixed;inset:0;z-index:100050;display:grid;place-items:center;padding:20px;background:rgba(10,7,3,.68);backdrop-filter:blur(9px)}
-  .temporary-notice-backdrop[hidden]{display:none}
-  .temporary-notice{position:relative;width:min(100%,530px);padding:42px 38px 38px;background:radial-gradient(circle at 92% 8%,rgba(201,162,75,.24),transparent 36%),#171108;border:1px solid rgba(226,202,133,.58);box-shadow:0 34px 90px rgba(0,0,0,.55);color:#f3ecdd}
-  .temporary-notice-kicker{margin:0 0 16px;color:#e5cd8c;font-size:11px;font-weight:700;letter-spacing:.18em}
-  .temporary-notice h2{margin:0;font-family:var(--serif);font-size:clamp(29px,5vw,39px);font-weight:400;line-height:1.34;letter-spacing:-.06em}
-  .temporary-notice-period{display:inline-flex;margin:20px 0 17px;padding:10px 12px;border:1px solid rgba(226,202,133,.34);background:rgba(197,156,42,.13);font-size:13px;font-weight:700}
-  .temporary-notice-copy{margin:0;color:#d4c9b8;font-size:15px;line-height:1.75;word-break:keep-all}
-  .temporary-notice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:29px}
-  .temporary-notice-actions .btn{justify-content:center;padding:0 14px;height:52px;font-size:14px}
-  .temporary-notice-close{position:absolute;right:14px;top:14px;width:35px;height:35px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;font-size:21px;line-height:1;cursor:pointer}
-  @media(max-width:560px){.temporary-notice{padding:36px 23px 25px}.temporary-notice-actions{grid-template-columns:1fr}.temporary-notice h2{font-size:30px}}
 </style></head><body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute"><defs>
   <linearGradient id="goldGrad" gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21">
@@ -1394,7 +1382,7 @@ section[aria-label*="Notifications"] {
 </footer>
 
 
-<div class="temporary-notice-backdrop" id="temporary-notice" role="dialog" aria-modal="true" aria-labelledby="temporary-notice-title" hidden><section class="temporary-notice"><button class="temporary-notice-close" id="temporary-notice-close" aria-label="안내 팝업 닫기">×</button><p class="temporary-notice-kicker">IRUM SERVICE NOTICE</p><h2 id="temporary-notice-title">도메인 복구 중에도<br>신청은 정상 접수됩니다.</h2><p class="temporary-notice-period">IRUM 임시 접수 운영 중</p><p class="temporary-notice-copy">현재 이룸은 도메인 연결을 복구하고 있습니다. 1:1 매칭과 프라이빗 소셜 모임 신청은 이 페이지에서 정상적으로 접수할 수 있습니다.</p><div class="temporary-notice-actions"><button class="btn" data-apply="matching">1:1 매칭 신청</button><button class="btn alt" data-apply="social">모임 신청</button></div></section></div><script>
+<script>
   const TEMP_CONFIG={url:'https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-intake-submit',key:'sb_publishable_Y_9qyDnB3KYXKllIPJq9iQ_2xyyQO9f'};
   async function temporaryCall(body){const response=await fetch(TEMP_CONFIG.url,{method:'POST',headers:{'Content-Type':'application/json',apikey:TEMP_CONFIG.key,Authorization:'Bearer '+TEMP_CONFIG.key},body:JSON.stringify(body)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'신청 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');return data;}
   window.IRUM_TEMP_API={submit:async function(payload,files){const created=await temporaryCall({action:'create',payload:payload,idempotency_key:payload.external_submission_id});const photos=[];for(const file of files){if(file.size>8*1024*1024)throw new Error('사진은 8MB 이하만 등록할 수 있습니다.');const signed=await temporaryCall({action:'signed-upload',submission_id:created.submission_id,photo:{name:file.name,type:file.type,size:file.size}});const uploaded=await fetch(signed.signed_url,{method:'PUT',headers:{'Content-Type':file.type},body:file});if(!uploaded.ok)throw new Error('사진 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');photos.push(signed.path);}await temporaryCall({action:'complete',submission_id:created.submission_id,photos:photos});}};
@@ -1776,9 +1764,6 @@ function show(id){
     function launch(){
       var service=route.indexOf('/apply/social')===0?'social':(route.indexOf('/apply/matching')===0?'matching':null);
       if(service){var tab=document.querySelector('[data-page="'+service+'"]');if(tab)tab.click();setTimeout(function(){var apply=document.querySelector('#'+service+' [data-apply="'+service+'"]');if(apply)apply.click();},100);}
-    }
-    if(route==='/'||route==='/index.html'){
-      var modal=document.getElementById('temporary-notice');if(modal){modal.hidden=false;document.getElementById('temporary-notice-close').onclick=function(){modal.hidden=true;};modal.querySelectorAll('[data-apply]').forEach(function(button){button.addEventListener('click',function(){modal.hidden=true;});});}
     }
     launch();
   })();
