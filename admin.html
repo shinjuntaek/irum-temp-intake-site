@@ -499,6 +499,19 @@
       .workspace-card:hover { border-color:#cfbf9b; box-shadow:0 4px 18px rgba(38,31,20,.08); }
       .workspace-card-main { display:grid; grid-template-columns:96px minmax(0,1fr); }
       .workspace-photo { display:grid; min-height:176px; place-items:center; background:#f2efe9; color:#8f877a; font-size:10px; font-weight:700; text-align:center; }
+      button.workspace-photo { position:relative; width:100%; min-width:0; overflow:hidden; border:0; padding:0; cursor:zoom-in; }
+      .workspace-photo img { width:100%; height:100%; min-height:176px; object-fit:cover; display:block; }
+      .workspace-photo .photo-count { position:absolute; right:7px; bottom:7px; border:1px solid rgba(255,255,255,.32); background:rgba(25,22,18,.76); padding:4px 7px; color:#fff; font-size:10px; font-weight:800; backdrop-filter:blur(8px); }
+      .workspace-photo .photo-loading { padding:12px; color:#81796d; line-height:1.5; }
+      .os-profile-photo .workspace-photo { width:100%; height:100%; min-height:242px; }
+      .os-profile-photo .workspace-photo img { min-height:242px; }
+      .os-photo-modal { position:fixed; inset:0; z-index:400; display:grid; place-items:center; padding:24px; background:rgba(12,11,9,.92); }
+      .os-photo-dialog { position:relative; display:grid; width:min(920px,100%); max-height:calc(100vh - 48px); grid-template-rows:auto minmax(0,1fr) auto; overflow:hidden; border:1px solid rgba(255,255,255,.18); background:#161410; box-shadow:0 30px 90px rgba(0,0,0,.55); }
+      .os-photo-dialog header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; color:#fff; }
+      .os-photo-dialog header button,.os-photo-nav button { border:1px solid rgba(255,255,255,.24); background:transparent; padding:8px 11px; color:#fff; font:inherit; }
+      .os-photo-stage { display:grid; min-height:260px; place-items:center; overflow:auto; background:#0c0b09; }
+      .os-photo-stage img { display:block; max-width:100%; max-height:calc(100vh - 174px); object-fit:contain; }
+      .os-photo-nav { display:flex; align-items:center; justify-content:center; gap:12px; padding:12px 16px; color:#fff; }
       .workspace-card-body { min-width:0; padding:13px; }
       .workspace-card-top,.workspace-card-bottom { display:flex; justify-content:space-between; gap:8px; }
       .workspace-name { overflow:hidden; margin:0; color:#2e2922; font-size:14px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
@@ -969,6 +982,109 @@
       const osAge = (year) => /^\d{4}$/.test(String(year || "")) ? new Date().getFullYear() - Number(year) : "–";
       const osFormatPhone = (value) => { const digits=String(value||"").replace(/\D/g,""); return /^010\d{8}$/.test(digits)?digits.replace(/(010)(\d{4})(\d{4})/,"$1-$2-$3"):value||"연락처 미입력"; };
       const osFormatDate = (value) => value ? new Date(value).toLocaleString("ko-KR",{dateStyle:"medium",timeStyle:"short"}) : "기록 없음";
+      const osPhotoCache = new Map();
+      const OS_PHOTO_REFRESH_MS = 8 * 60 * 1000;
+      const osPhotoPath = (item, ref) => typeof ref === "string" ? ref : item.kind === "legacy_snapshot" ? (ref?.snapshot_path || ref?.path || "") : (ref?.path || ref?.snapshot_path || "");
+      const osPhotoCacheKey = (item, index) => `${item.kind}:${item.id}:${index}:${osPhotoPath(item, item.photoRefs[index])}`;
+      async function osGetPhotoUrl(item, index, force = false) {
+        const ref = item.photoRefs[index];
+        const path = osPhotoPath(item, ref);
+        if (!path) throw new Error("PHOTO_PATH_MISSING");
+        const cacheKey = osPhotoCacheKey(item, index);
+        const cached = osPhotoCache.get(cacheKey);
+        if (!force && cached && cached.refreshAt > Date.now()) return cached.url;
+        const data = item.kind === "legacy_snapshot"
+          ? await invokeAdmin("snapshot-photo-url", { path })
+          : await invokeAdmin("admin-photo-url", { submission_id:Number(item.id), path });
+        if (!data?.signed_url) throw new Error("PHOTO_READ_FAILED");
+        osPhotoCache.set(cacheKey, { url:data.signed_url, refreshAt:Date.now() + OS_PHOTO_REFRESH_MS });
+        return data.signed_url;
+      }
+      function osPhotoThumbMarkup(item) {
+        if (!item.photoRefs.length) return '<div class="workspace-photo"><span class="photo-loading">사진 보완 대기<br/>0장</span></div>';
+        return `<button type="button" class="workspace-photo" data-os-photo-owner="${osEsc(item.key)}" aria-label="${osEsc(item.profile?.name || "신청자")} 사진 확대"><span class="photo-loading">비공개 사진 불러오는 중<br/>${item.photoRefs.length}장</span></button>`;
+      }
+      async function osLoadPhotoThumb(button, item, force = false) {
+        if (!button?.isConnected || !item?.photoRefs?.length) return;
+        button.onclick = (event) => { event.preventDefault(); event.stopPropagation(); osOpenPhotoGallery(item); };
+        try {
+          const url = await osGetPhotoUrl(item, 0, force);
+          if (!button.isConnected) return;
+          button.replaceChildren();
+          const image = document.createElement("img");
+          image.alt = `${item.profile?.name || "신청자"} 비공개 프로필 사진`;
+          image.loading = "lazy";
+          image.decoding = "async";
+          image.src = url;
+          image.addEventListener("error", async () => {
+            if (image.dataset.refreshed === "1") return;
+            image.dataset.refreshed = "1";
+            try { image.src = await osGetPhotoUrl(item, 0, true); } catch { button.innerHTML = '<span class="photo-loading">사진을 다시 불러오지 못했습니다.<br/>클릭해 재시도</span>'; }
+          });
+          const count = document.createElement("span");
+          count.className = "photo-count";
+          count.textContent = `${Math.min(item.photoRefs.length, 2)}장 보기`;
+          button.append(image, count);
+          clearTimeout(button._osPhotoRefreshTimer);
+          button._osPhotoRefreshTimer = setTimeout(() => { if (button.isConnected) osLoadPhotoThumb(button, item, true); }, OS_PHOTO_REFRESH_MS);
+        } catch {
+          button.innerHTML = '<span class="photo-loading">사진을 불러오지 못했습니다.<br/>클릭해 재시도</span>';
+          button.onclick = (event) => { event.preventDefault(); event.stopPropagation(); osLoadPhotoThumb(button, item, true); };
+        }
+      }
+      function osBindPhotoThumbs(root = document) {
+        const buttons = [...root.querySelectorAll("[data-os-photo-owner]")];
+        const load = (button) => {
+          const item = osWorkspaces().find((candidate) => candidate.key === button.dataset.osPhotoOwner);
+          if (item) osLoadPhotoThumb(button, item);
+        };
+        if (!("IntersectionObserver" in window)) return buttons.forEach(load);
+        const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          observer.unobserve(entry.target);
+          load(entry.target);
+        }), { rootMargin:"180px" });
+        buttons.forEach((button) => observer.observe(button));
+      }
+      async function osOpenPhotoGallery(item, startIndex = 0) {
+        const refs = item.photoRefs.slice(0, 2);
+        if (!refs.length) return;
+        const previousOverflow = document.body.style.overflow;
+        const modal = document.createElement("div");
+        modal.className = "os-photo-modal";
+        modal.innerHTML = '<section class="os-photo-dialog" role="dialog" aria-modal="true" aria-label="비공개 프로필 사진"><header><b>비공개 프로필 사진</b><button type="button" data-photo-close>닫기</button></header><div class="os-photo-stage"><span class="photo-loading">사진을 불러오는 중입니다.</span></div><nav class="os-photo-nav"><button type="button" data-photo-prev>이전</button><b data-photo-index>–</b><button type="button" data-photo-next>다음</button></nav></section>';
+        document.body.appendChild(modal);
+        document.body.style.overflow = "hidden";
+        let index = Math.max(0, Math.min(startIndex, refs.length - 1));
+        let closed = false;
+        const close = () => { if (closed) return; closed = true; document.removeEventListener("keydown", onKey); modal.remove(); document.body.style.overflow = previousOverflow; };
+        const show = async (force = false) => {
+          const stage = modal.querySelector(".os-photo-stage");
+          const indexLabel = modal.querySelector("[data-photo-index]");
+          stage.innerHTML = '<span class="photo-loading">사진을 불러오는 중입니다.</span>';
+          indexLabel.textContent = `${index + 1} / ${refs.length}`;
+          modal.querySelector("[data-photo-prev]").disabled = refs.length < 2;
+          modal.querySelector("[data-photo-next]").disabled = refs.length < 2;
+          try {
+            const image = document.createElement("img");
+            image.alt = `${item.profile?.name || "신청자"} 비공개 사진 ${index + 1}`;
+            image.src = await osGetPhotoUrl(item, index, force);
+            image.addEventListener("error", async () => {
+              if (image.dataset.refreshed === "1") return;
+              image.dataset.refreshed = "1";
+              try { image.src = await osGetPhotoUrl(item, index, true); } catch { stage.innerHTML = '<span class="photo-loading">사진을 불러오지 못했습니다.</span>'; }
+            });
+            stage.replaceChildren(image);
+          } catch { stage.innerHTML = '<span class="photo-loading">사진 열람 권한을 확인해주세요.</span>'; }
+        };
+        const onKey = (event) => { if (event.key === "Escape") close(); if (event.key === "ArrowLeft" && refs.length > 1) { index = (index - 1 + refs.length) % refs.length; show(); } if (event.key === "ArrowRight" && refs.length > 1) { index = (index + 1) % refs.length; show(); } };
+        modal.querySelector("[data-photo-close]").onclick = close;
+        modal.onclick = (event) => { if (event.target === modal) close(); };
+        modal.querySelector("[data-photo-prev]").onclick = () => { index = (index - 1 + refs.length) % refs.length; show(); };
+        modal.querySelector("[data-photo-next]").onclick = () => { index = (index + 1) % refs.length; show(); };
+        document.addEventListener("keydown", onKey);
+        await show();
+      }
       const osParse = (value) => { if(Array.isArray(value)) return value; try { const parsed=JSON.parse(value||"[]"); return Array.isArray(parsed)?parsed:[]; } catch { return []; } };
       const osEsc = (value) => esc(value == null || value === "" ? "–" : String(value));
       function osLatestEntry(type,id){return temporaryConsultationEntries.filter((entry)=>entry.subject_type===type&&String(entry.subject_id)===String(id)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0]||null;}
@@ -999,7 +1115,7 @@
       }
       function osStatusChip(status){return '<span class="os-chip '+(status==="in_progress"?"progress":status==="completed"?"done":"")+'">'+osEsc(osStatusLabel(status))+'</span>';}
       function osSourceChip(item){return '<span class="os-chip '+(item.kind==="legacy_snapshot"?"legacy":"temporary")+'">'+(item.kind==="legacy_snapshot"?"기존 Snapshot":"임시 접수")+'</span>';}
-      function osCard(item){const p=item.profile||{}, c=item.consultation||{}, s=item.screening||{}, traits=osParse(p.appealPoints).slice(0,2);return '<article class="workspace-card" data-os-workspace="'+osEsc(item.key)+'"><div class="workspace-card-main"><div class="workspace-photo">비공개 사진<br/>'+item.photoRefs.length+'장</div><div class="workspace-card-body"><div class="workspace-card-top"><div><h2 class="workspace-name">'+osEsc(p.name||"이름 미입력")+' · '+osEsc(osAge(p.birthYear))+'세</h2><p class="workspace-sub">AP-'+osEsc(item.id.padStart(8,"0"))+' · '+osEsc(osGenderLabel(p.gender))+'</p><p class="workspace-sub">휴대폰 · '+osEsc(osFormatPhone(p.phone))+'</p></div><div>'+osStatusChip(c.consultationStatus)+"<br/>"+osSourceChip(item)+'</div></div><p class="workspace-service">신청 서비스 · '+osEsc(osServiceLabel(item.service))+'</p><p class="workspace-sub">'+osEsc(p.job||"직업 확인 필요")+' · '+osEsc(p.region||"지역 확인 필요")+'</p><p class="workspace-sub">검증 '+osEsc(s.verificationStatus||"unverified")+' · 완성도 '+osEsc(s.profileCompleteness||0)+'% · 우선도 '+osEsc(s.consultationPriority||"medium")+'</p>'+(traits.length?'<p class="workspace-sub">프로필 · '+osEsc(traits.join(", "))+'</p>':"")+'<p class="os-next">'+osEsc(c.nextAction||"담당자 배정")+'</p></div></div></article>';}
+      function osCard(item){const p=item.profile||{}, c=item.consultation||{}, s=item.screening||{}, traits=osParse(p.appealPoints).slice(0,2);return '<article class="workspace-card" data-os-workspace="'+osEsc(item.key)+'"><div class="workspace-card-main">'+osPhotoThumbMarkup(item)+'<div class="workspace-card-body"><div class="workspace-card-top"><div><h2 class="workspace-name">'+osEsc(p.name||"이름 미입력")+' · '+osEsc(osAge(p.birthYear))+'세</h2><p class="workspace-sub">AP-'+osEsc(item.id.padStart(8,"0"))+' · '+osEsc(osGenderLabel(p.gender))+'</p><p class="workspace-sub">휴대폰 · '+osEsc(osFormatPhone(p.phone))+'</p></div><div>'+osStatusChip(c.consultationStatus)+"<br/>"+osSourceChip(item)+'</div></div><p class="workspace-service">신청 서비스 · '+osEsc(osServiceLabel(item.service))+'</p><p class="workspace-sub">'+osEsc(p.job||"직업 확인 필요")+' · '+osEsc(p.region||"지역 확인 필요")+'</p><p class="workspace-sub">검증 '+osEsc(s.verificationStatus||"unverified")+' · 완성도 '+osEsc(s.profileCompleteness||0)+'% · 우선도 '+osEsc(s.consultationPriority||"medium")+'</p>'+(traits.length?'<p class="workspace-sub">프로필 · '+osEsc(traits.join(", "))+'</p>':"")+'<p class="os-next">'+osEsc(c.nextAction||"담당자 배정")+'</p></div></div></article>';}
       async function dashboard(){await osLoadData();const all=osWorkspaces(),today=new Date().toDateString(),newToday=all.filter((item)=>new Date(item.createdAt).toDateString()===today).length,progress=all.filter((item)=>item.consultation.consultationStatus==="in_progress").length,completed=all.filter((item)=>item.consultation.consultationStatus==="completed").length,actions=all.filter((item)=>item.consultation.nextAction);const schedule=all.filter((item)=>item.consultation.nextActionDueAt).sort((a,b)=>new Date(a.consultation.nextActionDueAt)-new Date(b.consultation.nextActionDueAt)).slice(0,6);osShell("dashboard","운영 현황","IRUM OS / 오늘의 운영",'<section class="os-page"><header class="os-head"><div><p class="os-kicker">IRUM OS / 오늘의 운영</p><h2 class="os-title">운영 현황</h2><p class="os-desc">기존 상담 Snapshot과 중단 기간 임시 접수를 동일한 상담 업무 흐름에서 확인합니다.</p></div><button class="os-action" id="os-review">신청자 검토하기</button></header><div class="os-dashboard-grid"><article class="os-metric"><p>전체 신청자</p><b>'+all.length+'</b><small>기존 Snapshot + 임시 접수</small></article><article class="os-metric"><p>오늘 신규 신청</p><b>'+newToday+'</b><small>임시 운영 기간 기준</small></article><article class="os-metric"><p>상담 진행</p><b>'+progress+'</b><small>상담중 상태</small></article><article class="os-metric"><p>상담 완료</p><b>'+completed+'</b><small>완료 이력 포함</small></article></div><section class="os-panel" style="margin-top:18px"><div class="os-panel-head"><div><h2>상담 운영 현황</h2><p>상담 상태와 후속 액션을 중심으로 운영합니다.</p></div></div><ul class="os-list"><li><span>상담전</span><b>'+all.filter((item)=>item.consultation.consultationStatus==="before").length+'건</b></li><li><span>상담중</span><b>'+progress+'건</b></li><li><span>상담완료</span><b>'+completed+'건</b></li><li><span>다음 액션 설정</span><b>'+actions.length+'건</b></li></ul></section><div class="os-columns"><section class="os-panel"><div class="os-panel-head"><div><h2>우선 처리 업무</h2><p>다음 액션이 설정된 상담 대상을 우선 확인합니다.</p></div><span class="os-chip">'+actions.length+'건</span></div><ul class="os-list">'+(actions.slice(0,8).map((item)=>'<li data-os-workspace="'+osEsc(item.key)+'"><span><b>'+osEsc(item.profile.name||"이름 미입력")+'</b><br/><small>'+osEsc(item.consultation.nextAction)+'</small></span>'+osStatusChip(item.consultation.consultationStatus)+'</li>').join("")||'<li><span>지연된 운영 업무가 없습니다.</span></li>')+'</ul></section><section class="os-panel"><div class="os-panel-head"><div><h2>오늘 이후 일정</h2><p>상담·후속 연락 예정입니다.</p></div></div><ul class="os-list">'+(schedule.map((item)=>'<li data-os-workspace="'+osEsc(item.key)+'"><span>'+osEsc(osFormatDate(item.consultation.nextActionDueAt))+'<br/><b>'+osEsc(item.profile.name||"이름 미입력")+'</b> · '+osEsc(item.consultation.nextAction)+'</span></li>').join("")||'<li><span>등록된 향후 일정이 없습니다.</span></li>')+'</ul></section></div><section class="os-panel" style="margin-top:18px"><div class="os-panel-head"><div><h2>최근 신청자</h2><p>최근 갱신된 기존 Snapshot과 임시 접수입니다.</p></div></div><ul class="os-list">'+(all.slice(0,6).map((item)=>'<li data-os-workspace="'+osEsc(item.key)+'"><span><b>'+osEsc(item.profile.name||"이름 미입력")+'</b> · '+osEsc(osAge(item.profile.birthYear))+'세<br/><small>'+osEsc(item.profile.job||"직업 미입력")+' · '+osEsc(item.profile.region||"지역 미입력")+'</small></span>'+osSourceChip(item)+'</li>').join(""))+'</ul></section></section>');document.getElementById("os-review").onclick=osApplicants;osBindWorkspace();}
       async function osApplicants(){await osLoadData();const all=osWorkspaces();const gendered=all.filter((item)=>osApplicantGender==="all"||item.profile.gender===osApplicantGender);const filtered=gendered.filter((item)=>{const hay=[item.profile.name,item.profile.phone,item.id,item.profile.job,item.profile.region].join(" ").toLowerCase();return hay.includes(osApplicantSearch.toLowerCase())&&(osApplicantStatus==="all"||item.consultation.consultationStatus===osApplicantStatus);});const counts={all:all.length,male:all.filter((i)=>i.profile.gender==="male").length,female:all.filter((i)=>i.profile.gender==="female").length};const listBody=osApplicantView==="card"?'<section class="workspace-grid">'+(filtered.map(osCard).join("")||'<div class="os-muted-page">조건에 맞는 신청자가 없습니다.</div>')+'</section>':'<section class="os-table-wrap"><table class="os-table"><thead><tr><th>신청자</th><th>나이 · 지역</th><th>직업</th><th>신청 서비스</th><th>상담 상태</th><th>최종 등급</th><th>출처</th><th>상담원</th><th>다음 할 일</th></tr></thead><tbody>'+filtered.map((item)=>'<tr data-os-workspace="'+osEsc(item.key)+'"><td><b>'+osEsc(item.profile.name||"이름 미입력")+'</b><br/><small>AP-'+osEsc(item.id.padStart(8,"0"))+' · '+osEsc(osFormatPhone(item.profile.phone))+'</small></td><td>'+osEsc(osAge(item.profile.birthYear))+'세<br/><small>'+osEsc(item.profile.region)+'</small></td><td>'+osEsc(item.profile.job)+'</td><td>'+osEsc(osServiceLabel(item.service))+'</td><td>'+osStatusChip(item.consultation.consultationStatus)+'</td><td>'+osEsc(item.screening.finalGrade||"판단 전")+'</td><td>'+osSourceChip(item)+'</td><td>'+osEsc(item.consultation.consultantName||"미배정")+'</td><td>'+osEsc(item.consultation.nextAction||"담당자 배정")+'</td></tr>').join("")+'</tbody></table></section>';osShell("applicants","신청자 관리","자동 분류",'<section class="os-page"><header class="os-head"><div><p class="os-kicker">자동 분류</p><h2 class="os-title">신청자 관리</h2><p class="os-desc">기존 홈페이지 신청자와 중단 기간 임시 접수를 카드 또는 목록으로 같은 상담 기준에서 확인합니다.</p></div></header><nav class="os-tabs">'+["all","male","female"].map((value)=>'<button class="'+(osApplicantGender===value?"active":"")+'" data-os-gender="'+value+'">'+(value==="all"?"전체":value==="male"?"남성":"여성")+' <small>'+counts[value]+'</small></button>').join("")+'</nav><section class="os-filter"><input id="os-app-search" value="'+osEsc(osApplicantSearch)+'" placeholder="이름 · 연락처 · Applicant ID 검색"/><select id="os-app-status"><option value="all">상담 상태 전체</option><option value="before">상담전</option><option value="in_progress">상담중</option><option value="completed">상담완료</option></select><div class="view-toggle"><button class="'+(osApplicantView==="card"?"active":"")+'" data-os-view="card">▦</button><button class="'+(osApplicantView==="list"?"active":"")+'" data-os-view="list">☷</button></div></section>'+listBody+'</section>');document.getElementById("os-app-status").value=osApplicantStatus;document.getElementById("os-app-search").oninput=(event)=>{osApplicantSearch=event.target.value;osApplicants();};document.getElementById("os-app-status").onchange=(event)=>{osApplicantStatus=event.target.value;osApplicants();};document.querySelectorAll("[data-os-gender]").forEach((button)=>button.onclick=()=>{osApplicantGender=button.dataset.osGender;osApplicants();});document.querySelectorAll("[data-os-view]").forEach((button)=>button.onclick=()=>{osApplicantView=button.dataset.osView;osApplicants();});osBindWorkspace();}
       function osBindWorkspace(){document.querySelectorAll("[data-os-workspace]").forEach((node)=>node.onclick=()=>{const item=osWorkspaces().find((candidate)=>candidate.key===node.dataset.osWorkspace);if(item) osWorkspace(item);});}
@@ -1007,7 +1123,18 @@
       function osSection(title,source,body){return '<section class="os-section"><div class="os-section-head"><h3>'+osEsc(title)+'</h3><span class="os-source">'+osEsc(source)+'</span></div>'+body+'</section>';}
       async function osWorkspace(item){osSelectedWorkspace=item;osDetailTab="profile";await osRenderWorkspace();}
       async function osRenderWorkspace(){const item=osSelectedWorkspace;if(!item)return;const p=item.profile||{},c=item.consultation||{},s=item.screening||{},kind=item.kind;const photoArea='<div class="os-profile-photo">비공개 사진<br/>'+item.photoRefs.length+'장<br/><button id="os-open-photo" '+(item.photoRefs.length?"":"disabled")+'>10분 열람 링크</button></div>';const header='<section class="os-profile-head">'+photoArea+'<div class="os-profile-copy"><p class="os-kicker">APPLICANT · AP-'+osEsc(item.id.padStart(8,"0"))+'</p><h2>'+osEsc(p.name||"이름 미입력")+' <small>· '+osEsc(osAge(p.birthYear))+'세 · '+osEsc(osGenderLabel(p.gender))+'</small></h2><p class="os-profile-meta">'+osEsc(osFormatPhone(p.phone))+' · '+osEsc(p.job||"직업 미입력")+' · '+osEsc(p.region||"지역 미입력")+' · '+osEsc(p.height||"키 미입력")+' · '+osEsc(p.mbti||"MBTI 미입력")+'</p><div style="margin-top:12px">'+osSourceChip(item)+' '+osStatusChip(c.consultationStatus)+' <span class="os-chip">'+osEsc(osServiceLabel(item.service))+'</span></div><div class="os-quick"><div><span>최종 Tier</span><b>'+osEsc(s.finalGrade||"판단 전")+'</b></div><div><span>상담원</span><b>'+osEsc(c.consultantName||"미배정")+'</b></div><div><span>다음 액션</span><b>'+osEsc(c.nextAction||"미설정")+'</b></div><div><span>출처</span><b>'+osEsc(kind==="legacy_snapshot"?"기존 Snapshot":"임시 접수")+'</b></div></div></div></section>';const tabs=[["profile","프로필"],["application","신청내용"],["screening","상담 · 심사"],["activity","활동이력"]];let content="";if(osDetailTab==="profile"){content=osSection("기본 프로필","신청자 입력",'<dl class="os-fields">'+[["이름",p.name],["출생연도",p.birthYear],["직업",p.job],["학력",p.education],["직장·사업체",p.company],["키",p.height],["MBTI",p.mbti],["지역",p.region],["휴대폰",osFormatPhone(p.phone)],["이메일",p.email],["체형",p.bodyType],["스타일·분위기",p.styleMood]].map(([a,b])=>osField(a,b)).join("")+'</dl>')+osSection("매력 · 라이프스타일 프로필","신청자 입력",'<dl class="os-fields">'+[["자기소개",p.selfAppeal],["매력 포인트",osParse(p.appealPoints).join(", ")],["라이프스타일",osParse(p.lifestyle).join(", ")],["흡연",p.smoking],["음주",p.drinking],["종교",p.religion],["신청자 메모",p.memo]].map(([a,b])=>osField(a,b)).join("")+'</dl>');}else if(osDetailTab==="application"){content=osSection("신청 당시 입력","신청자 입력",'<dl class="os-fields">'+[["신청 서비스",osServiceLabel(item.service)],["신청일",osFormatDate(item.createdAt)],["유입 경로",p.journeyKey],["유입 페이지",p.entryPath],["소셜 참석 의향",p.socialAttendanceIntent],["중요 조건",p.importantConditions],["다음 상담 희망",p.consultationAvailability],["소개 희망 시기",p.introductionTiming]].map(([a,b])=>osField(a,b)).join("")+'</dl>');}else if(osDetailTab==="screening"){content=osSection("상담 운영 정보","원본 Snapshot / 임시 이력",'<dl class="os-fields">'+[["업무 단계",c.stage],["상담 상태",osStatusLabel(c.consultationStatus)],["상담원",c.consultantName],["다음 액션",c.nextAction],["다음 액션 예정",osFormatDate(c.nextActionDueAt)],["상담 완료 시각",osFormatDate(c.consultationAt)],["운영 등급",s.finalGrade],["상담 우선도",s.consultationPriority],["검증 상태",s.verificationStatus],["보류 사유",c.holdReason],["미승인 사유",c.declineReason]].map(([a,b])=>osField(a,b)).join("")+'</dl>')+'<div id="consultation-mount">'+consultationPanel(kind,item.id)+'</div>';}else{const sourceNotes=item.record.snapshot?.notes||[],activities=item.record.snapshot?.activities||[],contacts=item.record.snapshot?.contactLogs||[];content=osSection("상담 · 내부 메모","원본 Snapshot",'<div class="os-list">'+(sourceNotes.map((note)=>'<li><span>'+osEsc(note.content)+'<br/><small>'+osEsc(note.source||"원본")+' · '+osEsc(osFormatDate(note.createdAt))+'</small></span></li>').join("")||'<li><span>기록된 원본 상담 메모가 없습니다.</span></li>')+'</div>')+osSection("연락 기록","원본 Snapshot",'<div class="os-list">'+(contacts.map((note)=>'<li><span><b>'+osEsc(String(note.channel||"phone").toUpperCase())+'</b> · '+osEsc(note.content)+'<br/><small>'+osEsc(osFormatDate(note.contacted_at||note.createdAt))+'</small></span></li>').join("")||'<li><span>기록된 연락 이력이 없습니다.</span></li>')+'</div>')+osSection("활동 Timeline","원본 Snapshot",'<div class="os-list">'+(activities.map((activity)=>'<li><span><b>'+osEsc(activity.title)+'</b><br/>'+osEsc(activity.detail)+'<br/><small>'+osEsc(osFormatDate(activity.createdAt))+'</small></span></li>').join("")||'<li><span>기록된 활동 이력이 없습니다.</span></li>')+'</div>');}const rail='<aside class="os-rail"><div class="os-rail-head"><p>CURRENT WORK</p><b>'+osEsc(c.stage||"신규")+'</b><span>'+osEsc(c.nextAction||"다음 액션 미설정")+'</span></div><div class="os-rail-body"><button class="primary" id="os-tab-screening">상담 · 심사 진행</button><button id="os-tab-activity">연락 · 메모 기록</button><button id="os-back-list">신청자 목록</button></div></aside>';osShell("applicants","신청자 통합 상세","APPLICANT WORKSPACE",'<section class="os-page"><button class="menu" id="os-back-list" style="width:auto;margin-bottom:14px">← 신청자 목록</button>'+header+'<nav class="os-detail-tabs">'+tabs.map(([key,label])=>'<button class="'+(osDetailTab===key?"active":"")+'" data-os-detail-tab="'+key+'">'+label+'</button>').join("")+'</nav><div class="os-workspace"><main class="os-detail-content">'+content+'</main>'+rail+'</div></section>');document.querySelectorAll("[data-os-detail-tab]").forEach((button)=>button.onclick=()=>{osDetailTab=button.dataset.osDetailTab;osRenderWorkspace();});document.querySelectorAll("#os-back-list").forEach((button)=>button.onclick=osApplicants);document.getElementById("os-tab-screening").onclick=()=>{osDetailTab="screening";osRenderWorkspace();};document.getElementById("os-tab-activity").onclick=()=>{osDetailTab="activity";osRenderWorkspace();};const photoButton=document.getElementById("os-open-photo");if(photoButton)photoButton.onclick=()=>osOpenFirstPhoto(item);if(osDetailTab==="screening")await mountConsultationPanel(kind,item.id);}
-      async function osOpenFirstPhoto(item){try{const photo=item.photoRefs[0];if(!photo) return;const data=item.kind==="legacy_snapshot"?await invokeAdmin("snapshot-photo-url",{path:photo.snapshot_path}):await invokeAdmin("admin-photo-url",{submission_id:Number(item.id),path:photo.path});if(data.signed_url)window.open(data.signed_url,"_blank","noopener,noreferrer");}catch{alert("사진 열람 링크를 발급하지 못했습니다.");}}
+      async function osOpenFirstPhoto(item){await osOpenPhotoGallery(item);}
+      const osBindWorkspaceBase = osBindWorkspace;
+      osBindWorkspace = function(){ osBindWorkspaceBase(); osBindPhotoThumbs(document); };
+      const osRenderWorkspaceBase = osRenderWorkspace;
+      osRenderWorkspace = async function(){
+        await osRenderWorkspaceBase();
+        const area = document.querySelector(".os-profile-photo");
+        if (area && osSelectedWorkspace) {
+          area.innerHTML = osPhotoThumbMarkup(osSelectedWorkspace);
+          osBindPhotoThumbs(area);
+        }
+      };
       async function osOperations(){await osLoadData();const upcoming=osWorkspaces().filter((item)=>item.consultation.nextAction||item.consultation.nextActionDueAt).sort((a,b)=>new Date(a.consultation.nextActionDueAt||a.createdAt)-new Date(b.consultation.nextActionDueAt||b.createdAt));osShell("operations","할 일 · 일정","OPERATIONS",'<section class="os-page"><header class="os-head"><div><p class="os-kicker">OPERATIONS</p><h2 class="os-title">할 일 · 일정</h2><p class="os-desc">원본 Snapshot의 다음 액션과 중단 기간에 추가된 임시 상담 이력입니다.</p></div></header><section class="os-panel"><div class="os-panel-head"><div><h2>상담 후속 업무</h2><p>임시 운영 기간에는 원본 일정 대신 상담 기록의 다음 액션을 기준으로 관리합니다.</p></div><span class="os-chip">'+upcoming.length+'건</span></div><ul class="os-list">'+(upcoming.map((item)=>'<li data-os-workspace="'+osEsc(item.key)+'"><span><b>'+osEsc(item.profile.name||"이름 미입력")+'</b> · '+osEsc(item.consultation.nextAction||"후속 확인")+'<br/><small>'+osEsc(osFormatDate(item.consultation.nextActionDueAt||item.createdAt))+'</small></span>'+osStatusChip(item.consultation.consultationStatus)+'</li>').join("")||'<li><span>등록된 후속 업무가 없습니다.</span></li>')+'</ul></section></section>');osBindWorkspace();}
       async function osAnalytics(){await osLoadData();const all=osWorkspaces(),sources={};all.forEach((item)=>{const source=item.kind==="legacy_snapshot"?(item.profile.journeyKey||item.profile.entryPath||"기존 신청"):(item.payload?.marketing?.utm?.utm_source||item.payload?.marketing?.utm?.source||"임시 직접 유입");sources[source]=(sources[source]||0)+1;});const genders={male:all.filter((i)=>i.profile.gender==="male").length,female:all.filter((i)=>i.profile.gender==="female").length};osShell("analytics","통계 · Funnel","IRUM OS / MARKETING",'<section class="os-page"><header class="os-head"><div><p class="os-kicker">IRUM OS / MARKETING</p><h2 class="os-title">유입 · 상담 현황</h2><p class="os-desc">중단 기간에도 개인정보 없이 접수·상담 상태·유입 경로를 집계합니다.</p></div></header><div class="os-dashboard-grid"><article class="os-metric"><p>전체 신청</p><b>'+all.length+'</b><small>기존 + 임시</small></article><article class="os-metric"><p>여성</p><b>'+genders.female+'</b><small>신청자 성별</small></article><article class="os-metric"><p>남성</p><b>'+genders.male+'</b><small>신청자 성별</small></article><article class="os-metric"><p>상담중</p><b>'+all.filter((i)=>i.consultation.consultationStatus==="in_progress").length+'</b><small>임시 이력 반영</small></article></div><section class="os-panel" style="margin-top:18px"><div class="os-panel-head"><div><h2>유입 경로 · UTM Source</h2><p>journey/entry path와 임시 접수 UTM 기반 집계입니다.</p></div></div><ul class="os-list">'+Object.entries(sources).sort((a,b)=>b[1]-a[1]).map(([label,count])=>'<li><span>'+osEsc(label)+'</span><b>'+count+'</b></li>').join("")+'</ul></section></section>');}
       async function osAudit(){await osLoadData();osShell("audit","감사 로그","AUDIT LOG",'<section class="os-page"><header class="os-head"><div><p class="os-kicker">AUDIT LOG</p><h2 class="os-title">임시 운영 이력</h2><p class="os-desc">원본 CRM을 수정하지 않고 외부 임시 저장소에 append-only로 기록된 상담 이력입니다.</p></div></header><section class="os-panel"><ul class="os-list">'+(temporaryConsultationEntries.slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map((entry)=>'<li><span><b>'+osEsc(entry.created_by_email)+'</b> · '+osEsc(entry.subject_type==="legacy_snapshot"?"기존 Snapshot":"임시 접수")+' #'+osEsc(entry.subject_id)+'<br/>'+osEsc(entry.note_text)+'<br/><small>'+osEsc(osFormatDate(entry.created_at))+'</small></span>'+osStatusChip(entry.consultation_status||"before")+'</li>').join("")||'<li><span>아직 임시 상담 이력이 없습니다.</span></li>')+'</ul></section></section>');}
