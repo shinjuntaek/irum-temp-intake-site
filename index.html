@@ -844,6 +844,10 @@ section[aria-label*="Notifications"] {
     grid-column: span 1 / span 1;
   }
 }
+
+  .hero-safe-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:1;transition:opacity .35s ease;pointer-events:none}
+  .hero-safe-poster.is-hidden{opacity:0}
+  @media (prefers-reduced-motion:reduce){.hero-safe-poster{transition:none}}
 </style></head><body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute"><defs>
   <linearGradient id="goldGrad" gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21">
@@ -1066,7 +1070,7 @@ section[aria-label*="Notifications"] {
 <!-- ============ MAIN ============ -->
 <main id="main" class="page on">
   <section class="hero">
-    <video class="hero-video revealed" autoplay muted loop playsinline preload="metadata" poster="assets/image-01_7aa3bedb.jpg" src="assets/irum_promo_480p.mp4"></video>
+    <video class="hero-video revealed" autoplay muted loop playsinline preload="metadata" poster="assets/image-01_7aa3bedb.jpg" src="assets/irum_promo_480p.mp4"></video><img class="hero-safe-poster" src="assets/image-01_7aa3bedb.jpg" alt="" aria-hidden="true" loading="eager" decoding="sync">
     <div class="hero-scrim"></div>
     <div class="hero-spot"></div>
     <div class="wrap">
@@ -1766,5 +1770,21 @@ function show(id){
       if(service){var tab=document.querySelector('[data-page="'+service+'"]');if(tab)tab.click();setTimeout(function(){var apply=document.querySelector('#'+service+' [data-apply="'+service+'"]');if(apply)apply.click();},100);}
     }
     launch();
+  })();
+</script><script>
+  (function(){
+    var video=document.querySelector('.hero-video');
+    var poster=document.querySelector('.hero-safe-poster');
+    if(!video||!poster)return;
+    var revealed=false;
+    function revealVideo(){
+      if(revealed||video.paused||video.readyState<3)return;
+      revealed=true;
+      window.setTimeout(function(){poster.classList.add('is-hidden');},350);
+    }
+    video.addEventListener('playing',revealVideo,{once:true});
+    video.addEventListener('canplay',revealVideo,{once:true});
+    video.addEventListener('error',function(){poster.classList.remove('is-hidden');});
+    if(!video.paused&&video.readyState>=3)revealVideo();
   })();
 </script></body></html>
