@@ -844,6 +844,18 @@ section[aria-label*="Notifications"] {
     grid-column: span 1 / span 1;
   }
 }
+
+  .temporary-notice-backdrop{position:fixed;inset:0;z-index:100050;display:grid;place-items:center;padding:20px;background:rgba(10,7,3,.68);backdrop-filter:blur(9px)}
+  .temporary-notice-backdrop[hidden]{display:none}
+  .temporary-notice{position:relative;width:min(100%,530px);padding:42px 38px 38px;background:radial-gradient(circle at 92% 8%,rgba(201,162,75,.24),transparent 36%),#171108;border:1px solid rgba(226,202,133,.58);box-shadow:0 34px 90px rgba(0,0,0,.55);color:#f3ecdd}
+  .temporary-notice-kicker{margin:0 0 16px;color:#e5cd8c;font-size:11px;font-weight:700;letter-spacing:.18em}
+  .temporary-notice h2{margin:0;font-family:var(--serif);font-size:clamp(29px,5vw,39px);font-weight:400;line-height:1.34;letter-spacing:-.06em}
+  .temporary-notice-period{display:inline-flex;margin:20px 0 17px;padding:10px 12px;border:1px solid rgba(226,202,133,.34);background:rgba(197,156,42,.13);font-size:13px;font-weight:700}
+  .temporary-notice-copy{margin:0;color:#d4c9b8;font-size:15px;line-height:1.75;word-break:keep-all}
+  .temporary-notice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:29px}
+  .temporary-notice-actions .btn{justify-content:center;padding:0 14px;height:52px;font-size:14px}
+  .temporary-notice-close{position:absolute;right:14px;top:14px;width:35px;height:35px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;font-size:21px;line-height:1;cursor:pointer}
+  @media(max-width:560px){.temporary-notice{padding:36px 23px 25px}.temporary-notice-actions{grid-template-columns:1fr}.temporary-notice h2{font-size:30px}}
 </style></head><body>
 <svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute"><defs>
   <linearGradient id="goldGrad" gradientUnits="userSpaceOnUse" x1="3" y1="3" x2="21" y2="21">
@@ -1326,7 +1338,7 @@ section[aria-label*="Notifications"] {
     </div>
   </section>
 
-<section class="band cta hasbg bg-a">
+<section class="social-host-introduction" aria-label="이룸 프라이빗 소셜 HOST 소개"><div class="wrap"><img src="assets/irum-host-ansubin-intro-latest_114e8e22.png" alt="이룸 프라이빗 모임 HOST 안수빈 소개" loading="eager" decoding="async" /></div></section><section class="band cta hasbg bg-a">
     <div class="wrap">
       <div class="cta-rule"></div>
       <div class="micro" style="letter-spacing:.2em;color:var(--gold-hi);margin-bottom:16px">PRIVATE SOCIAL CLUB</div>
@@ -1378,11 +1390,11 @@ section[aria-label*="Notifications"] {
     </div>
     <div><h5>서비스</h5><a class="fl" href="#" data-page="main">이룸 소개</a><a class="fl" href="#" data-page="matching">검증 기반 1:1 매칭</a><a class="fl" href="#" data-page="social">프라이빗 소셜 모임</a></div>
   </div>
-  <div class="bottom"><span>© 2026 이룸. Curated in Seoul.</span><span>Private Matching Club</span></div>
+  <div class="bottom"><span>© 2026 이룸. Curated in Seoul.</span><span>(주)테스커스 대표 양진혁 / 서울특별시 양천구 오목로 215-1 1층 102호 / 사업자 687-86-03375</span></div>
 </footer>
 
 
-<script>
+<div class="temporary-notice-backdrop" id="temporary-notice" role="dialog" aria-modal="true" aria-labelledby="temporary-notice-title" hidden><section class="temporary-notice"><button class="temporary-notice-close" id="temporary-notice-close" aria-label="안내 팝업 닫기">×</button><p class="temporary-notice-kicker">IRUM SERVICE NOTICE</p><h2 id="temporary-notice-title">도메인 복구 중에도<br>신청은 정상 접수됩니다.</h2><p class="temporary-notice-period">IRUM 임시 접수 운영 중</p><p class="temporary-notice-copy">현재 이룸은 도메인 연결을 복구하고 있습니다. 1:1 매칭과 프라이빗 소셜 모임 신청은 이 페이지에서 정상적으로 접수할 수 있습니다.</p><div class="temporary-notice-actions"><button class="btn" data-apply="matching">1:1 매칭 신청</button><button class="btn alt" data-apply="social">모임 신청</button></div></section></div><script>
   const TEMP_CONFIG={url:'https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-intake-submit',key:'sb_publishable_Y_9qyDnB3KYXKllIPJq9iQ_2xyyQO9f'};
   async function temporaryCall(body){const response=await fetch(TEMP_CONFIG.url,{method:'POST',headers:{'Content-Type':'application/json',apikey:TEMP_CONFIG.key,Authorization:'Bearer '+TEMP_CONFIG.key},body:JSON.stringify(body)});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'신청 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');return data;}
   window.IRUM_TEMP_API={submit:async function(payload,files){const created=await temporaryCall({action:'create',payload:payload,idempotency_key:payload.external_submission_id});const photos=[];for(const file of files){if(file.size>8*1024*1024)throw new Error('사진은 8MB 이하만 등록할 수 있습니다.');const signed=await temporaryCall({action:'signed-upload',submission_id:created.submission_id,photo:{name:file.name,type:file.type,size:file.size}});const uploaded=await fetch(signed.signed_url,{method:'PUT',headers:{'Content-Type':file.type},body:file});if(!uploaded.ok)throw new Error('사진 저장 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');photos.push(signed.path);}await temporaryCall({action:'complete',submission_id:created.submission_id,photos:photos});}};
@@ -1460,7 +1472,7 @@ function show(id){
   var OTHER='기타';
   var svc={ matching:{eyebrow:'검증 기반 1:1 매칭', label:'1:1 매칭 신청'}, social:{eyebrow:'프라이빗 소셜 모임', label:'소셜 모임 신청'} };
   var maleFields=[
-    {key:'role',   label:'직업 · 역할',        opts:['전문직','사업 운영','기업 임원·경영진','대기업·금융','기타']},
+    {key:'role',   label:'직업 · 역할',        opts:["전문직","사업가·대표","대기업·금융","공무원·교직","IT·스타트업","프리랜서","투자·자산관리","기타"]},
     {key:'income', label:'연 소득 · 사업소득',  opts:['8천만~1억','1억~2억','2억~3억','3억 이상','기타']},
     {key:'assets', label:'개인 순자산',         opts:['1억 이상','5억 이상','10억 이상','20억 이상','50억 이상','기타']}
   ];
@@ -1474,7 +1486,7 @@ function show(id){
   var anim=null;
   var lastPct=0;
 
-  function base(){ return {gender:'',role:'',income:'',assets:'',roleOther:'',incomeOther:'',assetsOther:'',qualification:'',otherJob:'',bodyType:'',points:[],name:'',birthdate:'',phone:'',height:'',region:'',isAdult:false,terms:false,privacy:false,marketing:false}; }
+  function base(){ return {gender:'',role:'',income:'',assets:'',roleOther:'',incomeOther:'',assetsOther:'',qualification:'',otherJob:'',bodyType:'',points:[],name:'',birthdate:'',phone:'',height:'',region:'',isAdult:false,terms:false,privacy:false,marketing:false,socialAttendanceIntent:'',socialEventId:null,socialEvents:[],socialEventsLoaded:false}; }
   var esc=function(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
   var fmtPhone=function(v){ var d=String(v).replace(/\D/g,'').slice(0,11); return d.length<=3?d:(d.length<=7?(d.slice(0,3)+'-'+d.slice(3)):(d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7))); };
   var fmtBirth=function(v){ var d=String(v).replace(/\D/g,'').slice(0,6); return d.length<=2?d:(d.length<=4?(d.slice(0,2)+'.'+d.slice(2)):(d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4))); };
@@ -1492,7 +1504,7 @@ function show(id){
   function maleCore(){ return maleFields.map(function(f){ var isO=(S.data[f.key]===OTHER), ok=f.key+'Other'; return '<div class="af-field">'+label(f.label,true)+'<div class="af-opts col2">'+f.opts.map(function(v){return opt(f.key,v);}).join('')+'</div>'+(isO?'<input class="af-in af-otherjob" data-in="'+ok+'" value="'+esc(S.data[ok]||'')+'" placeholder="직접 입력해 주세요">':'')+'</div>'; }).join(''); }
   function femaleCore(){
     var isOther=(S.data.qualification===OTHER), h='';
-    h+='<div class="af-field">'+label('직업 선택',true)+'<div class="af-opts">'+qualRow('기타',false)+(isOther?'<input class="af-in af-otherjob" data-in="otherJob" value="'+esc(S.data.otherJob)+'" placeholder="직업 또는 활동을 입력해 주세요">':'')+['전문직','CEO','인플루언서','아이돌 연습생','연예인'].map(function(v){return qualRow(v,true);}).join('')+'</div></div>';
+    h+='<div class="af-field">'+label('직업 선택',true)+'<div class="af-opts">'+qualRow('기타',false)+(isOther?'<input class="af-in af-otherjob" data-in="otherJob" value="'+esc(S.data.otherJob)+'" placeholder="직업 또는 활동을 입력해 주세요">':'')+["전문직","대기업","인플루언서","셀럽/연예인","아이돌 지망생"].map(function(v){return qualRow(v,true);}).join('')+'</div></div>';
     h+='<div class="af-field">'+label('체형',true)+'<div class="af-opts col2">'+bodies.map(function(v){return opt('bodyType',v,(v==='날씬')?'우대':'');}).join('')+'</div></div>';
     h+='<div class="af-field">'+label('매력 포인트',true,'해당하는 것을 모두 선택 · 많을수록 매칭 품질이 올라갑니다.')+'<div class="af-opts">'+points.map(pointOpt).join('')+'</div></div>';
     h+='<div class="af-field">'+label('사진 2장',true,'정면·일상 각 1장 (JPG·PNG·WEBP / 5MB 이하)')+'<div class="af-photos">'+photoBox('front','정면 사진')+photoBox('lifestyle','일상 사진')+'</div></div>';
@@ -1522,7 +1534,26 @@ function show(id){
       +consent('marketing','[선택] <a class="lg-link" href="#" data-legal-svc="'+S.service+'" data-legal="marketing">광고성 정보(마케팅) 수신</a>에 동의합니다.','')
       +'</div>';
   }
-  function stepBody(){ if(S.step===0){ var core=(S.data.gender==='male')?maleCore():((S.data.gender==='female')?femaleCore():''); return genderCards()+(core?'<div class="af-core'+((anim==='gender')?' af-anim':'')+'">'+core+'</div>':''); } return profile(); }
+
+  function socialSchedule(){
+    if(S.service!=='social') return '';
+    var intent=S.data.socialAttendanceIntent||'', events=S.data.socialEvents||[];
+    var cards=events.length?events.map(function(event){
+      var date=new Date(event.startsAt), kst=new Date(date.getTime()+(9*60*60*1000)), day=['일','월','화','수','목','금','토'][kst.getUTCDay()], hour=kst.getUTCHours(), minute=kst.getUTCMinutes(), time=(hour<12?'오전 ':'오후 ')+(((hour%12)||12)+'시')+(minute?(' '+minute+'분'):''), selected=String(S.data.socialEventId||'')===String(event.id);
+      return '<button type="button" class="social-event-card'+(selected?' sel':'')+'" data-social-event="'+esc(event.id)+'"><strong>'+esc((kst.getUTCMonth()+1)+'월 '+kst.getUTCDate()+'일 '+day+'요일 · '+time+' · '+(event.location||'장소 안내 예정'))+'</strong><i>'+ (selected?'선택됨':'선택') +'</i></button>';
+    }).join(''):'<p class="social-event-empty">현재 선택 가능한 일정이 없습니다. 다음 모임 희망을 선택해 주세요.</p>';
+    var hostProfile='<div class="social-host-profile"><img src="assets/irum-host-ansubin-profile-latest_de83858f.jpg" alt="IRUM HOST 안수빈" /><div><small>IRUM HOST</small><strong>안수빈</strong><span>서울대학교 치의학과</span></div></div>';
+    return '<section class="social-attendance"><div class="social-attendance-head"><b>모임 참석 일정 <em>*</em></b><span>가능한 일정을 선택해주세요.</span></div>'+hostProfile+'<div class="social-event-list">'+cards+'</div><button type="button" class="social-next-event'+(intent==='next_event'?' sel':'')+'" data-social-intent="next_event"><strong>다음 모임 희망</strong><span>새 일정이 열리면 우선 안내받습니다.</span></button><p class="social-privacy-note">※ 프로필 외부 비공개 / 프라이버시 보장</p></section>';
+  }
+  function loadSocialEvents(){
+    if(!S||S.service!=='social') return;
+    S.data.socialEvents=[{"id":30001,"title":"IRUM PRIVATE SOCIAL · 08.29","status":"open","startsAt":"2026-08-29T11:00:00.000Z","location":"강남"},{"id":30002,"title":"IRUM PRIVATE SOCIAL · 09.19","status":"open","startsAt":"2026-09-19T11:00:00.000Z","location":"강남"}];
+    S.data.socialEventsLoaded=true;
+    render();
+  }
+
+  function maleApplicantPhotoFields(){ return '<div class="af-field male-applicant-photo-fields">'+label('사진 2장',true,'정면·일상 각 1장 (JPG·PNG·WEBP / 5MB 이하)')+'<div class="af-photos">'+photoBox('front','정면 사진')+photoBox('lifestyle','일상 사진')+'</div></div>'; }
+  function stepBody(){ if(S.step===0){ var core=(S.data.gender==='male')?maleCore():((S.data.gender==='female')?femaleCore():''); return (S.service==='social'?socialSchedule():'')+genderCards()+(core?'<div class="af-core'+((anim==='gender')?' af-anim':'')+'">'+core+'</div>':'')+(S.data.gender==='male'&&((S.service==='social')||(S.service==='matching'))?maleApplicantPhotoFields():''); } return profile(); }
 
   function render(){
     if(!S) return;
@@ -1555,6 +1586,9 @@ function show(id){
   function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(window.__afT); window.__afT=setTimeout(function(){ toastEl.classList.remove('show'); },3000); return false; }
   function validate(){
     if(S.step===0){
+      if(S.service==='social'&&!S.data.socialAttendanceIntent) return toast('모임 참석 일정을 선택해 주세요.');
+      if(S.service==='social'&&S.data.socialAttendanceIntent==='specific_event'&&!S.data.socialEventId) return toast('참석 가능한 일정을 선택해 주세요.');
+      if((S.service==='social'||(S.service==='matching'&&S.data.gender==='male'))&&(!S.photos.front||!S.photos.lifestyle)) return toast('정면·일상 사진을 모두 올려 주세요.');
       if(!S.data.gender) return toast('성별을 선택해 주세요.');
       if(S.data.gender==='male'){ for(var i=0;i<maleFields.length;i++){ if(!S.data[maleFields[i].key]) return toast('직업·소득·자산을 모두 선택해 주세요.'); } }
       if(S.data.gender==='female'){
@@ -1565,7 +1599,7 @@ function show(id){
         if(!S.photos.front || !S.photos.lifestyle) return toast('정면·일상 사진을 모두 올려 주세요.');
       }
     }
-    if(S.step===1){ if(!S.data.name.trim()||!S.data.birthdate||!S.data.phone.trim()||!S.data.height||!S.data.region) return toast('기본 프로필을 모두 입력해 주세요.'); }
+    if(S.step===1){ var phoneDigits=String(S.data.phone||'').replace(/\D/g,''); if(!S.data.name.trim()||!S.data.birthdate||!/^010\d{8}$/.test(phoneDigits)||!S.data.height||!S.data.region) return toast('휴대폰 번호를 올바르게 입력해 주세요. (예: 010-1234-5678)'); }
     if(S.step===2){ if(!S.data.isAdult||!S.data.terms||!S.data.privacy) return toast('필수 동의를 확인해 주세요.'); }
     return true;
   }
@@ -1588,9 +1622,9 @@ function show(id){
       if(!birthYear||birthYear<1970||birthYear>2010) throw new Error('생년월일을 올바르게 입력해 주세요.');
       var params=new URLSearchParams(location.search);
       var payload={
-        external_submission_id:(crypto.randomUUID?crypto.randomUUID():'irum-'+Date.now()),
+        external_submission_id:S.externalSubmissionId||(S.externalSubmissionId=(crypto.randomUUID?crypto.randomUUID():'irum-'+Date.now())),
         submission_type:S.service==='social'?'social':'matching',
-        profile:{name:S.data.name||'',gender:S.data.gender||'',birthYear:birthYear,phone:S.data.phone||'',job:((S.data.role==='기타'?S.data.roleOther:S.data.role)||(S.data.qualification==='기타'?S.data.otherJob:S.data.qualification)||'').trim(),region:S.data.region||'',income:S.data.income||'',height:S.data.height||'',bodyType:S.data.bodyType||'',assets:S.data.assets||'',appealPoints:S.data.points||'',preferences:{marketing:S.data.marketing||''}},
+        profile:{name:S.data.name||'',gender:S.data.gender||'',birthYear:birthYear,phone:S.data.phone||'',job:((S.data.role==='기타'?S.data.roleOther:S.data.role)||(S.data.qualification==='기타'?S.data.otherJob:S.data.qualification)||'').trim(),region:S.data.region||'',income:S.data.income||'',height:S.data.height||'',bodyType:S.data.bodyType||'',assets:S.data.assets||'',appealPoints:S.data.points||'',socialAttendanceIntent:S.service==='social'?(S.data.socialAttendanceIntent||''):undefined,socialEventId:S.service==='social'&&S.data.socialAttendanceIntent==='specific_event'?(Number(S.data.socialEventId)||null):null,preferences:{marketing:S.data.marketing||''}},
         marketing:{entry_path:location.pathname+location.search,referrer:document.referrer||'',utm:Object.fromEntries(params.entries())},
         consent_at:new Date().toISOString(),
         consent_version:'temporary-v1'
@@ -1614,6 +1648,8 @@ function show(id){
     var r=new FileReader(); r.onload=function(){ S.photos[kind]={name:f.name,type:f.type,url:String(r.result),file:f}; render(); }; r.readAsDataURL(f);
   }
   function bind(){
+    root.querySelectorAll('[data-social-intent]').forEach(function(el){ el.onclick=function(){ var intent=el.getAttribute('data-social-intent'); S.data.socialAttendanceIntent=intent; if(intent==='next_event') S.data.socialEventId=null; render(); }; });
+    root.querySelectorAll('[data-social-event]').forEach(function(el){ el.onclick=function(){ S.data.socialAttendanceIntent='specific_event'; S.data.socialEventId=Number(el.getAttribute('data-social-event')); render(); }; });
     root.querySelectorAll('[data-gender]').forEach(function(el){ el.onclick=function(){ var g=el.getAttribute('data-gender'); ['role','income','assets','qualification','otherJob','bodyType'].forEach(function(k){S.data[k]='';}); S.data.points=[]; S.photos={front:null,lifestyle:null}; S.data.gender=g; anim='gender'; render(); }; });
     root.querySelectorAll('[data-pick]').forEach(function(el){ el.onclick=function(){ var k=el.getAttribute('data-pick'), v=el.getAttribute('data-val'); S.data[k]=(S.data[k]===v)?'':v; render(); }; });
     root.querySelectorAll('[data-point]').forEach(function(el){ el.onclick=function(){ var v=el.getAttribute('data-point'); var i=S.data.points.indexOf(v); if(i>=0) S.data.points.splice(i,1); else S.data.points.push(v); render(); }; });
@@ -1631,7 +1667,7 @@ function show(id){
   function closeAgree(){ ag.hidden=true; document.body.style.overflow=(ov&&!ov.hidden)?'hidden':''; }
   function agToast(msg){ var t=document.getElementById('agToast'); t.textContent=msg; t.className='ag-toast show'; clearTimeout(window.__agT); window.__agT=setTimeout(function(){ t.className='ag-toast'; },3000); }
   function agreeSubmit(){ if(!S.data.isAdult||!S.data.terms||!S.data.privacy){ agToast('필수 항목에 모두 동의해 주세요.'); return; } closeAgree(); submit(); }
-  function openForm(t){ var service=(t==='matching')?'matching':'social'; S={service:service,step:0,submitted:false,data:base(),photos:{front:null,lifestyle:null}}; ov.hidden=false; document.body.style.overflow='hidden'; anim='open'; lastPct=0; render(); ov.scrollTop=0; }
+  function openForm(t){ var service=(t==='matching')?'matching':'social'; S={service:service,step:0,submitted:false,data:base(),photos:{front:null,lifestyle:null}}; ov.hidden=false; document.body.style.overflow='hidden'; anim='open'; lastPct=0; render(); if(service==='social') loadSocialEvents(); ov.scrollTop=0; }
   function closeForm(){ ov.hidden=true; document.body.style.overflow=''; }
 
   document.querySelectorAll('[data-apply]').forEach(function(b){ b.addEventListener('click',function(e){ e.preventDefault(); openForm(b.getAttribute('data-apply')); }); });
@@ -1740,6 +1776,9 @@ function show(id){
     function launch(){
       var service=route.indexOf('/apply/social')===0?'social':(route.indexOf('/apply/matching')===0?'matching':null);
       if(service){var tab=document.querySelector('[data-page="'+service+'"]');if(tab)tab.click();setTimeout(function(){var apply=document.querySelector('#'+service+' [data-apply="'+service+'"]');if(apply)apply.click();},100);}
+    }
+    if(route==='/'||route==='/index.html'){
+      var modal=document.getElementById('temporary-notice');if(modal){modal.hidden=false;document.getElementById('temporary-notice-close').onclick=function(){modal.hidden=true;};modal.querySelectorAll('[data-apply]').forEach(function(button){button.addEventListener('click',function(){modal.hidden=true;});});}
     }
     launch();
   })();
