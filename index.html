@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="/"><meta name="robots" content="noindex,nofollow"><title>이룸 | 프라이빗 매칭 및 소셜 모임 임시 신청</title><script>!(function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)})(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1029673286352880');fbq('track','PageView');</script><style>@import "tailwindcss";
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base href="/"><meta name="robots" content="noindex,nofollow"><title>이룸 | 프라이빗 매칭 및 소셜 모임 임시 신청</title><link rel="preload" as="image" href="assets/image-01_7aa3bedb.jpg" fetchpriority="high"><script>!(function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)})(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1029673286352880');fbq('track','PageView');</script><style>@import "tailwindcss";
 
 @font-face{
     font-family:'ZEN SERIF';
@@ -1070,7 +1070,7 @@ section[aria-label*="Notifications"] {
 <!-- ============ MAIN ============ -->
 <main id="main" class="page on">
   <section class="hero">
-    <video class="hero-video revealed" autoplay muted loop playsinline preload="metadata" poster="assets/image-01_7aa3bedb.jpg" src="assets/irum_promo_480p.mp4"></video><img class="hero-safe-poster" src="assets/image-01_7aa3bedb.jpg" alt="" aria-hidden="true" loading="eager" decoding="sync">
+    <video class="hero-video revealed" autoplay muted loop playsinline preload="none" poster="assets/image-01_7aa3bedb.jpg" data-src="assets/irum_promo_480p.mp4"></video><img class="hero-safe-poster" src="assets/image-01_7aa3bedb.jpg" alt="" aria-hidden="true" loading="eager" decoding="sync" fetchpriority="high">
     <div class="hero-scrim"></div>
     <div class="hero-spot"></div>
     <div class="wrap">
@@ -1330,7 +1330,7 @@ section[aria-label*="Notifications"] {
     </div>
   </section>
 
-<section class="social-host-introduction" aria-label="이룸 프라이빗 소셜 HOST 소개"><div class="wrap"><img src="assets/irum-host-ansubin-intro-latest_114e8e22.png" alt="이룸 프라이빗 모임 HOST 안수빈 소개" loading="eager" decoding="async" /></div></section><section class="band cta hasbg bg-a">
+<section class="social-host-introduction" aria-label="이룸 프라이빗 소셜 HOST 소개"><div class="wrap"><img src="assets/irum-host-ansubin-intro-optimized.webp" alt="이룸 프라이빗 모임 HOST 안수빈 소개" loading="lazy" decoding="async" /></div></section><section class="band cta hasbg bg-a">
     <div class="wrap">
       <div class="cta-rule"></div>
       <div class="micro" style="letter-spacing:.2em;color:var(--gold-hi);margin-bottom:16px">PRIVATE SOCIAL CLUB</div>
@@ -1534,7 +1534,7 @@ function show(id){
       var date=new Date(event.startsAt), kst=new Date(date.getTime()+(9*60*60*1000)), day=['일','월','화','수','목','금','토'][kst.getUTCDay()], hour=kst.getUTCHours(), minute=kst.getUTCMinutes(), time=(hour<12?'오전 ':'오후 ')+(((hour%12)||12)+'시')+(minute?(' '+minute+'분'):''), selected=String(S.data.socialEventId||'')===String(event.id);
       return '<button type="button" class="social-event-card'+(selected?' sel':'')+'" data-social-event="'+esc(event.id)+'"><strong>'+esc((kst.getUTCMonth()+1)+'월 '+kst.getUTCDate()+'일 '+day+'요일 · '+time+' · '+(event.location||'장소 안내 예정'))+'</strong><i>'+ (selected?'선택됨':'선택') +'</i></button>';
     }).join(''):'<p class="social-event-empty">현재 선택 가능한 일정이 없습니다. 다음 모임 희망을 선택해 주세요.</p>';
-    var hostProfile='<div class="social-host-profile"><img src="assets/irum-host-ansubin-profile-latest_de83858f.jpg" alt="IRUM HOST 안수빈" /><div><small>IRUM HOST</small><strong>안수빈</strong><span>서울대학교 치의학과</span></div></div>';
+    var hostProfile='<div class="social-host-profile"><img src="assets/irum-host-ansubin-profile-optimized.webp" alt="IRUM HOST 안수빈" loading="lazy" decoding="async" /><div><small>IRUM HOST</small><strong>안수빈</strong><span>서울대학교 치의학과</span></div></div>';
     return '<section class="social-attendance"><div class="social-attendance-head"><b>모임 참석 일정 <em>*</em></b><span>가능한 일정을 선택해주세요.</span></div>'+hostProfile+'<div class="social-event-list">'+cards+'</div><button type="button" class="social-next-event'+(intent==='next_event'?' sel':'')+'" data-social-intent="next_event"><strong>다음 모임 희망</strong><span>새 일정이 열리면 우선 안내받습니다.</span></button><p class="social-privacy-note">※ 프로필 외부 비공개 / 프라이버시 보장</p></section>';
   }
   function loadSocialEvents(){
@@ -1777,6 +1777,15 @@ function show(id){
     var poster=document.querySelector('.hero-safe-poster');
     if(!video||!poster)return;
     var revealed=false;
+    var started=false;
+    function startVideo(){
+      if(started)return;
+      started=true;
+      var source=video.getAttribute('data-src');
+      if(source&&!video.getAttribute('src')){video.setAttribute('src',source);video.load();}
+      var playResult=video.play();
+      if(playResult&&typeof playResult.catch==='function')playResult.catch(function(){poster.classList.remove('is-hidden');});
+    }
     function revealVideo(){
       if(revealed||video.paused||video.readyState<3)return;
       revealed=true;
@@ -1786,5 +1795,9 @@ function show(id){
     video.addEventListener('canplay',revealVideo,{once:true});
     video.addEventListener('error',function(){poster.classList.remove('is-hidden');});
     if(!video.paused&&video.readyState>=3)revealVideo();
+    window.addEventListener('load',function(){
+      if('requestIdleCallback' in window)requestIdleCallback(startVideo,{timeout:1200});
+      else window.setTimeout(startVideo,350);
+    },{once:true});
   })();
 </script></body></html>
