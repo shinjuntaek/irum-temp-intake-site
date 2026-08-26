@@ -132,7 +132,12 @@ try {
   await sleep(350);
   const femaleSuccess = await call("Runtime.evaluate", { expression:"JSON.stringify({text:document.body.innerText,calls:window.__qaSubmitCalls,drafts:window.__qaDraftCalls,payload:window.__qaSubmitBodies?.[0]?.payload,clientBuild:window.__qaSubmitBodies?.[0]?.client_build_id})", returnByValue:true }, sessionId);
   const femaleSuccessParsed = JSON.parse(femaleSuccess.result.value || "{}");
-  if (!String(femaleSuccessParsed.text).includes("프로필이 IRUM에 전달되었습니다") || femaleSuccessParsed.calls !== 1 || femaleSuccessParsed.drafts < 1 || femaleSuccessParsed.payload?.privacyConsent !== true || femaleSuccessParsed.payload?.realCheckMethod !== "대면 확인" || femaleSuccessParsed.payload?.realCheckDate !== "2026-09-15" || femaleSuccessParsed.clientBuild !== "secondary-submit-cas-current-payload-20260826-2") throw new Error(`female submit success failed: ${femaleSuccess.result.value}`);
+  if (!String(femaleSuccessParsed.text).includes("테스트 신청자님의 프로필이 IRUM에 전달되었습니다") || femaleSuccessParsed.calls !== 1 || femaleSuccessParsed.drafts < 1 || femaleSuccessParsed.payload?.privacyConsent !== true || femaleSuccessParsed.payload?.realCheckMethod !== "대면 확인" || femaleSuccessParsed.payload?.realCheckDate !== "2026-09-15" || femaleSuccessParsed.clientBuild !== "secondary-submit-cas-current-payload-20260826-2") throw new Error(`female submit success failed: ${femaleSuccess.result.value}`);
+  const personalizedSafety = await call("Runtime.evaluate", { expression:"form.name='<img src=x onerror=window.__xss=1>';feedback(completionProfileTitle(),'완료',true);JSON.stringify({title:document.querySelector('.feedback-card h1')?.textContent,images:document.querySelectorAll('.feedback-card img').length,xss:window.__xss||0});", returnByValue:true }, sessionId);
+  const personalizedSafetyParsed = JSON.parse(personalizedSafety.result.value || "{}");
+  if (personalizedSafetyParsed.title !== "<img src=x onerror=window.__xss=1>님의 프로필이 IRUM에 전달되었습니다." || personalizedSafetyParsed.images !== 0 || personalizedSafetyParsed.xss !== 0) throw new Error(`personalized completion XSS guard failed: ${personalizedSafety.result.value}`);
+  const personalizedFallback = await call("Runtime.evaluate", { expression:"form.name='';data.form.prefill.name='';completionProfileTitle()", returnByValue:true }, sessionId);
+  if (personalizedFallback.result.value !== "프로필이 IRUM에 전달되었습니다.") throw new Error(`personalized completion fallback failed: ${personalizedFallback.result.value}`);
 
   await call("Page.navigate", { url:`http://127.0.0.1:${port}/profile/?qa=female&case=work-type-other#${token}` }, sessionId);
   await sleep(900);
@@ -149,7 +154,7 @@ try {
   await sleep(350);
   const maleVerified = await call("Runtime.evaluate", { expression:"JSON.stringify({text:document.body.innerText,calls:window.__qaSubmitCalls,payload:window.__qaSubmitBodies?.[0]?.payload})", returnByValue:true }, sessionId);
   const maleVerifiedParsed = JSON.parse(maleVerified.result.value || "{}");
-  if (!String(maleVerifiedParsed.text).includes("프로필이 IRUM에 전달되었습니다") || maleVerifiedParsed.calls !== 1 || maleVerifiedParsed.payload?.privacyConsent !== true || maleVerifiedParsed.payload?.documentDeferred !== false) throw new Error(`male verified-doc submit failed: ${maleVerified.result.value}`);
+  if (!String(maleVerifiedParsed.text).includes("테스트 신청자님의 프로필이 IRUM에 전달되었습니다") || maleVerifiedParsed.calls !== 1 || maleVerifiedParsed.payload?.privacyConsent !== true || maleVerifiedParsed.payload?.documentDeferred !== false) throw new Error(`male verified-doc submit failed: ${maleVerified.result.value}`);
 
   await call("Page.navigate", { url:`http://127.0.0.1:${port}/profile/?qa=male#${token}` }, sessionId);
   await sleep(900);
@@ -194,7 +199,7 @@ try {
   const social = await call("Runtime.evaluate", { expression:"document.body.innerText", returnByValue:true }, sessionId);
   for (const marker of ["좋은 사람과", "직업 인증", "명함"]) if (!String(social.result.value).includes(marker)) throw new Error(`social marker missing: ${marker}`);
   await screenshot("qa-secondary-social-form-390.png");
-  console.log("secondary_mobile_qa=pass viewport=390x844 female_submit=true female_other_guard=true male_verified_submit=true male_deferred_conflict_submit=true male_document_guard=true privacy_guard=true server_missing_navigation=true raw_error_hidden=true latest_payload_preserved=true");
+  console.log("secondary_mobile_qa=pass viewport=390x844 female_submit=true male_verified_submit=true personalized_name=true personalized_fallback=true personalized_xss_safe=true male_deferred_conflict_submit=true male_document_guard=true privacy_guard=true server_missing_navigation=true latest_payload_preserved=true");
 } finally {
   try { ws?.close(); } catch {}
   chrome.kill("SIGTERM");
