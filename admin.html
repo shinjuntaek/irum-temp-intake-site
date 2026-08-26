@@ -1277,10 +1277,32 @@
         };
         return maps[key]?.[String(value)] || String(value ?? "");
       };
+      const secondaryObject = (value) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) return value;
+        if (typeof value === "string" && value.trim()) {
+          try {
+            const parsed = JSON.parse(value);
+            return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+          } catch {}
+        }
+        return {};
+      };
+      const secondaryReviewPayload = (form) => {
+        const prefill = secondaryObject(form.prefill_snapshot);
+        const written = secondaryObject(form.status === "submitted" ? form.submitted_payload : form.draft_payload);
+        return { ...prefill, ...written };
+      };
+      const secondaryHasReview = (form) => form.status === "submitted" || (
+        form.status === "in_progress" && (
+          Number(form.draft_revision || 0) > 0 ||
+          Boolean(form.draft_saved_at) ||
+          Object.keys(secondaryObject(form.draft_payload)).length > 0
+        )
+      );
       const secondaryReviewMarkup = (form) => {
-        const payload = form.status === "submitted" ? form.submitted_payload : form.draft_payload;
+        const payload = secondaryReviewPayload(form);
         if (!payload || typeof payload !== "object" || !Object.keys(payload).length) return '<p class="workspace-sub">아직 고객이 작성한 2차 답변이 없습니다.</p>';
-        const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
+        const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 1차 기본값 포함 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
         const groups = secondaryAnswerSections(form.form_type).map(([title, fields]) => {
           const rows = fields.filter(([key]) => payload[key] !== undefined && payload[key] !== null && payload[key] !== "" && !(Array.isArray(payload[key]) && !payload[key].length));
           if (!rows.length) return "";
@@ -1474,7 +1496,7 @@
         target.innerHTML = '<p class="workspace-sub">2차 작성 내용을 불러오는 중입니다.</p>';
         try {
           const result = await invokeSecondaryAdmin("secondary-admin-list", { subject_type:item.kind, subject_id:item.id });
-          const forms = (result.forms || []).filter((form) => form.status === "submitted" || (form.status === "in_progress" && form.draft_payload && Object.keys(form.draft_payload).length));
+          const forms = (result.forms || []).filter(secondaryHasReview);
           target.innerHTML = forms.length ? forms.map(secondaryReviewMarkup).join("") : '<p class="workspace-sub">작성중이거나 제출된 2차 신청 내용이 없습니다.</p>';
         } catch (error) {
           target.innerHTML = `<p class="login-error">2차 답변을 불러오지 못했습니다. (${osEsc(error.code || error.message)})</p>`;
