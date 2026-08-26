@@ -8,7 +8,7 @@ const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
-const BUILD_ID = "secondary-submit-merge-20260826-1";
+const BUILD_ID = "secondary-submit-cas-current-payload-20260826-2";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -114,6 +114,53 @@ function normalizeSecondaryPayload(formType: string, rawValue: unknown) {
     workplace: limitedText(raw.workplace ?? raw.companyIndustry ?? raw.company, 200),
     privacyConsent: common.privacyConsent,
   };
+}
+
+function canonicalizeSecondaryPayloadPatch(formType: string, rawValue: unknown) {
+  const raw = rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)
+    ? rawValue as Record<string, unknown>
+    : {};
+  const patch: Record<string, unknown> = { ...raw };
+  const has = (key: string) => Object.prototype.hasOwnProperty.call(raw, key);
+  const alias = (canonical: string, ...legacy: string[]) => {
+    if (has(canonical)) return;
+    const source = legacy.find(has);
+    if (source) patch[canonical] = raw[source];
+  };
+  alias("birthDate", "birth");
+  alias("singleStatus", "single");
+  alias("maritalStatus", "marriage");
+  alias("healthFlag", "health_flag");
+  alias("healthMemo", "health_memo");
+  alias("privacyConsent", "privacy_consent", "profileConsent");
+  if (formType === "profile_female") {
+    alias("job", "job_female");
+    alias("companyIndustry", "company_industry");
+    alias("workType", "work_type");
+    alias("workTypeOther", "work_type_other", "work_other");
+    alias("incomeFemale", "income_female");
+    alias("realCheckMethod", "realCheck", "real_check");
+    alias("realCheckDate", "real_check_date");
+    alias("serviceSelection", "serviceFemale", "service_female");
+    alias("femaleNote", "female_note");
+  } else if (formType === "profile_male") {
+    alias("bodyType", "bodytype");
+    alias("employmentOther", "employment_other", "work_other");
+    alias("incomeMale", "income_male");
+    alias("serviceSelection", "serviceMale", "service_male");
+    alias("preferredAgeMin", "age_min");
+    alias("preferredAgeMax", "age_max");
+    alias("preferredHeightMin", "height_min");
+    alias("preferredHeightMax", "height_max");
+    alias("targetTattoo", "target_tattoo");
+    alias("targetSmoking", "target_smoking");
+    alias("targetMarriage", "target_marriage");
+    alias("documentDeferred", "document_deferred");
+    alias("documentDueDate", "document_due_date");
+  } else if (formType === "social_event") {
+    alias("workplace", "companyIndustry", "company");
+  }
+  return patch;
 }
 
 function normalizePrefillSnapshot(
@@ -303,11 +350,6 @@ type SubmissionValidationIssue = { code: string; missing: string[] };
 function validateSubmission(formType: string, payload: Record<string, unknown>, verifiedTypes: Set<string>): SubmissionValidationIssue | null {
   const missing: string[] = [];
   const requireText = (key: string, value: unknown = payload[key]) => { if (!text(value)) missing.push(key); };
-  if (formType === "profile_female" || formType === "profile_male") {
-    return payload.privacyConsent === true
-      ? null
-      : { code: "PRIVACY_CONSENT_REQUIRED", missing: ["privacyConsent"] };
-  }
   if (formType === "profile_female") {
     ["birthDate", "height", "region", "singleStatus", "maritalStatus", "realCheckMethod", "realCheckDate", "serviceSelection"].forEach((key) => requireText(key));
     if (text(payload.workType) === "기타") requireText("workTypeOther");
@@ -420,7 +462,13 @@ Deno.serve(async (req) => {
         updated_at: savedAt,
       }).eq("id", form.id).eq("draft_revision", expectedRevision).select("draft_revision, draft_saved_at").maybeSingle();
       if (error) throw error;
-      if (!data) return json({ error: "DRAFT_CONFLICT", current_revision: form.draft_revision }, 409);
+      if (!data) {
+        const { data: current } = await database.from(FORM_TABLE)
+          .select("draft_revision")
+          .eq("id", form.id)
+          .maybeSingle();
+        return json({ error: "DRAFT_CONFLICT", current_revision: current?.draft_revision ?? form.draft_revision }, 409);
+      }
       await appendEvent(database, form.id, "draft_saved", "public_token", undefined, { revision: data.draft_revision });
       return json(data);
     }
@@ -502,14 +550,14 @@ Deno.serve(async (req) => {
       if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) return json({ error: "INVALID_IDEMPOTENCY_KEY" }, 422);
       if (form.status === "submitted") {
         return form.submit_idempotency_key === idempotencyKey
-          ? json({ ok: true, replayed: true, submitted_at: form.submitted_at })
+          ? json({ ok: true, replayed: true, status: "submitted", submitted_at: form.submitted_at, build_id: BUILD_ID })
           : json({ error: "ALREADY_SUBMITTED" }, 409);
       }
-      const storedDraft = stripSecrets(form.draft_payload ?? {}) as Record<string, unknown>;
-      const currentPayload = stripSecrets(body.payload ?? {}) as Record<string, unknown>;
+      const storedDraft = normalizeSecondaryPayload(form.form_type, stripSecrets(form.draft_payload ?? {})) as Record<string, unknown>;
+      const currentPayload = canonicalizeSecondaryPayloadPatch(form.form_type, stripSecrets(body.payload ?? {}));
       const submittedPayload = normalizeSecondaryPayload(form.form_type, {
-        ...(storedDraft && typeof storedDraft === "object" && !Array.isArray(storedDraft) ? storedDraft : {}),
-        ...(currentPayload && typeof currentPayload === "object" && !Array.isArray(currentPayload) ? currentPayload : {}),
+        ...storedDraft,
+        ...currentPayload,
       }) as Record<string, unknown>;
       if (JSON.stringify(submittedPayload).length > 250_000) return json({ error: "INVALID_SUBMISSION" }, 422);
       const { data: documents, error: documentError } = await database.from(DOCUMENT_TABLE)
@@ -528,7 +576,7 @@ Deno.serve(async (req) => {
         consent_version: text(body.consent_version || "temporary-secondary-v1"),
         consent_at: submittedAt,
         updated_at: submittedAt,
-      }).eq("id", form.id).in("status", ["pending", "in_progress"]).select("submitted_at").maybeSingle();
+      }).eq("id", form.id).in("status", ["pending", "in_progress"]).select("status, submitted_at").maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: "SUBMIT_CONFLICT" }, 409);
       try {
@@ -539,7 +587,7 @@ Deno.serve(async (req) => {
           error: eventError instanceof Error ? eventError.message : "unknown",
         });
       }
-      return json({ ok: true, replayed: false, submitted_at: data.submitted_at });
+      return json({ ok: true, replayed: false, status: data.status, submitted_at: data.submitted_at, build_id: BUILD_ID });
     }
 
     if (action === "secondary-admin-issue") {
