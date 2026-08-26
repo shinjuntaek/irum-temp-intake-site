@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이룸 — 플랜 안내</title>
+<script>
+  // 새로고침해도 이전 스크롤 위치를 복원하지 않고 항상 최상단에서 시작.
+  // <head> 에서 미리 꺼야 브라우저가 복원을 시도하기 전에 적용된다.
+  if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+</script>
+<style>
+/* ══════════════════════════════════════════════════════════
+   이룸(IRUM) 디자인 시스템 토큰 — DESIGN_SYSTEM.md 준수
+   ══════════════════════════════════════════════════════════ */
+@font-face{
+  font-family:'ZEN SERIF';
+  src:url(assets/fonts/zenserif.woff2) format('woff2');
+  font-weight:400; font-style:normal; font-display:swap;
+}
+:root{
+  /* 다크 */
+  --noir:#0e0b07; --noir-2:#16120c; --black-btn:#14110c;
+  /* 골드 */
+  --gold-btn:#bd9324; --gold:#c59c2a; --gold-hi:#d8bc7a; --gold-dark:#9c7a1a; --badge-gold:#d29c29;
+  /* 라이트 */
+  --white:#fbf9f4; --cream:#f3ecdd; --ivory:#f2eee6; --form-bg:#f6f6f4;
+  --card:#ffffff; --card-photo:#e6e4dd; --sel-gold:#f8f3e6;
+  /* 텍스트 */
+  --ink:#181510; --muted:#7c7263; --soft:#8a8072;
+  --on-dark:#f3ecdd; --on-dark-soft:#a89f8b;
+  /* 라인 */
+  --line-dark:rgba(216,188,122,.20); --line-light:rgba(24,21,16,.1); --line-light-2:rgba(24,21,16,.16);
+  /* 상태 */
+  --uncheck:#dcdad2; --tint-gold:rgba(189,147,36,.1);
+  /* 폰트 */
+  --serif:'ZEN SERIF','Didot','Bodoni 72',Georgia,serif;
+  --sans:'Avenir Next','Apple SD Gothic Neo','Noto Sans KR','Helvetica Neue',Arial,sans-serif;
+  /* 라운드/모션 */
+  --radius:0; --ease:cubic-bezier(.22,1,.32,1);
+  /* 에셋 — 각 1회만 정의하고 var()로 재사용 */
+  --seal:url(assets/svg/seal.svg);
+  --badge:url(assets/svg/badge.svg);
+  --emblem:url(assets/svg/emblem.svg);
+  --pattern:url(assets/img/pattern.png);
+  --logo-black:url(assets/svg/logo-black.svg);
+  --hero-bg:url(assets/img/hero-pc.jpg);
+  --hero-bg-mo:url(assets/img/hero-mobile.jpg);
+  --venue:url(assets/img/venue.jpg);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);color:var(--ink);background:var(--ivory);
+  line-height:1.4;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+
+/* ── 레이아웃 ─────────────────────────────────────────── */
+/* 섹션 배경은 두 가지뿐 — 블랙(--noir) 또는 아이보리(#f2eee6) */
+.wrap{max-width:720px;margin:0 auto;padding:0 24px}
+.wrap.wide{max-width:760px}
+section{padding:84px 0;position:relative}
+/* 플랜 섹션 — 베이지 단색 */
+.s-progs{background:var(--ivory)}
+.s-progs .head .emblem{margin-bottom:16px}
+.s-ivory{background-color:var(--ivory);
+  background-image:linear-gradient(rgba(242,238,230,.86),rgba(242,238,230,.86)),var(--pattern);
+  background-repeat:repeat,repeat;background-position:center top;background-size:auto,120% auto}
+.s-dark{background:var(--noir);color:var(--on-dark)}
+.s-dark .lead,.s-dark p{color:var(--on-dark-soft)}
+
+/* ── 타이포 ───────────────────────────────────────────── */
+h1,h2,h3{letter-spacing:-.01em}
+/* 메인 타이틀만 ZEN SERIF + 볼드. woff2가 400 단일 웨이트라 합성 볼드가 적용됨 */
+h1,h2{font-weight:700}
+h3{font-weight:400}
+h2{font-family:var(--serif);font-size:clamp(25px,5.4vw,33px);line-height:1.32}
+.lead{font-size:15px;color:var(--muted);margin-top:14px;line-height:1.4}
+.head{text-align:center;margin-bottom:44px}
+.head .lead{max-width:460px;margin-left:auto;margin-right:auto}
+
+/* 골드 헤어라인 */
+.rule{width:34px;height:1px;background:var(--gold-btn);margin:0 auto 20px}
+.s-dark .rule{background:var(--gold-hi);opacity:.7}
+
+/* ── 버튼 ─────────────────────────────────────────────── */
+.btn-gold{display:inline-flex;align-items:center;justify-content:center;
+  height:54px;padding:0 40px;border:1px solid var(--gold-btn);background:var(--gold-btn);
+  color:#fff;font:700 15px var(--sans);border-radius:var(--radius);
+  text-decoration:none;cursor:pointer;transition:background .18s}
+.btn-gold:hover{background:var(--gold-dark)}
+
+/* ══════════════════════════════════════════════════════════
+   S1 — 히어로
+   ══════════════════════════════════════════════════════════ */
+.hero{background:var(--noir);color:var(--on-dark);text-align:center;
+  padding:64px 0 34px;position:relative;overflow:hidden}
+/* 배경 사진 (야경 커플) — 없으면 패턴만 남는다 */
+.hero-bg{position:absolute;inset:0;z-index:0;
+  background:var(--hero-bg) center center/cover no-repeat;pointer-events:none}
+/* 가독성 스크림: 위·아래로 어둡게 눌러 텍스트를 띄운다 */
+/* PC 스크림 — 상단(로고·타이틀) 짙게, 중앙 열어두고, 하단(문구·3원칙) 다시 짙게 */
+.hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(to bottom,
+      rgba(14,11,7,.95) 0%,
+      rgba(14,11,7,.84) 26%,
+      rgba(14,11,7,.52) 48%,
+      rgba(14,11,7,.87) 76%,
+      rgba(14,11,7,.98) 100%),
+    radial-gradient(120% 76% at 50% 48%,rgba(14,11,7,0) 34%,rgba(14,11,7,.54) 100%)}
+.hero:before{content:"";position:absolute;inset:0;z-index:1;
+  background:var(--pattern) center top/130% auto repeat;
+  opacity:.05;pointer-events:none}
+.hero .wrap{position:relative;z-index:2}
+.hero-top,.hero-foot{position:relative;z-index:2}
+.hero-photo{display:none}
+.hero .logo{width:98px;margin:0 auto 22px;opacity:.95}
+.hero h1{font-family:var(--serif);font-size:42px;
+  line-height:1.28;letter-spacing:-.02em}
+.hero .lead{color:var(--on-dark-soft);font-size:15px;margin-top:18px}
+/* 히어로 하단 3원칙 스트립 */
+.facts{position:relative;z-index:2;margin-bottom:16px;
+  display:flex;flex-direction:column;align-items:center;gap:10px}
+/* 골드 아웃라인 태그 — 채움 없이 테두리·글자만 골드 */
+.ftag{display:inline-block;padding:9px 15px;
+  border:1px solid var(--gold-hi);color:var(--gold-hi);
+  font:700 14px var(--sans);letter-spacing:.01em;line-height:1;white-space:nowrap}
+
+/* ══════════════════════════════════════════════════════════
+   S2 — 안심 3원칙 (① ② ③ 원형)
+   ══════════════════════════════════════════════════════════ */
+.trio{display:grid;gap:12px}
+.tri{background:var(--white);border:1px solid var(--line-light);border-radius:var(--radius);
+  padding:22px 20px;display:grid;grid-template-columns:52px 1fr;gap:16px;align-items:center}
+/* 아이콘 원형 — 어두운 구(球) + 골드 라인 아이콘 */
+.ic{width:52px;height:52px;flex:none;border-radius:50%;
+  background:radial-gradient(120% 120% at 32% 24%,#40361f 0%,#221c11 48%,#0e0b07 100%);
+  display:flex;align-items:center;justify-content:center;color:var(--gold-hi)}
+.ic svg{display:block;width:29px;height:29px;fill:none;stroke:currentColor;
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tri h3{font:700 18px var(--sans);letter-spacing:-.01em;line-height:1.4}
+.tri p{font-size:14px;color:var(--muted);margin-top:5px;line-height:1.4}
+.tri p b{color:var(--ink);font-weight:700}
+
+/* ══════════════════════════════════════════════════════════
+   S3 — 진행 절차 (아이콘 타임라인)
+   ══════════════════════════════════════════════════════════ */
+.tl{position:relative}
+.tstep{display:block;padding:16px 4px;position:relative;z-index:1}
+.tstep .tx{min-width:0}
+/* ── 프로세스 안 다크 캐러셀 ── */
+/* 섹션 직속 자식이라 별도 폭 지정 없이 화면 폭과 정확히 일치한다.
+   (100vw 는 스크롤바 폭만큼 넘쳐 중앙이 어긋나므로 쓰지 않는다) */
+.deck-dark{position:relative;padding:6px 0 16px;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  scroll-snap-type:x mandatory;scrollbar-width:none;-ms-overflow-style:none}
+.deck-dark::-webkit-scrollbar{display:none}
+/* 좌우 여백을 카드 절반만큼 둬 첫/마지막 카드도 화면 중앙에 설 수 있게 */
+.deck-dark .deck{display:flex;width:max-content;align-items:stretch;
+  padding-inline:calc(50% - 130px);
+}
+.deck-dark .pcard{flex:0 0 260px;width:260px;margin-right:16px;
+  scroll-snap-align:center;display:flex;flex-direction:column;cursor:pointer}
+.deck-dark .pcard .in{flex:1}
+.deck-dark .pcard .ttl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard.dark{background:var(--noir-2);border-color:var(--line-dark);
+  transition:border-color .12s ease-out,box-shadow .12s ease-out}
+.pcard.dark.picked{border-color:var(--gold-btn);
+  box-shadow:0 0 0 1px var(--gold-btn)}
+.pcard.dark .ttl{color:var(--on-dark)}
+.pcard.dark .desc{color:var(--on-dark-soft)}
+.pcard.dark .vf span{color:var(--on-dark-soft)}
+/* ── 만남 이미지 — 섹션 하단에 붙는 전체 폭, 윗부분은 블랙으로 풀림 ── */
+.s-process{padding-bottom:40px}
+.meet-photo{position:relative;width:100%;margin-top:0;
+  height:62vh;min-height:420px;
+  background:var(--noir-2) url(assets/img/meet-3-actress.jpg) center 42%/cover no-repeat}
+/* 선택한 프로필 카드에 따라 바뀌는 만남 장면 */
+.meet-photo.m1{background-image:url(assets/img/meet-1-cat.jpg)}
+.meet-photo.m2{background-image:url(assets/img/meet-2-firstlove.jpg)}
+.meet-photo.m3{background-image:url(assets/img/meet-3-actress.jpg)}
+/* 고양이상·첫사랑상 컷은 밝아서 살짝 눌러준다 */
+.meet-photo.m1:after,.meet-photo.m2:after{content:"";position:absolute;inset:0;
+  pointer-events:none;background:rgba(14,11,7,.22)}
+.meet-photo:before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,
+    var(--noir) 0%,
+    rgba(14,11,7,.42) 12%,
+    rgba(14,11,7,.12) 26%,
+    rgba(14,11,7,0) 42%)}
+.tl{padding-top:0}
+/* 제목 ~ 첫 단계 사이 총 24px (head 8 + tstep 첫 항목 padding 16) */
+.s-process .head{margin-bottom:12px}
+/* 제목 b만 block — 본문 속 인라인 <b>까지 잡지 않도록 자식 선택자로 한정 */
+.tstep .tx>b{display:block;font:700 20px var(--sans);margin-bottom:6px}
+.tstep p{font-size:14px;color:var(--muted);line-height:1.4}
+.tstep p b{color:var(--ink);font-weight:700}
+/* 프로세스 섹션은 블랙 배경 — 원형·텍스트를 다크 대응으로 (동일 특정도라 순서로 이김) */
+.s-dark .tstep .tx>b{color:var(--gold-hi)}
+.s-dark .tstep p{color:var(--on-dark-soft)}
+.s-dark .tstep p b{color:var(--gold-hi)}
+/* 4단계 — 번호 원형만 골드로 채우고, 사진은 본문 아래 좌측 정렬로 배치 */
+.shot{margin-top:14px;background:var(--venue) center 46%/cover no-repeat;
+  aspect-ratio:16/10;border:1px solid var(--line-dark)}
+
+.tag{display:inline-block;font:700 13px var(--sans);letter-spacing:.03em;
+  color:#fff;background:var(--gold-btn);border-radius:0;padding:3px 9px;margin-left:8px;
+  vertical-align:2px}
+
+/* ══════════════════════════════════════════════════════════
+   S4 — 프로필 카드 + 세션
+   ══════════════════════════════════════════════════════════ */
+/* 카드 캐러셀 — 한 장씩 중앙으로 이동하며 확대 포커싱, 무한 반복.
+   카드 묶음을 2벌 두고, 복제 묶음 첫 장에 닿으면 트랜지션 없이 원위치로 되돌린다 */
+.deckwrap{padding:14px 0 40px}
+.deck{display:flex;align-items:center}
+.pcard{background:var(--white);border:1px solid var(--line-light-2);
+  border-radius:var(--radius);overflow:hidden}
+.pcard .photo{aspect-ratio:4/5;background:var(--card-photo) center 22%/cover no-repeat;
+  position:relative}
+/* 카드 사진 우측 상단 — 선택용 체크 아이콘 (뒤에 블랙 그라데이션) */
+.pcard .pick{position:absolute;top:0;right:0;width:92px;height:92px;
+  padding:0;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  display:flex;align-items:flex-start;justify-content:flex-end;
+  background:radial-gradient(125% 125% at 100% 0,
+    rgba(0,0,0,.60) 0%,rgba(0,0,0,.30) 46%,rgba(0,0,0,0) 74%)}
+.pcard .pick i{display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;margin:12px 13px 0 0;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.9);background:rgba(0,0,0,.22);
+  transition:background .12s ease-out,border-color .12s ease-out,transform .12s ease-out}
+.pcard .pick svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2.6;
+  stroke-linecap:round;stroke-linejoin:round;transition:stroke .25s var(--ease)}
+.pcard .pick:hover i{border-color:var(--gold-hi);background:rgba(0,0,0,.42)}
+.pcard .pick:hover svg{stroke:var(--gold-hi)}
+.pcard .pick.picked i{background:var(--gold-btn);border-color:var(--gold-btn);transform:scale(1.06)}
+.pcard .pick.picked svg{stroke:#fff}
+.pcard .in{padding:18px 18px 20px;min-width:0;overflow-wrap:break-word}
+.pcard .vf{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}
+.pcard .vf span{font-size:13px;font-weight:700;color:var(--gold-dark);
+  padding-left:20px;position:relative}
+.pcard .vf span:before{content:"";position:absolute;left:0;top:1px;width:15px;height:15px;
+  background:var(--seal) center/contain no-repeat}
+.pcard .ttl{font:700 18px var(--sans);line-height:1.4;overflow-wrap:break-word}
+.pcard .desc{font-size:14px;color:var(--muted);margin-top:8px;line-height:1.4}
+
+/* 카드 구성 — 제목 왼쪽, 설명 오른쪽 (좌측 골드 표식·중간 대시 없음) */
+/* 헤딩 아래 작게 붙는 질문 한 줄 */
+
+/* 세션 */
+/* 세션 — 라벨 위, 설명 아래 세로 정렬 */
+/* 라벨 — 프로세스 섹션과 같은 골드 스트로크 원형 + 'N세션' */
+/* 흰 카드 + 골드 한 줄 테두리 (그림자 없음) */
+/* 섹션 하단 보충 설명 — 카드 아닌 평문 (테두리·배경·강조 없음) */
+.fnote{margin-top:24px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+/* 규칙 목록 (① ② ③) */
+
+/* ══════════════════════════════════════════════════════════
+   S5 — 플랜
+   ══════════════════════════════════════════════════════════ */
+.progs{display:grid;gap:16px}
+.pg{--accent:var(--gold-dark);
+  background:var(--white);border:1px solid var(--line-light-2);
+  border-radius:var(--radius);padding:30px 26px 28px;position:relative}
+/* 세 플랜 모두 같은 골드 — 등급 구분은 배지 아이콘으로만 */
+/* 강조 카드 — 골드 그라데이션 테두리.
+   테두리에는 그라데이션을 직접 못 넣어, 배경 2겹(안쪽 흰색 + 바깥 골드)으로 그린다.
+   border-image 는 border-radius 를 무시하므로 쓰지 않는다. */
+.pg.secret{border:2px solid transparent;
+  background:linear-gradient(var(--white),var(--white)) padding-box,
+    linear-gradient(135deg,#c9a13a 0%,#e0bd68 30%,#b8912c 62%,#a5801c 100%) border-box}
+/* 강조 태그 — 카드 우측 상단 모서리에 밀착 */
+.pg .flag{position:absolute;top:14px;right:14px;z-index:1;
+  font:700 13px var(--sans);letter-spacing:.04em;
+  color:#fff;padding:7px 13px;
+  background:linear-gradient(125deg,#c9a13a 0%,#e0bd68 34%,#b8912c 62%,#a5801c 100%)}
+/* 등급명 — 배지와 함께 작게 (제목 자리는 아래 h3 가 가져간다) */
+.pg .tiername{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font:700 14px var(--sans);color:var(--accent);letter-spacing:.02em}
+.tier{flex:none;width:19px;height:26px;
+  background:url(assets/img/badge-gold.png) center/contain no-repeat}
+/* 한 줄 가치 — 가격보다 작아야 가격이 가장 크게 읽힌다 */
+.pg h3{font:700 18px var(--sans);color:var(--ink);margin-top:12px;line-height:1.4}
+/* 정가 취소선 + 혜택 배지 */
+.was{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:16px}
+.was .orig{font:700 14px var(--sans);color:var(--muted);
+  text-decoration:line-through;text-decoration-thickness:1px}
+/* 가격 — 카드에서 가장 큰 활자 */
+.pgline{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;margin-top:16px}
+.was + .pgline{margin-top:6px}
+/* 등급 전용 가치 배너 */
+.excl{margin-top:18px;padding:14px 16px;background:var(--tint-gold)}
+.excl b{display:block;font:700 14px var(--sans);color:var(--ink);line-height:1.5}
+.excl .hl{color:var(--gold-dark)}
+.pg .price{font:700 24px var(--sans);color:var(--accent);line-height:1.2}
+.pg .per{font-size:14px;color:var(--muted)}
+/* 혜택 — 아이콘 + 한 줄 */
+.pg ul{list-style:none;margin-top:20px;display:flex;flex-direction:column;gap:13px}
+.pg li{display:flex;align-items:flex-start;gap:11px;
+  font-size:14px;color:var(--ink);line-height:1.45}
+.pg li b{font-weight:700}
+.pg .pic{flex:none;width:19px;height:19px;margin-top:1px;color:var(--accent)}
+.pg .pic svg{width:19px;height:19px;display:block;fill:none;stroke:currentColor;
+  stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+/* 각주 — 회차·포함 관계 */
+
+/* ══════════════════════════════════════════════════════════
+   S6 — 환불
+   ══════════════════════════════════════════════════════════ */
+/* 3원칙 카드(.trio/.tri)와 동일한 카드형 */
+.rf{display:grid;gap:12px}
+.rfi{background:var(--white);border:1px solid var(--line-light);border-radius:var(--radius);
+  padding:22px 20px;display:grid;grid-template-columns:52px 1fr;gap:16px;align-items:center}
+.rfi b{display:block;font:700 18px var(--sans)}
+.rfi p{font-size:14px;color:var(--muted);margin-top:5px;line-height:1.4}
+/* 상품명 + 골드 태그 한 줄, 금액은 그 아래 우측 정렬 */
+
+/* ══════════════════════════════════════════════════════════
+   S7 — FAQ (아코디언)
+   ══════════════════════════════════════════════════════════ */
+.faq{border-top:1px solid var(--line-light-2)}
+.faq details{border-bottom:1px solid var(--line-light)}
+.faq summary{list-style:none;cursor:pointer;padding:22px 36px 22px 4px;position:relative;
+  font:700 18px var(--sans);line-height:1.4}
+summary::-webkit-details-marker{display:none}
+.faq summary:after{content:"";position:absolute;right:8px;top:27px;width:9px;height:9px;
+  border-right:1px solid var(--gold-btn);border-bottom:1px solid var(--gold-btn);
+  transform:rotate(45deg);transition:transform .28s var(--ease)}
+.faq details[open] summary:after{transform:rotate(225deg);top:30px}
+.faq details p{font-size:14px;color:var(--muted);padding:0 4px 22px;line-height:1.4;margin-top:-4px}
+
+/* ══════════════════════════════════════════════════════════
+   CTA · 푸터
+   ══════════════════════════════════════════════════════════ */
+.cta{background:var(--noir);text-align:center;padding:88px 0;position:relative;overflow:hidden}
+.cta:before{content:"";position:absolute;inset:0;
+  background:var(--pattern) center/130% auto repeat;opacity:.05}
+.cta .wrap{position:relative;z-index:2}
+.emblem{width:34px;height:34px;margin:0 auto 22px;
+  background:var(--emblem) center/contain no-repeat}
+.cta h2{color:var(--on-dark)}
+.cta .lead{color:var(--on-dark-soft)}
+.cta .logo{width:104px;margin:40px auto 0;opacity:.6}
+footer{background:var(--black-btn);padding:30px 24px 42px;text-align:center;
+  font-size:13px;color:rgba(168,159,139,.75);line-height:1.4;
+  border-top:1px solid var(--line-dark)}
+
+/* 상단 브랜드 바 — 히어로를 지나면 내려온다 (반투명 블랙 + 블러, 화이트 로고) */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:60px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(14,11,7,.68);
+  -webkit-backdrop-filter:blur(16px) saturate(130%);backdrop-filter:blur(16px) saturate(130%);
+  border-bottom:1px solid var(--line-dark);
+  opacity:0;transform:translateY(-100%);transition:.34s var(--ease);pointer-events:none}
+.topbar.show{opacity:1;transform:none}
+.topbar .lg{height:34px;width:auto}
+
+/* ── 모션 ─────────────────────────────────────────────── */
+/* 스크롤 진입 fade-up — 형제끼리 --d 만큼 순차 지연 */
+.rv{opacity:0;transform:translateY(20px);
+  transition:opacity .75s var(--ease),transform .75s var(--ease);
+  transition-delay:var(--d,0ms)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  .rv{opacity:1;transform:none;transition:none}
+}
+
+/* ── 반응형 ───────────────────────────────────────────── */
+/* PC — 3원칙 카드를 가로 3열로, 아이콘은 위로 */
+@media(min-width:601px){
+  /* 카드 2장을 360px 씩, 화면 가운데 나열 */
+  .trio{grid-template-columns:repeat(2,360px);justify-content:center;gap:16px}
+  .tri{grid-template-columns:1fr;grid-template-rows:52px auto;
+    align-items:start;gap:18px;padding:28px 22px}
+  .rf{grid-template-columns:repeat(2,1fr)}
+  .rfi{align-items:start;padding:24px 22px}
+
+  /* ── ① 히어로: 배경 방식 대신 문구 아래 상반신 이미지(겹침 없음) ── */
+  .hero{min-height:0;display:block;padding:64px 0 40px}
+  .hero-bg,.hero-scrim,.hero:before{display:none}   /* 배경 이미지·스크림 끔 */
+  .hero-foot{margin-top:0}
+  .hero-photo{display:block;height:400px;margin:34px 0 -20px;
+    /* 블랙 바닥을 먼저 깔아 이미지 디코딩 전에도 어둡게(로드 플래시 방지) */
+    background-color:var(--noir);
+    /* 반투명 블랙 오버레이 + 상반신이 더 보이도록 80px 위로 */
+    background-image:linear-gradient(rgba(14,11,7,.46),rgba(14,11,7,.46)),var(--hero-bg);
+    background-position:center,center calc(13% - 160px);
+    background-size:cover,cover;background-repeat:no-repeat,no-repeat;
+    -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 82%,transparent 100%);
+    mask-image:linear-gradient(to bottom,transparent 0,#000 16%,#000 82%,transparent 100%)}
+  .hero .lead{margin-top:0}
+  .facts{margin-top:44px;flex-direction:row;justify-content:center;gap:12px}
+
+  /* ── ③ 프로필 카드: PC 는 회전 없이 3장 정적 배치 ── */
+  .deck-dark{max-width:812px;margin-left:auto;margin-right:auto;
+    overflow:visible;scroll-snap-type:none}
+  .deck-dark .deck{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;
+    width:auto;padding-inline:0}
+  .deck-dark .pcard[aria-hidden="true"]{display:none}   /* 무한회전용 복제본 */
+  .deck-dark .pcard{flex:none;width:auto;margin-right:0;scroll-snap-align:none}
+
+  /* 만남 이미지 — 위 카드 3장 합친 폭에 맞춤 */
+  .meet-photo{max-width:812px;margin-left:auto;margin-right:auto}
+
+
+  /* ── ④ 플랜: 3열 나열, 아이콘 옆 설명은 한 줄로 ── */
+  .s-progs .wrap{max-width:1140px}
+  .progs{grid-template-columns:repeat(3,1fr);gap:16px;align-items:stretch}
+  .pg li{white-space:nowrap;font-size:13.5px;gap:9px}
+
+
+  /* ── ⑤ 환불 예시: 상품명·태그·금액 한 줄 ── */
+
+  /* ── ⑥ 레스토랑 이미지 절반 크기 ── */
+  .shot{max-width:50%}
+
+  /* ── 전 섹션 콘텐츠 폭 840px (S2 wide 포함) ── */
+  .wrap,.wrap.wide{max-width:840px}
+
+  /* ── 카드 제목·목차 20px (font shorthand 위에 얹어 덮음) ── */
+  .tri h3,.tstep .tx>b,.se .lb,.rules li>b,.rfi b,.pcard .ttl{font-size:20px}
+  .tri h3{min-height:0}
+
+  /* ── ② 프로세스(타임라인) 폭 680px ── */
+  .tl{max-width:680px;margin-left:auto;margin-right:auto}
+
+  /* ── 프로필 카드 설명 목록만 560px, 가운데 정렬, 카드와 간격 2.5배 ── */
+}
+@media(max-width:600px){
+  section{padding:62px 0}
+  .wrap{padding:0 20px}
+  /* 히어로 외 모든 섹션 좌측 정렬 */
+  .head{margin-bottom:34px;text-align:left}
+  .head .lead{margin-left:0;margin-right:0;max-width:none}
+  /* 프로세스 제목 아래 여백 — 모바일에서 더 넉넉하게 */
+  .s-process .head{margin-bottom:28px}
+  .rule{margin-left:0}
+  h2{font-size:24px}
+  .lead{font-size:15px}
+  .cta{text-align:left}
+  .emblem{margin-left:0}
+  .cta .logo{margin-left:0}
+  footer{text-align:left}
+  /* 모바일 히어로 — 상단 문구 / 중앙 사진 / 하단 짙은 스크림 3단 구성 */
+  .hero{padding:44px 0 64px;min-height:80vh;min-height:80svh;
+    display:flex;flex-direction:column}
+  .hero-foot{margin-top:auto}          /* 문구·3원칙을 바닥으로 밀어 중앙을 비운다 */
+  .hero .logo{width:88px;margin-bottom:18px}
+  .hero h1{font-size:28px}
+  .hero .lead{margin-top:0;font-size:15px}
+  .hero-bg{background-image:var(--hero-bg-mo)}
+  /* 0~30% 짙게(문구 가독·사진 억제) → 34~56% 열어 커플 노출 → 64%부터 다시 짙게 */
+  .hero-scrim{background:
+    linear-gradient(to bottom,
+      rgba(14,11,7,.93) 0%,
+      rgba(14,11,7,.88) 22%,
+      rgba(14,11,7,.30) 38%,
+      rgba(14,11,7,.28) 54%,
+      rgba(14,11,7,.86) 70%,
+      rgba(14,11,7,.97) 84%,
+      rgba(14,11,7,.99) 100%)}
+  /* 옛 3원칙 스트립과 같은 높이 — 위 문구 위치가 밀리지 않게 */
+  .facts{margin-bottom:16px;gap:8px}
+  .ftag{padding:8px 13px;font-size:13px}
+  .tri{grid-template-columns:48px 1fr;gap:14px;padding:18px 16px}
+  .ic{width:48px;height:48px}
+  .ic svg{width:27px;height:27px}
+  .tri h3{font-size:18px}
+  /* 프로세스 안 다크 캐러셀 — 좌측만 페이드(세로선 가림), 우측은 없음 */
+  .deck-dark .deck{padding-inline:calc(50% - 130px)}
+  .pcard .pick{width:76px;height:76px}
+  .pcard .pick i{width:30px;height:30px;margin:11px 12px 0 0}
+  .tstep{padding:15px 4px}
+  .tstep .tx>b{font-size:22px}
+  /* 카드 설명은 2줄 안에서 끝나게 */
+  .deck-dark .pcard .desc{display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden}
+  /* 만남 이미지 — 모바일 전용 컷, 뷰포트 절반 이상 */
+  .meet-photo{height:58vh;min-height:380px;
+    /* 가로 사진이라 그냥 채우면 인물이 작다 — 확대해 두 사람 쪽으로 당긴다 */
+    background-size:auto 142%;background-position:50% 38%}
+  /* 강조 단계 — 모바일은 좌우 여백 없이 화면 끝까지 (wrap padding 20px 상쇄) */
+  /* 모바일 히어로 — 첨부 이미지를 화면 너비에 맞춰 원본 비율 그대로 */
+  .hero-bg{background-image:var(--hero-bg-mo);
+    background-size:100% auto;background-position:center center;background-repeat:no-repeat}
+  .topbar{height:54px}
+  .topbar .lg{height:30px}
+  .cta .logo{width:92px;margin-top:34px}
+  .pg{padding:26px 20px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ S1 히어로 ═══════════════════════════════════════ -->
+<header class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-scrim"></div>
+
+  <!-- 상단: 로고 + 메인 문구 -->
+  <div class="wrap hero-top rv">
+    <img class="logo" src="assets/svg/logo-white.svg" alt="이룸 premium">
+    <h1>이제 당신의 이상형과<br>만날 차례입니다</h1>
+  </div>
+
+  <!-- PC 전용: 문구 아래 남녀 상반신 이미지 (모바일은 배경 방식 유지) -->
+  <div class="hero-photo" aria-hidden="true"></div>
+
+  <!-- 하단: 짙은 스크림 위 문구 + 3원칙 -->
+  <div class="hero-foot rv">
+    <div class="facts wrap">
+      <span class="ftag">소개 5회 = 실제 만남 5회</span>
+      <span class="ftag">신원 · 실물 · 인터뷰 검증</span>
+    </div>
+    <div class="wrap">
+      <p class="lead">원하시는 이상형만 선택하면,<br>
+        가장 가까운 분을 가장 빠르게 소개해드립니다</p>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ S2 안심 3원칙 ═══════════════════════════════════ -->
+<section class="s-ivory">
+  <div class="wrap wide">
+    <div class="head rv">
+      <h2>망설여지신다면,<br>구조부터 확인해 주세요</h2>
+      <p class="lead">이룸의 회차는 프로필 열람이 아니라 실제 만남입니다.</p>
+    </div>
+
+    <div class="trio">
+      <div class="tri rv">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M7.6 3.6h8.8l-.75 5.2A3.9 3.9 0 0 1 12 12a3.9 3.9 0 0 1-3.65-3.2L7.6 3.6ZM12 12v7.5M8.6 19.9h6.8"/></svg></span>
+        <div>
+          <h3>소개 5회 = 실제 만남 5번</h3>
+          <p>만나지 못하면 회차는 세지 않습니다.</p>
+        </div>
+      </div>
+      <div class="tri rv">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.4h-4.4"/></svg></span>
+        <div>
+          <h3>성사로 마치면 전액 환불</h3>
+          <p>진행한 회차만 빼고, <b>남은 회차는 정가 그대로</b> 돌려드립니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S3 진행 절차 ════════════════════════════════════ -->
+<section class="s-dark s-process">
+  <div class="wrap">
+    <div class="head rv">
+      <h2>선택만 하시면,<br>나머지는 저희가 합니다</h2>
+    </div>
+
+    <div class="tl">
+      <div class="tstep rv">
+        <div class="tx"><b>1. 프로필 카드 선택</b>
+          <p>세션마다 최종 선발 된 카드 2~3장을 보내드립니다. 3세션까지 무료!</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 캐러셀 — 화면 전체 폭, 카드 중앙이 화면 중앙에 오도록 wrap 밖에 배치 -->
+  <div class="deckwrap deck-dark">
+    <div class="deck">
+        <div class="pcard dark" aria-hidden="true">
+          <div class="photo" style="background-image:url(assets/img/profile-1-cat.jpg)">
+            <button class="pick" type="button" tabindex="-1" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">도도하고 매혹적인 고양이상</div>
+            <p class="desc">갸름한 얼굴선과 올라간 눈매가 매혹적인 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark" aria-hidden="true">
+          <div class="photo" style="background-image:url(assets/img/profile-2-firstlove.jpg)">
+            <button class="pick" type="button" tabindex="-1" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">웃을 때 더 예쁜 첫사랑상</div>
+            <p class="desc">맑은 눈과 환한 미소가 사랑스러운 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark" aria-hidden="true">
+          <div class="photo" style="background-image:url(assets/img/profile-3-actress.jpg)">
+            <button class="pick" type="button" tabindex="-1" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">우아하고 분위기 있는 배우상</div>
+            <p class="desc">세련된 눈매와 우아한 분위기가 돋보이는 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark">
+          <div class="photo" style="background-image:url(assets/img/profile-1-cat.jpg)">
+            <button class="pick" type="button" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">도도하고 매혹적인 고양이상</div>
+            <p class="desc">갸름한 얼굴선과 올라간 눈매가 매혹적인 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark">
+          <div class="photo" style="background-image:url(assets/img/profile-2-firstlove.jpg)">
+            <button class="pick" type="button" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">웃을 때 더 예쁜 첫사랑상</div>
+            <p class="desc">맑은 눈과 환한 미소가 사랑스러운 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark">
+          <div class="photo" style="background-image:url(assets/img/profile-3-actress.jpg)">
+            <button class="pick" type="button" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">우아하고 분위기 있는 배우상</div>
+            <p class="desc">세련된 눈매와 우아한 분위기가 돋보이는 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark" aria-hidden="true">
+          <div class="photo" style="background-image:url(assets/img/profile-1-cat.jpg)">
+            <button class="pick" type="button" tabindex="-1" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">도도하고 매혹적인 고양이상</div>
+            <p class="desc">갸름한 얼굴선과 올라간 눈매가 매혹적인 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark" aria-hidden="true">
+          <div class="photo" style="background-image:url(assets/img/profile-2-firstlove.jpg)">
+            <button class="pick" type="button" tabindex="-1" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">웃을 때 더 예쁜 첫사랑상</div>
+            <p class="desc">맑은 눈과 환한 미소가 사랑스러운 분입니다.</p>
+          </div>
+        </div>
+        <div class="pcard dark" aria-hidden="true">
+          <div class="photo" style="background-image:url(assets/img/profile-3-actress.jpg)">
+            <button class="pick" type="button" tabindex="-1" aria-label="이 분 선택하고 다음으로">
+              <i><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></i>
+            </button>
+          </div>
+          <div class="in">
+            <div class="ttl">우아하고 분위기 있는 배우상</div>
+            <p class="desc">세련된 눈매와 우아한 분위기가 돋보이는 분입니다.</p>
+          </div>
+        </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="tl">
+      <div class="tstep rv" id="meet">
+        <div class="tx"><b>2. 원하는 이성과의 만남</b>
+          <p>시간 맞춰 도착만 하시면 됩니다. 나머지는 저희가 준비합니다.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="meet-photo rv" role="img" aria-label="레스토랑에서 마주 앉은 두 사람"></div>
+</section>
+
+<!-- ═══ S5 플랜 ════════════════════════════════════════ -->
+<section class="s-progs">
+  <div class="wrap">
+    <div class="head rv">
+      <div class="emblem"></div>
+      <h2>세 가지 이룸 플랜</h2>
+    </div>
+    <div class="progs stagger">
+
+      <div class="pg rv">
+        <p class="tiername"><i class="tier" aria-hidden="true"></i>시그니처</p>
+        <h3>검증된 이상형을 직접 고르는<br>5번의 실물 만남</h3>
+        <div class="pgline">
+          <div class="price">350만 원</div><span class="per">/ 6개월</span>
+        </div>
+        <div class="excl"><b><span class="hl">이상형은 정확하게 선별</span>하고,<br>회원님의 강점은 적극적으로 어필</b></div>
+        <ul>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 3.6h9a1.4 1.4 0 0 1 1.4 1.4v9a1.4 1.4 0 0 1-1.4 1.4h-9A1.4 1.4 0 0 1 7.1 13.6V5a1.4 1.4 0 0 1 1.4-1.4Z"/><path d="M4.4 7.2v11.2a2 2 0 0 0 2 2h10.2"/></svg></i>실제 만남 5회 · 최대 45명 중 직접 선택</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9.6" cy="8" r="3.4"/><path d="M3.8 19.4a5.9 5.9 0 0 1 8.4-5.3"/><path d="M14.6 18.2l1.9 1.9 3.7-4"/></svg></i>실물 확인을 마친 회원만 소개</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.8" y="5.2" width="16.4" height="15" rx="2"/><path d="M3.8 9.8h16.4M8.2 3.4v3.4M15.8 3.4v3.4"/><path d="M9.2 14.6l1.9 1.9 3.7-4"/></svg></i>일정 조율 · 레스토랑 예약 전담</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M8.2 12.2l2.6 2.5 4.9-5.2"/></svg></i>실제로 만났을 때만 회차 차감</li>
+        </ul>
+      </div>
+
+      <div class="pg secret rv">
+        <span class="flag">가장 많이 선택</span>
+        <p class="tiername"><i class="tier" aria-hidden="true"></i>블랙</p>
+        <h3>블랙 이상 회원에게만 소개되는<br>최상위 매칭 2회 보장</h3>
+        <div class="was"><span class="orig">정가 990만 원</span></div>
+        <div class="pgline">
+          <div class="price">790만 원</div><span class="per">/ 12개월</span>
+        </div>
+        <div class="excl"><b><span class="hl">아이돌 연습생 · 연예인 · 인플루언서</span><br>실물 최상위 평가 회원</b></div>
+        <ul>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 3.6h9a1.4 1.4 0 0 1 1.4 1.4v9a1.4 1.4 0 0 1-1.4 1.4h-9A1.4 1.4 0 0 1 7.1 13.6V5a1.4 1.4 0 0 1 1.4-1.4Z"/><path d="M4.4 7.2v11.2a2 2 0 0 0 2 2h10.2"/></svg></i>실제 만남 10회 · 최대 90명 중 직접 선택</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5.4 21V3.6M5.4 4.6h11.9l-2.2 4.2 2.2 4.2H5.4"/></svg></i>신규 우수 회원을 가장 먼저 제안</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.4 21 8l-9 4.6L3 8l9-4.6Z"/><path d="M3.6 12.4 12 16.7l8.4-4.3M3.6 16.4 12 20.7l8.4-4.3"/></svg></i>시그니처의 모든 혜택 포함</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M8.2 12.2l2.6 2.5 4.9-5.2"/></svg></i>실제 만남만 차감 · 12개월 진행</li>
+        </ul>
+      </div>
+
+      <div class="pg rv">
+        <p class="tiername"><i class="tier" aria-hidden="true"></i>시크릿 블랙</p>
+        <h3>프로필 공개 없이 만남 진행<br>최상류층 전용 서비스</h3>
+        <div class="was"><span class="orig">정가 1,200만 원</span></div>
+        <div class="pgline">
+          <div class="price">990만 원</div><span class="per">/ 12개월</span>
+        </div>
+        <div class="excl"><b><span class="hl">신분은 끝까지 비공개</span>,<br>회원님의 가치는 전담 매니저가 전합니다</b></div>
+        <ul>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.4 21 8l-9 4.6L3 8l9-4.6Z"/><path d="M3.6 12.4 12 16.7l8.4-4.3M3.6 16.4 12 20.7l8.4-4.3"/></svg></i>블랙의 모든 혜택 그대로 포함</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.9 5.1A8.6 8.6 0 0 1 12 4.9c4.7 0 8 4.4 8 7.1a8.5 8.5 0 0 1-1.9 3.4M6.1 6.8C4.3 8.3 4 10.6 4 12c0 2.7 3.3 7.1 8 7.1a8.4 8.4 0 0 0 3.5-.8"/><path d="M10.2 10.3a2.5 2.5 0 0 0 3.5 3.5M3.4 3.4l17.2 17.2"/></svg></i>신분 노출 없이 만남까지 연결</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.2 21 9.6 12 20.8 3 9.6l9-6.4Z"/><path d="M3 9.6h18M12 3.2 8.6 9.6 12 20.8l3.4-11.2L12 3.2Z"/></svg></i>비공개 프라이빗 회원도 제안</li>
+          <li><i class="pic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.8L12 3.6Z"/></svg></i>최상위 신규 회원 우선 제안</li>
+        </ul>
+      </div>
+
+    </div>
+    <p class="fnote rv">※ 최대 인원은 프로필 카드 확인 기준입니다.
+      서비스 제공 및 환불 · 차감의 상세 조건은 계약서와 이용약관을 따릅니다.</p>
+  </div>
+</section>
+
+<!-- ═══ S6 환불 ═════════════════════════════════════════ -->
+<section class="s-ivory">
+  <div class="wrap">
+    <div class="head rv">
+      <h2>그만두실 때,<br>남은 회차는 그대로 돌아갑니다</h2>
+      <p class="lead">끝까지 만나셔도, 일찍 마치셔도 — 실제로 만나신 만큼만 쓰입니다.</p>
+    </div>
+    <div class="rf stagger">
+      <div class="rfi rv">
+        <span class="ic"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.4h-4.4"/></svg></span>
+        <div>
+          <b>남은 회차 100% 환불</b>
+          <p>교제 성사로 마치시면 차감된 회차 외에는 정가 그대로 다 돌려드립니다.</p>
+        </div>
+      </div>
+      <div class="rfi rv">
+        <span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M8.4 12.2l2.5 2.4 4.7-5"/></svg></span>
+        <div>
+          <b>거절당함 · 노쇼 시 미차감</b>
+          <p>회차는 실제로 만났을 때만 사용됩니다.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ S7 FAQ ══════════════════════════════════════════ -->
+<section class="s-ivory">
+  <div class="wrap">
+    <div class="head rv">
+      <div class="rule"></div>
+      <h2>자주 묻는 질문</h2>
+    </div>
+    <div class="faq stagger">
+      <details class="rv">
+        <summary>카드가 모두 마음에 들지 않으면 어떻게 되나요?</summary>
+        <p>한 회차에 세 번의 세션이 열리고, 세션마다 새로운 카드 2~3장을 보내드립니다.
+          매번 선택하지 않으셔도 되며, 세 세션까지 모두 고르지 않으실 때만 회차가 차감됩니다.</p>
+      </details>
+      <details class="rv">
+        <summary>상대방은 제 정보를 어디까지 보게 되나요?</summary>
+        <p>회원님이 보시는 것과 동일한 프로필 카드입니다. 실명 · 연락처 · 직장명은 어느 단계에도
+          공개되지 않고, 연락처는 첫 만남 전까지 저희가 전달합니다.</p>
+      </details>
+      <details class="rv">
+        <summary>여성 회원은 어떻게 검증하나요?</summary>
+        <p>직접 만나 뵙고 실물이 검증된 분을 우선으로 하며, 최소한 화상 확인이 완료된 분만
+          소개합니다. 만남과 관련한 금전 거래는 어떤 경우에도 금지되며, 위반은 즉시 제명입니다.</p>
+      </details>
+      <details class="rv">
+        <summary>기간 안에 회차를 다 쓰지 못하면 어떻게 되나요?</summary>
+        <p>저희 사정으로 지연되면 기간이 자동 연장되고, 출장 등 회원님 사정에는 일시정지가 가능합니다.</p>
+      </details>
+      <details class="rv">
+        <summary>성사까지 보장되나요?</summary>
+        <p>보장하는 것은 검증된 분과의 <b>실제 만남까지</b>입니다. 만나지 못하면 회차는 세지 않고,
+          성사로 마치시면 남은 회차는 전액 돌아갑니다.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 마무리 ═══════════════════════════════════════════ -->
+<section class="cta" id="closing">
+  <div class="wrap">
+    <div class="emblem"></div>
+    <h2>궁금한 점은 담당 매니저에게<br>언제든 말씀해 주십시오</h2>
+    <p class="lead">기준을 정리하는 첫 상담부터 시작합니다.</p>
+    <img class="logo" src="assets/svg/logo-white.svg" alt="이룸 premium">
+  </div>
+</section>
+
+<footer>
+  이룸은 진지한 연애를 위한 소개 서비스이며, 결혼 상담 · 알선 서비스가 아닙니다.<br>
+  환불 · 차감 기준의 상세 조건은 계약 전 제공되는 이용약관과 계약서에 명시됩니다.
+</footer>
+
+<div class="topbar"><img class="lg" src="assets/svg/logo-white.svg" alt="이룸"></div>
+
+<script>
+// 로드 직후 최상단 고정 — html{scroll-behavior:smooth} 때문에 부드럽게 흐르지 않도록 잠시 끈다
+window.addEventListener('load', function(){
+  var html = document.documentElement, prev = html.style.scrollBehavior;
+  html.style.scrollBehavior = 'auto';
+  window.scrollTo(0, 0);
+  html.style.scrollBehavior = prev;
+});
+
+// 스크롤 진입 fade-up — 같은 부모의 형제끼리 80ms 씩 지연시켜 물결처럼 등장
+(function(){
+  var items = [].slice.call(document.querySelectorAll('.rv'));
+  var seen = new Map();
+  items.forEach(function(el){
+    // 지연은 .stagger 묶음 안에서만 — 함께 보이는 카드들이 물결처럼 뜬다.
+    // 세로로 긴 목록은 각자 따로 진입하므로 지연을 주면 느리게만 느껴진다.
+    if(!el.parentNode.classList || !el.parentNode.classList.contains('stagger')) return;
+    var p = el.parentNode, i = seen.get(p) || 0;
+    seen.set(p, i + 1);
+    el.style.setProperty('--d', Math.min(i, 3) * 90 + 'ms');
+  });
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  },{threshold:.1, rootMargin:'0px 0px -10% 0px'});
+  items.forEach(function(el){ io.observe(el); });
+})();
+
+
+// 이미 나타난 .rv 요소의 fade-up 을 처음부터 다시 재생한다.
+// 되감는 순간에는 트랜지션을 꺼야 '사라졌다 나타나는' 깜빡임이 없다.
+function replayReveal(els){
+  els = els.filter(Boolean);
+  if(!els.length || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  els.forEach(function(el){
+    el.style.transition = 'none';
+    el.classList.remove('in');
+  });
+  void document.body.offsetWidth;                       // 리플로우로 되감기 확정
+  els.forEach(function(el){ el.style.transition = ''; });
+  setTimeout(function(){
+    els.forEach(function(el){ el.classList.add('in'); });
+  }, 430);                                              // 스크롤이 절반쯤 왔을 때 떠오르게
+}
+
+// 지정한 요소로 부드럽게 이동. top 은 화면 높이 대비 착지 지점(0=최상단, .5=정중앙).
+function glideTo(el, dur, top){
+  top = (top == null) ? .22 : top;
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches){
+    el.scrollIntoView({block:'start'}); return;
+  }
+  var root  = document.documentElement;
+  var prev  = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';        // 브라우저 smooth 와 충돌 방지
+  var box   = el.getBoundingClientRect();
+  var start = window.pageYOffset;
+  var end   = start + box.top - window.innerHeight * top;
+  var max   = document.documentElement.scrollHeight - window.innerHeight;
+  end = Math.max(0, Math.min(max, end));
+  var dist = end - start, t0 = null;
+  function ease(x){ return 1 - Math.pow(1 - x, 3); }   // easeOutCubic — 바로 출발해 부드럽게 감속
+  function frame(t){
+    if(t0 === null) t0 = t;
+    var k = Math.min(1, (t - t0) / dur);
+    window.scrollTo(0, start + dist * ease(k));
+    if(k < 1) requestAnimationFrame(frame);
+    else root.style.scrollBehavior = prev;
+  }
+  requestAnimationFrame(frame);
+}
+
+// 프로필 카드 캐러셀 — 네이티브 가로 스크롤(스와이프) + 자동 회전
+// 카드 3벌을 깔아두고, 바깥 벌에 닿으면 같은 그림인 가운데 벌로 조용히 옮겨
+// 시작과 끝이 드러나지 않게 한다.
+(function(){
+  document.querySelectorAll('.deck-dark').forEach(function(wrap){
+    var deck  = wrap.querySelector('.deck');
+    var cards = [].slice.call(deck.children);
+    if(cards.length < 3) return;
+    var N = cards.length / 3;          // 원본 장수
+    var HOLD = 1700;                   // 다음 카드로 넘어가기까지
+    var timer = null, lock = false, idle = null;
+    // PC 는 3장을 그대로 늘어놓는다 — 스크롤·자동회전 없이 '선택'만 동작.
+    // 로드 순간 뷰포트가 확정되지 않을 수 있어 값을 캐시하지 않고 그때그때 본다.
+    var PC = matchMedia('(min-width:601px)');
+    function isStatic(){ return PC.matches; }
+
+    function targetOf(el){ return el.offsetLeft + el.offsetWidth / 2 - wrap.clientWidth / 2; }
+    function current(){                // 화면 중앙에 가장 가까운 카드
+      var mid = wrap.scrollLeft + wrap.clientWidth / 2, best = 0, bd = Infinity;
+      cards.forEach(function(el, n){
+        var d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - mid);
+        if(d < bd){ bd = d; best = n; }
+      });
+      return best;
+    }
+    function goTo(idx, smooth){
+      idx = Math.max(0, Math.min(cards.length - 1, idx));
+      lock = true;
+      wrap.scrollTo({left: targetOf(cards[idx]), behavior: smooth ? 'smooth' : 'auto'});
+      setTimeout(function(){ lock = false; }, smooth ? 620 : 60);
+    }
+    function step(){
+      var i = current() + 1;
+      goTo(i, true);
+      if(i >= 2 * N) setTimeout(function(){ goTo(i - N, false); }, 680);
+    }
+    function play(){ if(isStatic()) return; stop(); timer = setInterval(step, HOLD); }
+    function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+
+    if(!isStatic()){
+      // 레이아웃이 확정된 뒤 가운데 벌에서 시작
+      function init(){ goTo(N, false); }
+      init();
+      requestAnimationFrame(init);
+      window.addEventListener('load', init);
+      if(document.fonts && document.fonts.ready) document.fonts.ready.then(init);
+      window.addEventListener('resize', init);
+
+      // 손으로 넘긴 뒤 — 바깥 벌에 있으면 가운데 벌로 되돌린다
+      wrap.addEventListener('scroll', function(){
+        if(lock) return;
+        clearTimeout(idle);
+        idle = setTimeout(function(){
+          var i = current();
+          if(i >= 2 * N)     goTo(i - N, false);
+          else if(i < N)     goTo(i + N, false);
+        }, 160);
+      }, {passive:true});
+
+      // 만지는 동안에는 자동 회전을 멈추고, 손을 뗀 뒤 잠시 후 재개
+      wrap.addEventListener('pointerdown', stop);
+      wrap.addEventListener('pointerup', function(){ setTimeout(play, 1600); });
+    }
+
+    // 카드 클릭 — 가운데가 아니면 먼저 중앙으로, 가운데 카드는 어디를 눌러도 선택된다.
+    // 선택하면 '만남'으로 이동하고, 같은 카드를 다시 누르면 해제된다.
+    var meetPhoto = document.querySelector('.meet-photo');
+    function mark(idx, on){
+      cards.forEach(function(el, n){
+        var same = (n % N) === (idx % N);        // 3벌 중 같은 그림끼리 상태를 맞춘다
+        el.classList.toggle('picked', on && same);
+        var b = el.querySelector('.pick');
+        if(b) b.classList.toggle('picked', on && same);
+      });
+      // 아래 '만남' 장면도 고른 분에 맞춰 바꾼다 (해제하면 기본 컷으로)
+      if(meetPhoto){
+        meetPhoto.classList.remove('m1','m2','m3');
+        if(on) meetPhoto.classList.add('m' + ((idx % N) + 1));
+      }
+    }
+    wrap.addEventListener('click', function(e){
+      var card = e.target.closest('.pcard');
+      if(!card) return;
+      var idx = cards.indexOf(card);
+      if(idx < 0) return;
+
+      if(!isStatic() && idx !== current()){      // 모바일: 가장자리 카드는 먼저 중앙으로
+        stop(); goTo(idx, true); setTimeout(play, 1600);
+        return;
+      }
+      if(card.classList.contains('picked')){     // 다시 누르면 해제
+        mark(idx, false); play(); return;
+      }
+      stop();
+      mark(idx, true);
+      var meet = document.getElementById('meet');
+      if(!meet) return;
+      replayReveal([meet, meetPhoto]);
+      setTimeout(function(){ glideTo(meet, 900, .18); }, 100);
+    });
+
+    if(!isStatic()) new IntersectionObserver(function(es){
+      es[0].isIntersecting ? play() : stop();
+    },{threshold:.2}).observe(wrap);
+    if(matchMedia('(prefers-reduced-motion:reduce)').matches) stop();
+  });
+})();
+
+// 히어로를 지나면 상단 브랜드 바 노출, 마무리 섹션(다크)에 닿으면 다시 숨김
+(function(){
+  var bar=document.querySelector('.topbar'),
+      hero=document.querySelector('.hero'),
+      end=document.querySelector('#closing');
+  var past=false, atEnd=false;
+  function sync(){ bar.classList.toggle('show', past && !atEnd); }
+  new IntersectionObserver(function(e){ past=!e[0].isIntersecting; sync(); },{threshold:0}).observe(hero);
+  new IntersectionObserver(function(e){ atEnd=e[0].isIntersecting; sync(); },{threshold:0}).observe(end);
+})();
+</script>
+</body>
+</html>
