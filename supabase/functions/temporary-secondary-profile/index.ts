@@ -312,9 +312,9 @@ function validateSubmission(formType: string, payload: Record<string, unknown>, 
   if (formType === "profile_male") {
     ["birthDate", "height", "region", "singleStatus", "maritalStatus", "job", "incomeMale", "asset", "purpose", "serviceSelection"].forEach((key) => requireText(key));
     if (text(payload.employment) === "기타") requireText("employmentOther");
-    const deferred = payload.documentDeferred === true || payload.document_deferred === true;
+    const rawDueDate = text(payload.documentDueDate ?? payload.document_due_date);
+    const deferred = payload.documentDeferred === true || payload.document_deferred === true || Boolean(rawDueDate);
     if (deferred) {
-      const rawDueDate = text(payload.documentDueDate ?? payload.document_due_date);
       const dueDate = new Date(rawDueDate);
       if (!rawDueDate || Number.isNaN(dueDate.getTime())) missing.push("documentDueDate");
     } else {
@@ -497,7 +497,12 @@ Deno.serve(async (req) => {
           ? json({ ok: true, replayed: true, submitted_at: form.submitted_at })
           : json({ error: "ALREADY_SUBMITTED" }, 409);
       }
-      const submittedPayload = normalizeSecondaryPayload(form.form_type, stripSecrets(body.payload ?? {})) as Record<string, unknown>;
+      const storedDraft = stripSecrets(form.draft_payload ?? {}) as Record<string, unknown>;
+      const currentPayload = stripSecrets(body.payload ?? {}) as Record<string, unknown>;
+      const submittedPayload = normalizeSecondaryPayload(form.form_type, {
+        ...(storedDraft && typeof storedDraft === "object" && !Array.isArray(storedDraft) ? storedDraft : {}),
+        ...(currentPayload && typeof currentPayload === "object" && !Array.isArray(currentPayload) ? currentPayload : {}),
+      }) as Record<string, unknown>;
       if (JSON.stringify(submittedPayload).length > 250_000) return json({ error: "INVALID_SUBMISSION" }, 422);
       const { data: documents, error: documentError } = await database.from(DOCUMENT_TABLE)
         .select("document_type, status")
