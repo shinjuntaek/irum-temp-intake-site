@@ -303,6 +303,11 @@ type SubmissionValidationIssue = { code: string; missing: string[] };
 function validateSubmission(formType: string, payload: Record<string, unknown>, verifiedTypes: Set<string>): SubmissionValidationIssue | null {
   const missing: string[] = [];
   const requireText = (key: string, value: unknown = payload[key]) => { if (!text(value)) missing.push(key); };
+  if (formType === "profile_female" || formType === "profile_male") {
+    return payload.privacyConsent === true
+      ? null
+      : { code: "PRIVACY_CONSENT_REQUIRED", missing: ["privacyConsent"] };
+  }
   if (formType === "profile_female") {
     ["birthDate", "height", "region", "singleStatus", "maritalStatus", "realCheckMethod", "realCheckDate", "serviceSelection"].forEach((key) => requireText(key));
     if (text(payload.workType) === "기타") requireText("workTypeOther");
