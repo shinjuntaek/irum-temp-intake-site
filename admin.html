@@ -1249,6 +1249,45 @@
       const secondaryStatusLabel = (status) => ({ pending:"미열람", in_progress:"작성중", submitted:"제출완료", expired:"만료", revoked:"폐기" })[status] || status;
       const secondaryTypeLabel = (type) => ({ profile_female:"여성 2차 프로필", profile_male:"남성 2차 프로필", social_event:"모임 2차 인증" })[type] || type;
       const secondaryDate = (value) => value ? new Date(value).toLocaleString("ko-KR", { dateStyle:"medium", timeStyle:"short" }) : "–";
+      const secondaryAnswerSections = (type) => type === "profile_female" ? [
+        ["기본 · 관계 · 라이프스타일", [["birthDate","생년월일"],["height","키"],["region","거주지역"],["singleStatus","현재 솔로 여부"],["maritalStatus","혼인 이력"],["children","자녀 유무"],["smoking","흡연"],["drinking","음주"],["religion","종교"],["tattoo","타투"]]],
+        ["직업 · 학력 · 생활", [["job","현재 직업"],["companyIndustry","회사 / 업종"],["workType","근무형태"],["incomeFemale","연소득"],["realCheckMethod","실물 확인 방식"],["housemate","동거인 여부"],["education","최종학력"],["school","학교명"],["major","전공"]]],
+        ["서비스 · 추가 메시지", [["serviceSelection","원하는 서비스"],["femaleNote","추가로 전하고 싶은 내용"]]],
+        ["건강 관련 정보", [["healthFlag","건강 관련 특이사항"],["healthMemo","추가 설명"]]],
+      ] : type === "profile_male" ? [
+        ["기본 · 관계 · 라이프스타일", [["birthDate","생년월일"],["height","키"],["region","거주지역"],["singleStatus","현재 솔로 여부"],["maritalStatus","혼인 이력"],["children","자녀 유무"],["smoking","흡연"],["drinking","음주"],["religion","종교"],["tattoo","타투"]]],
+        ["직업 · 경제력 · 인증", [["job","현재 직업"],["company","회사 / 기관명"],["position","직급 / 직책"],["employment","고용형태"],["incomeMale","연소득"],["asset","개인 순자산"]]],
+        ["생활 · 학력 · 서비스", [["bodyType","체형"],["car","차량"],["housing","현재 주거 형태"],["education","최종학력"],["school","학교명"],["purpose","만남의 목적"],["serviceSelection","원하는 서비스 방식"]]],
+        ["원하는 여성 조건", [["preferredAgeMin","최소 연령"],["preferredAgeMax","최대 연령"],["preferredHeightMin","최소 키"],["preferredHeightMax","최대 키"],["targetTattoo","타투 선호"],["targetSmoking","흡연 선호"],["targetMarriage","결혼 의향 기준"]]],
+        ["건강 관련 정보", [["healthFlag","건강 관련 특이사항"],["healthMemo","추가 설명"]]],
+      ] : [
+        ["모임 직업 인증", [["job","현재 직업"],["workplace","회사 · 기관 · 업종"]]],
+      ];
+      const secondaryDisplayValue = (key, value) => {
+        if (value === true) return "예";
+        if (value === false) return "아니오";
+        if (Array.isArray(value)) return value.join(", ");
+        if (value && typeof value === "object") return JSON.stringify(value);
+        const maps = {
+          serviceSelection:{matching:"1:1 소개",social:"모임",meeting:"모임",both:"둘 다"},
+          singleStatus:{single:"예",other:"아니오"},
+          maritalStatus:{single:"초혼",divorced:"이혼",widowed:"사별"},
+          realCheckMethod:{video:"화상",in_person:"대면"},
+          purpose:{dating:"연애",marriage:"결혼",open:"열려있음"},
+        };
+        return maps[key]?.[String(value)] || String(value ?? "");
+      };
+      const secondaryReviewMarkup = (form) => {
+        const payload = form.status === "submitted" ? form.submitted_payload : form.draft_payload;
+        if (!payload || typeof payload !== "object" || !Object.keys(payload).length) return '<p class="workspace-sub">아직 고객이 작성한 2차 답변이 없습니다.</p>';
+        const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
+        const groups = secondaryAnswerSections(form.form_type).map(([title, fields]) => {
+          const rows = fields.filter(([key]) => payload[key] !== undefined && payload[key] !== null && payload[key] !== "" && !(Array.isArray(payload[key]) && !payload[key].length));
+          if (!rows.length) return "";
+          return `<section style="margin-top:12px;border-top:1px solid #ece7df;padding-top:12px"><b style="font-size:12px">${osEsc(title)}</b><dl class="os-fields" style="margin-top:9px">${rows.map(([key,label])=>osField(label,secondaryDisplayValue(key,payload[key]))).join("")}</dl></section>`;
+        }).join("");
+        return `<article style="border:1px solid #ded9d0;background:#fff;padding:15px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><span class="os-chip ${form.status === "submitted" ? "done" : "progress"}">${osEsc(secondaryStatusLabel(form.status))}</span></div><p class="workspace-sub">${osEsc(source)}</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}${groups || '<p class="workspace-sub">표시할 답변이 없습니다.</p>'}</article>`;
+      };
       const readSecondaryIssuedLinks = () => {
         try {
           const stored = JSON.parse(sessionStorage.getItem(secondaryIssuedLinksKey) || "{}");
@@ -1298,6 +1337,67 @@
         if (item.service === "social") options.push(["social_event", "모임 2차 인증"]);
         return options;
       };
+      const secondaryFirstValue = (...values) => values.find((value) => value !== null && value !== undefined && String(value).trim() !== "") || "";
+      const secondaryPurpose = (profile) => {
+        const raw = String(secondaryFirstValue(profile?.datingPurpose, profile?.servicePurpose)).toLowerCase();
+        if (raw.includes("결혼") || raw === "marriage") return "marriage";
+        if (raw.includes("연애") || raw === "dating") return "dating";
+        if (raw.includes("인연") || raw === "open") return "open";
+        return "";
+      };
+      const secondaryPrefill = (item, formType) => {
+        const profile = item.profile || {};
+        const common = {
+          name:profile.name || "",
+          phone:profile.phone || "",
+          gender:profile.gender || null,
+          birthDate:profile.birthDate || "",
+          height:profile.height || "",
+          region:profile.region || "",
+          job:profile.job || "",
+          singleStatus:profile.singleStatus || "",
+          maritalStatus:profile.maritalStatus || profile.marriageStatus || "",
+          children:profile.children || "",
+          smoking:profile.smoking || "",
+          drinking:profile.drinking || "",
+          religion:profile.religion || "",
+          tattoo:profile.tattoo || "",
+          education:profile.education || "",
+          school:profile.school || "",
+        };
+        const company = secondaryFirstValue(profile.company, profile.businessDetail);
+        const income = secondaryFirstValue(profile.incomeRange, profile.income);
+        const asset = secondaryFirstValue(profile.assetRange, profile.assets, profile.asset);
+        if (formType === "profile_female") return {
+          ...common,
+          companyIndustry:company,
+          workType:profile.economicActivityType || "",
+          incomeFemale:income,
+          realCheckMethod:profile.realCheckMethod || "",
+          housemate:profile.housemate || "",
+          major:profile.major || "",
+          serviceSelection:item.service === "social" ? "meeting" : "matching",
+          femaleNote:secondaryFirstValue(profile.femaleNote, profile.selfAppeal),
+        };
+        if (formType === "profile_male") return {
+          ...common,
+          employment:profile.economicActivityType || "",
+          company,
+          position:profile.position || "",
+          incomeMale:income,
+          asset,
+          bodyType:profile.bodyType || "",
+          car:profile.car || "",
+          housing:profile.housing || "",
+          serviceSelection:item.service === "social" ? "social" : "matching",
+          purpose:secondaryPurpose(profile),
+          preferredAgeMin:profile.preferredAgeMin || "",
+          preferredAgeMax:profile.preferredAgeMax || "",
+          preferredHeightMin:profile.preferredHeightMin || "",
+          preferredHeightMax:profile.preferredHeightMax || "",
+        };
+        return { ...common, workplace:company };
+      };
       async function mountSecondaryPanel(item) {
         const target = document.getElementById("os-secondary-profile-panel");
         if (!target) return;
@@ -1342,7 +1442,7 @@
                 form_type:formType,
                 gender_snapshot:item.profile?.gender || null,
                 expires_in_days:Number(document.getElementById("secondary-expiry").value),
-                prefill:{ name:item.profile?.name || "", phone:item.profile?.phone || "" },
+                prefill:secondaryPrefill(item, formType),
                 social_event_id:event?.id || null,
                 event_snapshot:event ? { title:event.title || "IRUM SOCIAL", startsAt:event.startsAt, location:event.location || "개별 안내", hostName:event.hostName || event.host_name || "" } : null,
               });
@@ -1368,12 +1468,31 @@
           target.innerHTML = `<p class="login-error">2차 신청 API가 아직 배포되지 않았거나 관리자 권한을 확인할 수 없습니다. (${osEsc(error.code || error.message)})</p>`;
         }
       }
+      async function mountSecondaryReview(item) {
+        const target = document.getElementById("os-secondary-review");
+        if (!target) return;
+        target.innerHTML = '<p class="workspace-sub">2차 작성 내용을 불러오는 중입니다.</p>';
+        try {
+          const result = await invokeSecondaryAdmin("secondary-admin-list", { subject_type:item.kind, subject_id:item.id });
+          const forms = (result.forms || []).filter((form) => form.status === "submitted" || (form.status === "in_progress" && form.draft_payload && Object.keys(form.draft_payload).length));
+          target.innerHTML = forms.length ? forms.map(secondaryReviewMarkup).join("") : '<p class="workspace-sub">작성중이거나 제출된 2차 신청 내용이 없습니다.</p>';
+        } catch (error) {
+          target.innerHTML = `<p class="login-error">2차 답변을 불러오지 못했습니다. (${osEsc(error.code || error.message)})</p>`;
+        }
+      }
       const osRenderWorkspaceWithoutSecondary = osRenderWorkspace;
       osRenderWorkspace = async function () {
         await osRenderWorkspaceWithoutSecondary();
         const item = osSelectedWorkspace;
         const content = document.querySelector(".os-detail-content");
         if (!item || !content || document.getElementById("os-secondary-profile-panel")) return;
+        if (osDetailTab === "screening") {
+          const review = document.createElement("section");
+          review.className = "os-section";
+          review.innerHTML = '<div class="os-section-head"><h3>2차 신청 전체응답</h3><span class="os-source">신청자 입력</span></div><div id="os-secondary-review"></div>';
+          content.insertBefore(review, document.getElementById("consultation-mount"));
+          await mountSecondaryReview(item);
+        }
         const section = document.createElement("section");
         section.className = "os-section";
         section.innerHTML = '<div class="os-section-head"><h3>2차 신청</h3><span class="os-source">Supabase 독립 운영</span></div><div id="os-secondary-profile-panel"></div>';
