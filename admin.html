@@ -1377,10 +1377,8 @@
         });
       };
       const secondaryReviewPayload = (form, item = null) => {
-        const currentPrefill = item ? secondaryCanonicalReview(form.form_type, secondaryPrefill(item, form.form_type)) : {};
-        const prefill = secondaryCanonicalReview(form.form_type, form.prefill_snapshot);
         const written = secondaryCanonicalReview(form.form_type, form.status === "submitted" ? form.submitted_payload : form.draft_payload);
-        return { ...currentPrefill, ...prefill, ...written };
+        return written;
       };
       const secondaryHiddenReviewKeys = new Set(["name","phone","email","token","tokenHash","token_hash","privacyConsent","consent","consentVersion","consent_version","photoRefs","photo_refs","photos","storagePath","storage_path","signedUrl","signed_url","documents","files","submitIdempotencyKey","idempotencyKey","revision"]);
       const secondaryFallbackLabels = {
@@ -1397,7 +1395,7 @@
       const secondaryReviewMarkup = (form, item = null) => {
         const payload = secondaryReviewPayload(form, item);
         if (!payload || typeof payload !== "object" || !Object.keys(payload).length) return '<p class="workspace-sub">아직 고객이 작성한 2차 답변이 없습니다.</p>';
-        const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 1차 기본값 포함 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
+        const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
         const sections = secondaryAnswerSections(form.form_type);
         const knownKeys = new Set(sections.flatMap(([,fields]) => fields.map(([key]) => key)));
         const groups = sections.map(([title, fields]) => {
@@ -1613,24 +1611,143 @@
           target.innerHTML = `<p class="login-error">2차 답변을 불러오지 못했습니다. (${osEsc(error.code || error.message)})</p>`;
         }
       }
+      const osSinglePageTemporaryPattern = /(임시\s*접수|temporary[_\s-]*intake|temporary[_\s-]*submission|이관\s*(완료|대기|대상))/i;
+      const osShellWithTierLead = osShell;
+      osShell = function (...args) {
+        osShellWithTierLead(...args);
+        document.querySelector('[data-os-nav="prechecks"]')?.remove();
+      };
+      osSourceChip = function (item) {
+        return `<span class="os-chip ${item.kind === "legacy_snapshot" ? "legacy" : "temporary"}">${item.kind === "legacy_snapshot" ? "기존 신청" : "신규 신청"}</span>`;
+      };
+      const osWorkspacesWithRawTemporaryLabels = osWorkspaces;
+      osWorkspaces = function () {
+        return osWorkspacesWithRawTemporaryLabels().map((item) => {
+          const action = String(item.consultation?.nextAction || "").trim();
+          return {
+            ...item,
+            consultation: {
+              ...item.consultation,
+              nextAction: !action || osSinglePageTemporaryPattern.test(action) ? "담당자 배정" : action,
+            },
+          };
+        });
+      };
+      const osApplicantsWithTemporaryDescription = osApplicants;
+      osApplicants = async function (...args) {
+        await osApplicantsWithTemporaryDescription(...args);
+        const description = document.querySelector(".os-page .os-desc");
+        if (description) description.textContent = "기존 홈페이지 신청자와 신규 신청을 카드 또는 목록으로 같은 상담 기준에서 확인합니다.";
+      };
+      function osSingleWorkspaceSection(order, key, title, source, body) {
+        return `<section class="os-section" data-temp-applicant-section="${osEsc(key)}" data-temp-section-order="${order}"><div class="os-section-head"><h3><span style="display:inline-grid;place-items:center;width:24px;height:24px;margin-right:8px;background:#28231c;color:#d8ad36;font-size:11px">${order}</span>${osEsc(title)}</h3><span class="os-source">${osEsc(source)}</span></div>${body}</section>`;
+      }
+      function osUnifiedStaticHistory(item) {
+        const notes = item.record?.snapshot?.notes || [];
+        const contacts = item.record?.snapshot?.contactLogs || [];
+        const rows = [
+          ...notes.map((note, index) => ({ key:`note-${index}`, type:"기존 메모", content:note.content, at:note.createdAt, author:note.source || "원본 CRM" })),
+          ...contacts.map((entry, index) => ({ key:`contact-${index}`, type:`연락 · ${String(entry.channel || "phone").toUpperCase()}`, content:entry.content, at:entry.contacted_at || entry.createdAt, author:"원본 CRM" })),
+        ].filter((entry) => entry.content).sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0));
+        return rows.length ? rows.map((entry) => `<article class="consultation-entry"><div class="consultation-entry-head"><span>${osEsc(entry.type)} · ${osEsc(osFormatDate(entry.at))}</span><span>${osEsc(entry.author)}</span></div><p>${osEsc(entry.content)}</p></article>`).join("") : '<p class="sub">기존 메모·연락 기록이 없습니다.</p>';
+      }
+      function osUnifiedMemoPanel(item) {
+        return `<div data-temp-unified-memo><form class="consultation-form" id="os-unified-note-form"><textarea id="os-unified-note" maxlength="10000" required placeholder="상담 내용, 내부 공유사항, 다음 담당자 전달사항을 입력해 주세요."></textarea><div class="consultation-meta"><select id="os-unified-status"><option value="">상담 상태 변경 없음</option><option value="before">상담전</option><option value="in_progress">상담중</option><option value="completed">상담완료</option></select><input id="os-unified-next-action" maxlength="500" placeholder="다음 액션 (선택)"/></div><button class="consultation-save" type="submit">메모 저장</button></form><h4 style="margin:20px 0 8px">이전 기록</h4><div id="os-unified-static-history">${osUnifiedStaticHistory(item)}</div><div id="os-unified-temp-history"><p class="sub">추가 상담 기록을 불러오는 중입니다.</p></div></div>`;
+      }
+      function osConsultationDatePanel(item) {
+        const dueAt = item.consultation?.nextActionDueAt || item.consultation?.consultationAt || "";
+        const localValue = dueAt ? new Date(new Date(dueAt).getTime() - new Date(dueAt).getTimezoneOffset() * 60000).toISOString().slice(0,16) : "";
+        return `<form class="consultation-form" id="os-consultation-date-form" data-temp-consultation-date><div class="consultation-meta" style="grid-template-columns:minmax(0,1fr) auto"><input id="os-consultation-date" type="datetime-local" value="${osEsc(localValue)}"/><button class="consultation-save" type="submit">상담일자 저장</button></div><p class="workspace-sub" id="os-consultation-date-current">현재 저장값 · ${osEsc(dueAt ? osFormatDate(dueAt) : "기록 없음")}</p></form>`;
+      }
+      async function osMountSingleWorkspaceControls(item) {
+        const renderTemporaryEntries = (entries) => {
+          const target = document.getElementById("os-unified-temp-history");
+          if (!target) return;
+          target.innerHTML = entries.length ? entries.map((entry) => `<article class="consultation-entry"><div class="consultation-entry-head"><span>${osEsc(entry.created_by_email || "임시 관리자")} · ${osEsc(formatDate(entry.created_at))}</span>${entry.consultation_status ? `<span class="badge snapshot">${osEsc(consultationStatusLabel(entry.consultation_status))}</span>` : ""}</div><p>${osEsc(entry.note_text)}</p>${entry.next_action ? `<div class="consultation-entry-action">다음 액션 · ${osEsc(entry.next_action)}${entry.next_action_due_at ? ` · ${osEsc(formatDate(entry.next_action_due_at))}` : ""}</div>` : ""}</article>`).join("") : '<p class="sub">추가 상담 기록이 없습니다.</p>';
+        };
+        const refresh = async () => {
+          try {
+            const data = await invokeAdmin("consultation-list", { subject_type:item.kind, subject_id:item.id });
+            renderTemporaryEntries(data.records || []);
+          } catch {
+            const target = document.getElementById("os-unified-temp-history");
+            if (target) target.innerHTML = '<p class="sub">상담 기록 저장소를 준비 중이거나 열람 권한이 없습니다.</p>';
+          }
+        };
+        const noteForm = document.getElementById("os-unified-note-form");
+        if (noteForm) noteForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const button = noteForm.querySelector(".consultation-save");
+          button.disabled = true;
+          try {
+            await invokeAdmin("consultation-add", {
+              subject_type:item.kind,
+              subject_id:item.id,
+              note_text:document.getElementById("os-unified-note").value,
+              consultation_status:document.getElementById("os-unified-status").value || null,
+              next_action:document.getElementById("os-unified-next-action").value,
+              next_action_due_at:null,
+            });
+            noteForm.reset();
+            await refresh();
+          } catch {
+            alert("상담 기록을 저장하지 못했습니다. 로그인 상태와 임시 상담 저장소를 확인해 주세요.");
+          } finally { button.disabled = false; }
+        };
+        const dateForm = document.getElementById("os-consultation-date-form");
+        if (dateForm) dateForm.onsubmit = async (event) => {
+          event.preventDefault();
+          const input = document.getElementById("os-consultation-date");
+          if (!input.value) return;
+          const button = dateForm.querySelector(".consultation-save");
+          button.disabled = true;
+          try {
+            await invokeAdmin("consultation-add", {
+              subject_type:item.kind,
+              subject_id:item.id,
+              note_text:"상담일자 저장",
+              consultation_status:null,
+              next_action:item.consultation?.nextAction || "상담 예정",
+              next_action_due_at:input.value,
+            });
+            document.getElementById("os-consultation-date-current").textContent = `현재 저장값 · ${formatDate(input.value)}`;
+            await refresh();
+          } catch {
+            alert("상담일자를 저장하지 못했습니다. 로그인 상태와 임시 상담 저장소를 확인해 주세요.");
+          } finally { button.disabled = false; }
+        };
+        await refresh();
+      }
+      osRenderWorkspace = async function () {
+        const item = osSelectedWorkspace;
+        if (!item) return;
+        const p = item.profile || {};
+        const photoArea = `<div class="os-profile-photo">비공개 사진<br/>${item.photoRefs.length}장<br/><button id="os-open-photo" ${item.photoRefs.length ? "" : "disabled"}>사진 보기</button></div>`;
+        const header = `<section class="os-profile-head" data-temp-applicant-header>${photoArea}<div class="os-profile-copy"><p class="os-kicker">APPLICANT · AP-${osEsc(item.id.padStart(8,"0"))}</p><h2>${osEsc(p.name || "이름 미입력")}</h2><p class="os-profile-meta">${osEsc(osGenderLabel(p.gender))} · ${osEsc(osAge(p.birthYear))}세</p></div></section>`;
+        const primaryFields = [["이름",p.name],["연락처",osFormatPhone(p.phone)],["출생연도",p.birthYear],["성별",osGenderLabel(p.gender)],["신청 서비스",osServiceLabel(item.service)],["신청일",osFormatDate(item.createdAt)],["직업",p.job],["학력",p.education],["직장·사업체",p.company],["지역",p.region],["키",p.height],["MBTI",p.mbti],["체형",p.bodyType],["스타일·분위기",p.styleMood],["매력 포인트",osParse(p.appealPoints).join(", ")],["라이프스타일",osParse(p.lifestyle).join(", ")],["이용 목적",p.datingPurpose || p.servicePurpose],["소셜 참석 의향",p.socialAttendanceIntent],["중요 조건",p.importantConditions],["유입 경로",p.journeyKey || p.entryPath]];
+        const body = header
+          + osSingleWorkspaceSection(1,"primary-profile","1차 기본 프로필","신청자 입력",`<dl class="os-fields">${primaryFields.map(([label,value]) => osField(label,value)).join("")}</dl>`)
+          + osSingleWorkspaceSection(2,"secondary-responses","2차 신청폼 응답","신청자 입력",'<div id="os-secondary-review"><p class="workspace-sub">2차 작성 내용을 불러오는 중입니다.</p></div>')
+          + osSingleWorkspaceSection(3,"secondary-links","2차 신청폼 링크","Supabase 독립 운영",'<div id="os-secondary-profile-panel"><p class="workspace-sub">2차 신청 이력을 불러오는 중입니다.</p></div>')
+          + osSingleWorkspaceSection(4,"unified-notes","통메모장","원본 기록 + 임시 운영",osUnifiedMemoPanel(item))
+          + osSingleWorkspaceSection(5,"consultation-date","상담일자","Supabase append-only",osConsultationDatePanel(item));
+        osShell("applicants","신청자 통합 상세","APPLICANT WORKSPACE",`<section class="os-page" data-temp-single-applicant-page><button class="menu" id="os-back-list" style="width:auto;margin-bottom:14px">← 신청자 목록</button>${body}</section>`);
+        document.getElementById("os-back-list").onclick = osApplicants;
+        const photoButton = document.getElementById("os-open-photo");
+        if (photoButton) photoButton.onclick = () => osOpenFirstPhoto(item);
+        const photoAreaNode = document.querySelector(".os-profile-photo");
+        if (photoAreaNode) {
+          photoAreaNode.innerHTML = osPhotoThumbMarkup(item);
+          osBindPhotoThumbs(photoAreaNode);
+        }
+        await osMountSingleWorkspaceControls(item);
+      };
       const osRenderWorkspaceWithoutSecondary = osRenderWorkspace;
       osRenderWorkspace = async function () {
         await osRenderWorkspaceWithoutSecondary();
         const item = osSelectedWorkspace;
-        const content = document.querySelector(".os-detail-content");
-        if (!item || !content || document.getElementById("os-secondary-profile-panel")) return;
-        if (osDetailTab === "screening") {
-          const review = document.createElement("section");
-          review.className = "os-section";
-          review.innerHTML = '<div class="os-section-head"><h3>2차 신청 전체응답</h3><span class="os-source">신청자 입력</span></div><div id="os-secondary-review"></div>';
-          content.insertBefore(review, document.getElementById("consultation-mount"));
-          await mountSecondaryReview(item);
-        }
-        const section = document.createElement("section");
-        section.className = "os-section";
-        section.innerHTML = '<div class="os-section-head"><h3>2차 신청</h3><span class="os-source">Supabase 독립 운영</span></div><div id="os-secondary-profile-panel"></div>';
-        content.appendChild(section);
-        await mountSecondaryPanel(item);
+        if (!item) return;
+        await Promise.all([mountSecondaryReview(item), mountSecondaryPanel(item)]);
       };
       /* END TEMPORARY SECONDARY PROFILE PANEL */
 

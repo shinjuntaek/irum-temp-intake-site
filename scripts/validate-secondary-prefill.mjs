@@ -60,7 +60,6 @@ const adminRequired = [
   "const secondaryObject = (value)",
   "const secondaryCanonicalReview = (type, value)",
   "const secondaryReviewPayload = (form, item = null)",
-  "secondaryPrefill(item, form.form_type)",
   "const secondaryHiddenReviewKeys = new Set(",
   "const secondaryFallbackLabel = (key)",
   "const secondaryHasReview = (form)",
@@ -82,16 +81,16 @@ const reviewEnd = admin.indexOf("const secondaryReviewMarkup =", reviewStart);
 if (reviewStart < 0 || reviewEnd < 0) throw new Error("Could not isolate secondary review payload helpers");
 const { secondaryObject, secondaryCanonicalReview, secondaryReviewPayload, secondaryHiddenReviewKeys, secondaryFallbackLabel, secondaryHasReview } = new Function(`${admin.slice(reviewStart, reviewEnd)}; return { secondaryObject, secondaryCanonicalReview, secondaryReviewPayload, secondaryHiddenReviewKeys, secondaryFallbackLabel, secondaryHasReview };`)();
 const revisionOnly = { status:"in_progress", draft_revision:9, draft_saved_at:"2026-08-26T00:54:00.000Z", prefill_snapshot:{ job:"전문직", region:"서울" }, draft_payload:{} };
-if (!secondaryHasReview(revisionOnly) || secondaryReviewPayload(revisionOnly).job !== "전문직") {
-  throw new Error("Revision-only draft must render merged prefill answers");
+if (!secondaryHasReview(revisionOnly) || Object.keys(secondaryReviewPayload(revisionOnly)).length !== 0) {
+  throw new Error("Revision-only draft must keep progress state without duplicating first-stage prefill");
 }
 const legacyDraft = { status:"in_progress", draft_revision:2, prefill_snapshot:{ job:"전문직" }, draft_payload:'{"job":"대표","purpose":"marriage"}' };
 if (secondaryObject(legacyDraft.draft_payload).job !== "대표" || secondaryReviewPayload(legacyDraft).job !== "대표") {
   throw new Error("Legacy JSON draft parsing or override failed");
 }
 const submitted = { status:"submitted", prefill_snapshot:{ job:"전문직", region:"서울" }, submitted_payload:{ job:"대표" } };
-if (!secondaryHasReview(submitted) || secondaryReviewPayload(submitted).job !== "대표" || secondaryReviewPayload(submitted).region !== "서울") {
-  throw new Error("Submitted payload merge failed");
+if (!secondaryHasReview(submitted) || secondaryReviewPayload(submitted).job !== "대표" || secondaryReviewPayload(submitted).region !== undefined) {
+  throw new Error("Submitted review must render customer-written values without duplicating first-stage prefill");
 }
 if (secondaryHasReview({ status:"pending", draft_revision:0, prefill_snapshot:{ job:"전문직" }, draft_payload:{} })) {
   throw new Error("Unopened form must not appear as customer-written review");
