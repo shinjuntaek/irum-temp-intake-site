@@ -1287,9 +1287,69 @@
         }
         return {};
       };
+      const secondaryPresent = (value) => value !== undefined && value !== null && value !== "" && !(Array.isArray(value) && !value.length);
+      const secondaryPick = (...values) => values.find(secondaryPresent);
+      const secondaryCompact = (value) => Object.fromEntries(Object.entries(value).filter(([,entry]) => secondaryPresent(entry)));
+      const secondaryCanonicalReview = (type, value) => {
+        const raw = secondaryObject(value);
+        const common = {
+          ...raw,
+          birthDate:secondaryPick(raw.birthDate,raw.birth_date,raw.birthYear,raw.birth_year),
+          height:secondaryPick(raw.height,raw.heightCm,raw.height_cm),
+          region:secondaryPick(raw.region,raw.location,raw.regionChoice,raw.residence),
+          singleStatus:secondaryPick(raw.singleStatus,raw.single_status,raw.isSingle),
+          maritalStatus:secondaryPick(raw.maritalStatus,raw.marital_status,raw.marriageHistory),
+          children:secondaryPick(raw.children,raw.hasChildren,raw.childrenStatus),
+          smoking:secondaryPick(raw.smoking,raw.smoke,raw.smokingStatus),
+          drinking:secondaryPick(raw.drinking,raw.alcohol,raw.drinkingStatus),
+          religion:secondaryPick(raw.religion,raw.religionType),
+          tattoo:secondaryPick(raw.tattoo,raw.tattooStatus),
+          education:secondaryPick(raw.education,raw.educationLevel),
+          school:secondaryPick(raw.school,raw.schoolName,raw.university),
+          major:secondaryPick(raw.major,raw.department),
+          serviceSelection:secondaryPick(raw.serviceSelection,raw.desiredService,raw.service),
+          healthFlag:secondaryPick(raw.healthFlag,raw.healthStatus,raw.healthMemo || raw.healthNote ? "yes" : undefined),
+          healthMemo:secondaryPick(raw.healthMemo,raw.healthNote),
+        };
+        if (type === "profile_female") return secondaryCompact({
+          ...common,
+          job:secondaryPick(raw.job,raw.occupation,raw.jobCategory),
+          companyIndustry:secondaryPick(raw.companyIndustry,raw.company,raw.businessDetail,raw.workplace),
+          workType:secondaryPick(raw.workType,raw.employment,raw.economicActivityType),
+          incomeFemale:secondaryPick(raw.incomeFemale,raw.income,raw.incomeRange),
+          realCheckMethod:secondaryPick(raw.realCheckMethod,raw.verificationMethod),
+          housemate:secondaryPick(raw.housemate,raw.livingWith),
+          femaleNote:secondaryPick(raw.femaleNote,raw.intro,raw.selfIntro),
+        });
+        if (type === "profile_male") return secondaryCompact({
+          ...common,
+          job:secondaryPick(raw.job,raw.occupation,raw.jobCategory),
+          company:secondaryPick(raw.company,raw.workplace,raw.companyIndustry,raw.businessDetail),
+          position:secondaryPick(raw.position,raw.jobTitle,raw.rank),
+          employment:secondaryPick(raw.employment,raw.workType,raw.economicActivityType),
+          incomeMale:secondaryPick(raw.incomeMale,raw.income,raw.incomeRange),
+          asset:secondaryPick(raw.asset,raw.assets,raw.netAssets,raw.assetRange),
+          bodyType:secondaryPick(raw.bodyType,raw.body_type,raw.physique),
+          car:secondaryPick(raw.car,raw.vehicle),
+          housing:secondaryPick(raw.housing,raw.housingType),
+          purpose:secondaryPick(raw.purpose,raw.datingPurpose,raw.meetingPurpose),
+          preferredAgeMin:secondaryPick(raw.preferredAgeMin,raw.targetAgeMin),
+          preferredAgeMax:secondaryPick(raw.preferredAgeMax,raw.targetAgeMax),
+          preferredHeightMin:secondaryPick(raw.preferredHeightMin,raw.targetHeightMin),
+          preferredHeightMax:secondaryPick(raw.preferredHeightMax,raw.targetHeightMax),
+          targetTattoo:secondaryPick(raw.targetTattoo,raw.preferredTattoo),
+          targetSmoking:secondaryPick(raw.targetSmoking,raw.preferredSmoking),
+          targetMarriage:secondaryPick(raw.targetMarriage,raw.preferredMarriage),
+        });
+        return secondaryCompact({
+          ...common,
+          job:secondaryPick(raw.job,raw.occupation,raw.jobCategory),
+          workplace:secondaryPick(raw.workplace,raw.company,raw.companyIndustry,raw.businessDetail),
+        });
+      };
       const secondaryReviewPayload = (form) => {
-        const prefill = secondaryObject(form.prefill_snapshot);
-        const written = secondaryObject(form.status === "submitted" ? form.submitted_payload : form.draft_payload);
+        const prefill = secondaryCanonicalReview(form.form_type, form.prefill_snapshot);
+        const written = secondaryCanonicalReview(form.form_type, form.status === "submitted" ? form.submitted_payload : form.draft_payload);
         return { ...prefill, ...written };
       };
       const secondaryHasReview = (form) => form.status === "submitted" || (
