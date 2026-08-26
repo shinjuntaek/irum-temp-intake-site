@@ -1347,10 +1347,11 @@
           workplace:secondaryPick(raw.workplace,raw.company,raw.companyIndustry,raw.businessDetail),
         });
       };
-      const secondaryReviewPayload = (form) => {
+      const secondaryReviewPayload = (form, item = null) => {
+        const currentPrefill = item ? secondaryCanonicalReview(form.form_type, secondaryPrefill(item, form.form_type)) : {};
         const prefill = secondaryCanonicalReview(form.form_type, form.prefill_snapshot);
         const written = secondaryCanonicalReview(form.form_type, form.status === "submitted" ? form.submitted_payload : form.draft_payload);
-        return { ...prefill, ...written };
+        return { ...currentPrefill, ...prefill, ...written };
       };
       const secondaryHiddenReviewKeys = new Set(["name","phone","email","token","tokenHash","token_hash","privacyConsent","consent","consentVersion","consent_version","photoRefs","photo_refs","photos","storagePath","storage_path","signedUrl","signed_url","documents","files","submitIdempotencyKey","idempotencyKey","revision"]);
       const secondaryFallbackLabels = {
@@ -1364,8 +1365,8 @@
           Object.keys(secondaryObject(form.draft_payload)).length > 0
         )
       );
-      const secondaryReviewMarkup = (form) => {
-        const payload = secondaryReviewPayload(form);
+      const secondaryReviewMarkup = (form, item = null) => {
+        const payload = secondaryReviewPayload(form, item);
         if (!payload || typeof payload !== "object" || !Object.keys(payload).length) return '<p class="workspace-sub">아직 고객이 작성한 2차 답변이 없습니다.</p>';
         const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 1차 기본값 포함 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
         const sections = secondaryAnswerSections(form.form_type);
@@ -1566,7 +1567,7 @@
         try {
           const result = await invokeSecondaryAdmin("secondary-admin-list", { subject_type:item.kind, subject_id:item.id });
           const forms = (result.forms || []).filter(secondaryHasReview);
-          target.innerHTML = forms.length ? forms.map(secondaryReviewMarkup).join("") : '<p class="workspace-sub">작성중이거나 제출된 2차 신청 내용이 없습니다.</p>';
+          target.innerHTML = forms.length ? forms.map((form) => secondaryReviewMarkup(form, item)).join("") : '<p class="workspace-sub">작성중이거나 제출된 2차 신청 내용이 없습니다.</p>';
         } catch (error) {
           target.innerHTML = `<p class="login-error">2차 답변을 불러오지 못했습니다. (${osEsc(error.code || error.message)})</p>`;
         }
