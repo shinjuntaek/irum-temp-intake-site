@@ -987,6 +987,7 @@
       const osFormatDate = (value) => value ? new Date(value).toLocaleString("ko-KR",{dateStyle:"medium",timeStyle:"short"}) : "기록 없음";
       const osPhotoCache = new Map();
       const OS_PHOTO_REFRESH_MS = 8 * 60 * 1000;
+      const OS_BATCH_PHOTO_URLS_ENABLED = false;
       const OS_DATA_CACHE_MS = 30 * 1000;
       let osDataLoadedAt = 0;
       let osDataLoadPromise = null;
@@ -1007,6 +1008,7 @@
         return data.signed_url;
       }
       async function osPrimePhotoUrls(items) {
+        if (!OS_BATCH_PHOTO_URLS_ENABLED) return;
         const unique = new Map();
         items.forEach((item) => {
           if (!item?.photoRefs?.length) return;
