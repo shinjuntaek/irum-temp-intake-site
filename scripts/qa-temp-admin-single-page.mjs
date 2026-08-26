@@ -129,9 +129,21 @@ try {
       const target = document.getElementById('os-secondary-review');
       if (target) target.innerHTML = '<article data-qa-secondary-review><b>여성 2차 프로필</b><p>실제 고객 작성값만 표시</p></article>';
     };
-    mountSecondaryPanel = async item => {
-      const target = document.getElementById('os-secondary-profile-panel');
-      if (target) target.innerHTML = '<div data-qa-secondary-links><input data-secondary-url readonly value="https://example.invalid/#qa"/><button data-secondary-copy>링크 복사</button><button data-secondary-document="qa-document" data-secondary-form="qa-form">private 서류</button></div>';
+    window.__qaSecondaryCalls = [];
+    window.__qaReissued = false;
+    window.confirm = () => true;
+    invokeSecondaryAdmin = async (action, body = {}) => {
+      window.__qaSecondaryCalls.push({ action, body });
+      if (action === 'secondary-admin-list') return {
+        forms:[{ id:'qa-form', subject_type:'temporary_submission', subject_id:'2', form_type:'profile_male', status:'pending', expires_at:'2026-09-09T00:00:00.000Z', token_prefix:window.__qaReissued ? 'newtoken12' : 'oldtoken12', draft_revision:3, draft_saved_at:'2026-08-26T00:00:00.000Z' }],
+        documents:[{ id:'qa-document', form_id:'qa-form', document_type:'job', status:'verified' }]
+      };
+      if (action === 'secondary-admin-reissue') {
+        window.__qaReissued = true;
+        return { form:{ id:'qa-form' }, raw_url:'https://irum.click/profile/#qa-new-token' };
+      }
+      if (action === 'secondary-admin-document-url') return { signed_url:'https://example.invalid/private-document' };
+      throw new Error('UNEXPECTED_QA_ACTION:' + action);
     };
     legacyRecords = [{
       source_application_id:1,
@@ -170,7 +182,7 @@ try {
 
   await evaluate("document.querySelector('[data-os-workspace=\"temporary-2\"]').click()");
   await waitFor("document.querySelectorAll('[data-temp-applicant-section]').length === 5", "five temp applicant sections");
-  await waitFor("document.querySelector('[data-qa-secondary-review]') && document.querySelector('[data-qa-secondary-links]')", "secondary review and link fixtures");
+  await waitFor("document.querySelector('[data-qa-secondary-review]') && document.querySelector('[data-secondary-reissue]') && document.querySelector('[data-secondary-document]')", "secondary review and reissue controls");
   const photoButton = await evaluate("document.querySelector('[data-os-photo-owner]')?.outerHTML || ''");
   if (photoButton) await evaluate("osLoadPhotoThumb(document.querySelector('[data-os-photo-owner]'), osSelectedWorkspace, true)");
   await waitFor("document.querySelector('.os-profile-photo img')", "private photo thumbnail");
@@ -186,9 +198,20 @@ try {
     consultationDateCount:document.querySelectorAll('[data-temp-consultation-date]').length,
     privatePhotoCount:document.querySelectorAll('.os-profile-photo img').length,
     privateDocumentCount:document.querySelectorAll('[data-secondary-document]').length,
-    copyButtonCount:document.querySelectorAll('[data-secondary-copy]').length,
+    reissueButtonCount:document.querySelectorAll('[data-secondary-reissue]').length,
+    issueButtonText:document.querySelector('#secondary-issue')?.textContent?.trim() || '',
     scrollWidth:document.documentElement.scrollWidth,
     viewportWidth:document.documentElement.clientWidth
+  })`);
+  await evaluate("document.querySelector('#secondary-issue').click()");
+  await waitFor("document.querySelector('[data-secondary-url]')?.value === 'https://irum.click/profile/#qa-new-token'", "reissued secondary URL");
+  const reissue = await evaluate(`({
+    reissueCalls:window.__qaSecondaryCalls.filter(call => call.action === 'secondary-admin-reissue').length,
+    formId:window.__qaSecondaryCalls.find(call => call.action === 'secondary-admin-reissue')?.body?.form_id,
+    expiresInDays:window.__qaSecondaryCalls.find(call => call.action === 'secondary-admin-reissue')?.body?.expires_in_days,
+    rawUrl:document.querySelector('[data-secondary-url]')?.value || '',
+    copyButtonCount:document.querySelectorAll('[data-secondary-copy]').length,
+    draftRevisionText:document.body.innerText.includes('revision 3')
   })`);
   await screenshot(`${outputDir}/desktop-detail.png`);
 
@@ -204,7 +227,7 @@ try {
   })`);
   await screenshot(`${outputDir}/mobile-detail.png`);
 
-  const result = { unauthenticated, list, detail, mobile };
+  const result = { unauthenticated, list, detail, reissue, mobile };
   await writeFile(`${outputDir}/result.json`, `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result));
 
@@ -214,7 +237,8 @@ try {
   if (detail.sections.join(",") !== "primary-profile,secondary-responses,secondary-links,unified-notes,consultation-date") throw new Error("Temporary admin section keys mismatch");
   if (detail.hasLegacyTabs || detail.currentWorkCount !== 0) throw new Error("Legacy tabs or CURRENT WORK remain visible");
   if ([detail.secondaryReviewCount, detail.secondaryLinkCount, detail.unifiedMemoCount, detail.consultationDateCount].some(count => count !== 1)) throw new Error("Single-page panel duplication detected");
-  if (detail.privatePhotoCount !== 1 || detail.privateDocumentCount !== 1 || detail.copyButtonCount !== 1) throw new Error("Private photo/document or secondary link regression detected");
+  if (detail.privatePhotoCount !== 1 || detail.privateDocumentCount !== 1 || detail.reissueButtonCount !== 1 || detail.issueButtonText !== "기존 링크 재발급") throw new Error("Private photo/document or secondary reissue control regression detected");
+  if (reissue.reissueCalls !== 1 || reissue.formId !== "qa-form" || reissue.expiresInDays !== 14 || reissue.rawUrl !== "https://irum.click/profile/#qa-new-token" || reissue.copyButtonCount !== 1 || !reissue.draftRevisionText) throw new Error("Secondary reissue UI flow failed");
   if (mobile.horizontalOverflow || mobile.sectionCount !== 5 || mobile.privatePhotoCount !== 1 || mobile.secondaryLinkCount !== 1) throw new Error("Temporary admin mobile layout failed");
 } finally {
   socket.close();

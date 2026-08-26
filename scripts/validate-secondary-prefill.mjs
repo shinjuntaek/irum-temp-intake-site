@@ -36,7 +36,7 @@ const edgeRequired = [
   'missing.push("assetDocument")',
   "missing_fields: validationError.missing",
   '"realCheckDate"',
-  'const BUILD_ID = "secondary-submit-cas-current-payload-20260826-2"',
+  'const BUILD_ID = "secondary-link-reissue-20260826-3"',
   'select("draft_revision")',
   'status: "submitted"',
 ];

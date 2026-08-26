@@ -1549,21 +1549,37 @@
               : isActive
                 ? '<p class="workspace-sub" style="margin-top:10px">보안을 위해 URL 원문은 발급한 관리자 탭에서만 다시 표시됩니다. 링크 주소가 보이지 않으면 기존 링크를 폐기한 뒤 새로 발급해주세요.</p>'
                 : "";
-            return `<article style="border:1px solid #ded9d0;background:#fff;padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><div><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><p class="workspace-sub">${osEsc(secondaryStatusLabel(form.status))} · 만료 ${osEsc(secondaryDate(form.expires_at))} · TOKEN ${osEsc(form.token_prefix)}…</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}</div>${isActive?`<button class="menu" data-secondary-revoke="${osEsc(form.id)}" style="width:auto">링크 폐기</button>`:""}</div>${form.draft_saved_at?`<p class="workspace-sub">마지막 자동저장 ${osEsc(secondaryDate(form.draft_saved_at))} · revision ${osEsc(form.draft_revision)}</p>`:""}${form.submitted_at?`<p class="workspace-sub">제출 ${osEsc(secondaryDate(form.submitted_at))}</p>`:""}${linkPanel}<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">${docs.map((document)=>`<button class="menu" data-secondary-document="${osEsc(document.id)}" data-secondary-form="${osEsc(form.id)}" style="width:auto" ${document.status==="verified"?"":"disabled"}>${osEsc(document.document_type)} · ${osEsc(document.status)}</button>`).join("")||'<span class="workspace-sub">서류 없음</span>'}</div></article>`;
+            return `<article style="border:1px solid #ded9d0;background:#fff;padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><div><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><p class="workspace-sub">${osEsc(secondaryStatusLabel(form.status))} · 만료 ${osEsc(secondaryDate(form.expires_at))} · TOKEN ${osEsc(form.token_prefix)}…</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}</div>${isActive?`<div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px"><button class="menu" data-secondary-reissue="${osEsc(form.id)}" style="width:auto">링크 재발급</button><button class="menu" data-secondary-revoke="${osEsc(form.id)}" style="width:auto">링크 폐기</button></div>`:""}</div>${form.draft_saved_at?`<p class="workspace-sub">마지막 자동저장 ${osEsc(secondaryDate(form.draft_saved_at))} · revision ${osEsc(form.draft_revision)}</p>`:""}${form.submitted_at?`<p class="workspace-sub">제출 ${osEsc(secondaryDate(form.submitted_at))}</p>`:""}${linkPanel}<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">${docs.map((document)=>`<button class="menu" data-secondary-document="${osEsc(document.id)}" data-secondary-form="${osEsc(form.id)}" style="width:auto" ${document.status==="verified"?"":"disabled"}>${osEsc(document.document_type)} · ${osEsc(document.status)}</button>`).join("")||'<span class="workspace-sub">서류 없음</span>'}</div></article>`;
           }).join("") || '<p class="workspace-sub">아직 발급된 2차 신청 링크가 없습니다.</p>';
           const canIssue = options.length > 0;
           target.innerHTML = `<div style="border:1px solid #d8d0c5;background:#faf8f4;padding:15px"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px"><label class="field"><label>폼 유형</label><select id="secondary-form-type">${options.map(([value,label])=>`<option value="${osEsc(value)}">${osEsc(label)}</option>`).join("")}</select></label><label class="field"><label>유효기간</label><select id="secondary-expiry"><option value="7">7일</option><option value="14" selected>14일</option><option value="30">30일</option></select></label></div><label class="field" id="secondary-event-wrap" style="display:none;margin-top:10px"><label>담당 모임 일정</label><select id="secondary-event"><option value="">이벤트를 선택해주세요</option>${events.map((event)=>`<option value="${osEsc(event.id)}">${osEsc(event.title||"IRUM SOCIAL")} · ${osEsc(secondaryDate(event.startsAt))}</option>`).join("")}</select></label><button class="os-action" id="secondary-issue" style="margin-top:12px" ${canIssue?"":"disabled"}>개인화 링크 발급</button>${!canIssue?'<p class="workspace-sub">성별 또는 신청 서비스가 확인되지 않아 발급 가능한 폼이 없습니다.</p>':""}<div id="secondary-raw-link"></div><div id="secondary-error" class="login-error"></div></div><div style="margin-top:14px">${rows}</div>`;
           const typeSelect = document.getElementById("secondary-form-type");
           const eventWrap = document.getElementById("secondary-event-wrap");
           const syncEventVisibility = () => { if (eventWrap) eventWrap.style.display = typeSelect?.value === "social_event" ? "block" : "none"; };
-          if (typeSelect) { typeSelect.onchange = syncEventVisibility; syncEventVisibility(); }
           const issueButton = document.getElementById("secondary-issue");
+          const activeFormForSelectedType = () => forms.find((form) => ["pending","in_progress"].includes(form.status) && form.form_type === typeSelect?.value);
+          const syncIssueMode = () => {
+            syncEventVisibility();
+            if (issueButton) issueButton.textContent = activeFormForSelectedType() ? "기존 링크 재발급" : "개인화 링크 발급";
+          };
+          if (typeSelect) { typeSelect.onchange = syncIssueMode; syncIssueMode(); }
           if (issueButton) issueButton.onclick = async () => {
             const errorTarget = document.getElementById("secondary-error");
             errorTarget.textContent = "";
             issueButton.disabled = true;
             try {
               const formType = typeSelect.value;
+              const activeForm = activeFormForSelectedType();
+              if (activeForm) {
+                if (!confirm("같은 유형의 기존 링크를 새 링크로 교체할까요? 기존 링크는 즉시 사용할 수 없게 됩니다.")) return;
+                const reissued = await invokeSecondaryAdmin("secondary-admin-reissue", {
+                  form_id:activeForm.id,
+                  expires_in_days:Number(document.getElementById("secondary-expiry").value),
+                });
+                rememberSecondaryIssuedLink(reissued.form?.id, reissued.raw_url);
+                await mountSecondaryPanel(item);
+                return;
+              }
               const eventId = document.getElementById("secondary-event")?.value || "";
               const event = secondaryEvents().find((candidate) => candidate.id === eventId);
               if (formType === "social_event" && !event) throw Object.assign(new Error("모임 일정을 선택해주세요."), { code:"EVENT_REQUIRED" });
@@ -1580,13 +1596,26 @@
               rememberSecondaryIssuedLink(issued.form?.id, issued.raw_url);
               await mountSecondaryPanel(item);
             } catch (error) {
-              errorTarget.textContent = error.code === "ACTIVE_LINK_EXISTS" ? "같은 유형의 활성 링크가 이미 있습니다. 기존 링크를 폐기한 뒤 재발급해주세요." : error.message || "링크 발급에 실패했습니다.";
+              errorTarget.textContent = error.code === "ACTIVE_LINK_EXISTS" ? "같은 유형의 활성 링크가 있습니다. 아래 `링크 재발급` 버튼을 눌러 새 링크로 교체해주세요." : error.message || "링크 발급에 실패했습니다.";
             } finally { issueButton.disabled = false; }
           };
           target.querySelectorAll("[data-secondary-revoke]").forEach((button) => button.onclick = async () => {
             if (!confirm("이 2차 신청 링크를 폐기할까요? 기존 링크는 즉시 사용할 수 없게 됩니다.")) return;
             try { await invokeSecondaryAdmin("secondary-admin-revoke", { form_id:button.dataset.secondaryRevoke }); forgetSecondaryIssuedLink(button.dataset.secondaryRevoke); await mountSecondaryPanel(item); }
             catch { alert("링크를 폐기하지 못했습니다."); }
+          });
+          target.querySelectorAll("[data-secondary-reissue]").forEach((button) => button.onclick = async () => {
+            if (!confirm("새 링크를 재발급하면 기존 링크는 즉시 사용할 수 없게 됩니다. 계속할까요?")) return;
+            button.disabled = true;
+            try {
+              const reissued = await invokeSecondaryAdmin("secondary-admin-reissue", {
+                form_id:button.dataset.secondaryReissue,
+                expires_in_days:Number(document.getElementById("secondary-expiry")?.value || 14),
+              });
+              rememberSecondaryIssuedLink(reissued.form?.id, reissued.raw_url);
+              await mountSecondaryPanel(item);
+            } catch { alert("링크를 재발급하지 못했습니다."); }
+            finally { button.disabled = false; }
           });
           target.querySelectorAll("[data-secondary-copy]").forEach((button) => button.onclick = () => copySecondaryIssuedLink(button));
           target.querySelectorAll("[data-secondary-document]").forEach((button) => button.onclick = async () => {

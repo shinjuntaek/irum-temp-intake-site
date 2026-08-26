@@ -8,7 +8,7 @@ const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
-const BUILD_ID = "secondary-submit-cas-current-payload-20260826-2";
+const BUILD_ID = "secondary-link-reissue-20260826-3";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -648,6 +648,31 @@ Deno.serve(async (req) => {
       if (!data) return json({ error: "FORM_NOT_REVOCABLE" }, 409);
       await appendEvent(database, formId, "revoked", "temporary_admin", { id: user.id, email: user.email });
       return json({ ok: true });
+    }
+
+    if (action === "secondary-admin-reissue") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const formId = text(body.form_id);
+      const days = Math.min(30, Math.max(1, Number(body.expires_in_days ?? 14)));
+      const rawToken = generateRawToken();
+      const tokenHash = await hash(rawToken);
+      const tokenPrefix = rawToken.slice(0, 10);
+      const updatedAt = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + days * 86_400_000).toISOString();
+      const { data, error } = await database.from(FORM_TABLE).update({
+        token_hash: tokenHash,
+        token_prefix: tokenPrefix,
+        expires_at: expiresAt,
+        updated_at: updatedAt,
+      }).eq("id", formId).in("status", ["pending", "in_progress"])
+        .select("id, form_type, status, expires_at, token_prefix, draft_revision, draft_saved_at, updated_at")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "FORM_NOT_REISSUABLE" }, 409);
+      await appendEvent(database, formId, "reissued", "temporary_admin", { id: user.id, email: user.email }, { expires_in_days: days });
+      const origin = (Deno.env.get("TEMP_SECONDARY_PUBLIC_ORIGIN") || "https://irum.click").replace(/\/$/, "");
+      return json({ form: data, raw_url: `${origin}/profile/#${rawToken}`, build_id: BUILD_ID });
     }
 
     if (action === "secondary-admin-list") {
