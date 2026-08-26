@@ -8,6 +8,7 @@ const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
+const BUILD_ID = "secondary-submit-merge-20260826-1";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -358,6 +359,8 @@ Deno.serve(async (req) => {
     const action = text(body.action);
     const database = serviceClient();
 
+    if (action === "secondary-build") return json({ ok: true, build_id: BUILD_ID });
+
     if (action === "secondary-public-get") {
       const resolved = await resolvePublicForm(database, body.token);
       if ("error" in resolved) return json({ error: resolved.error }, resolved.status);
@@ -510,7 +513,7 @@ Deno.serve(async (req) => {
       if (documentError) throw documentError;
       const verifiedTypes = new Set((documents ?? []).filter((document) => document.status === "verified").map((document) => document.document_type));
       const validationError = validateSubmission(form.form_type, submittedPayload, verifiedTypes);
-      if (validationError) return json({ error: validationError.code, missing_fields: validationError.missing }, 422);
+      if (validationError) return json({ error: validationError.code, missing_fields: validationError.missing, build_id: BUILD_ID }, 422);
       const submittedAt = new Date().toISOString();
       const { data, error } = await database.from(FORM_TABLE).update({
         status: "submitted",
