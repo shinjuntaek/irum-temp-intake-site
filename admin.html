@@ -1352,6 +1352,11 @@
         const written = secondaryCanonicalReview(form.form_type, form.status === "submitted" ? form.submitted_payload : form.draft_payload);
         return { ...prefill, ...written };
       };
+      const secondaryHiddenReviewKeys = new Set(["name","phone","email","token","tokenHash","token_hash","privacyConsent","consent","consentVersion","consent_version","photoRefs","photo_refs","photos","storagePath","storage_path","signedUrl","signed_url","documents","files","submitIdempotencyKey","idempotencyKey","revision"]);
+      const secondaryFallbackLabels = {
+        occupation:"현재 직업",location:"거주지역",income:"연소득",incomeRange:"연소득",assets:"개인 순자산",desiredService:"원하는 서비스",datingPurpose:"만남의 목적",companyIndustry:"회사 / 업종",businessDetail:"회사 / 업종",economicActivityType:"경제활동 형태",marriageHistory:"혼인 이력",heightCm:"키",schoolName:"학교명",selfIntro:"자기소개",intro:"자기소개",healthNote:"건강 관련 추가 설명",mbti:"MBTI",bodyShape:"체형",charmPoints:"매력 포인트",lifestyle:"라이프스타일",
+      };
+      const secondaryFallbackLabel = (key) => secondaryFallbackLabels[key] || key.replace(/([a-z0-9])([A-Z])/g,"$1 $2").replace(/_/g," ");
       const secondaryHasReview = (form) => form.status === "submitted" || (
         form.status === "in_progress" && (
           Number(form.draft_revision || 0) > 0 ||
@@ -1363,12 +1368,16 @@
         const payload = secondaryReviewPayload(form);
         if (!payload || typeof payload !== "object" || !Object.keys(payload).length) return '<p class="workspace-sub">아직 고객이 작성한 2차 답변이 없습니다.</p>';
         const source = form.status === "submitted" ? `제출 완료 · ${secondaryDate(form.submitted_at)}` : `작성중 · 1차 기본값 포함 · 마지막 저장 ${secondaryDate(form.draft_saved_at)}`;
-        const groups = secondaryAnswerSections(form.form_type).map(([title, fields]) => {
+        const sections = secondaryAnswerSections(form.form_type);
+        const knownKeys = new Set(sections.flatMap(([,fields]) => fields.map(([key]) => key)));
+        const groups = sections.map(([title, fields]) => {
           const rows = fields.filter(([key]) => payload[key] !== undefined && payload[key] !== null && payload[key] !== "" && !(Array.isArray(payload[key]) && !payload[key].length));
           if (!rows.length) return "";
           return `<section style="margin-top:12px;border-top:1px solid #ece7df;padding-top:12px"><b style="font-size:12px">${osEsc(title)}</b><dl class="os-fields" style="margin-top:9px">${rows.map(([key,label])=>osField(label,secondaryDisplayValue(key,payload[key]))).join("")}</dl></section>`;
         }).join("");
-        return `<article style="border:1px solid #ded9d0;background:#fff;padding:15px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><span class="os-chip ${form.status === "submitted" ? "done" : "progress"}">${osEsc(secondaryStatusLabel(form.status))}</span></div><p class="workspace-sub">${osEsc(source)}</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}${groups || '<p class="workspace-sub">표시할 답변이 없습니다.</p>'}</article>`;
+        const fallbackRows = Object.entries(payload).filter(([key,value]) => !knownKeys.has(key) && !secondaryHiddenReviewKeys.has(key) && secondaryPresent(value));
+        const fallback = fallbackRows.length ? `<section style="margin-top:12px;border-top:1px solid #ece7df;padding-top:12px"><b style="font-size:12px">기타 응답</b><dl class="os-fields" style="margin-top:9px">${fallbackRows.map(([key,value])=>osField(secondaryFallbackLabel(key),secondaryDisplayValue(key,value))).join("")}</dl></section>` : "";
+        return `<article style="border:1px solid #ded9d0;background:#fff;padding:15px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><span class="os-chip ${form.status === "submitted" ? "done" : "progress"}">${osEsc(secondaryStatusLabel(form.status))}</span></div><p class="workspace-sub">${osEsc(source)}</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}${groups || fallback || '<p class="workspace-sub">저장된 답변이 없습니다.</p>'}${groups ? fallback : ""}</article>`;
       };
       const readSecondaryIssuedLinks = () => {
         try {
