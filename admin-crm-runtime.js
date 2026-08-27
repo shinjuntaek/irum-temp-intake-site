@@ -18,6 +18,8 @@
       ));
     };
     const correctionRows = (item) => state.fieldCorrections.filter((row) => owns(item, row)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const addedPhotosFor = (item) => (state.addedPhotos || []).filter((row) => owns(item, row)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const allPhotoCount = (item) => (item.photoBase?.photoRefs?.length || 0) + addedPhotosFor(item).length;
     const profileForm = (item) => {
       const expected = `profile_${genderOf(item)}`;
       return item.forms.find((form) => form.form_type === expected && ["submitted", "in_progress"].includes(form.status)) ||
@@ -44,7 +46,7 @@
         row.subject_type === source.subject.type && String(row.subject_id) === String(source.subject.id) &&
         String(row.form_id || "") === String(source.form?.id || "")) || null;
     };
-    const currentFor = (item, field) => field.kind === "photos" ? (item.photoBase?.photoRefs?.length ? "attached" : null) : correctionFor(item, field)?.corrected_value ?? sourceFor(item, field).original;
+    const currentFor = (item, field) => field.kind === "photos" ? (allPhotoCount(item) ? "attached" : null) : correctionFor(item, field)?.corrected_value ?? sourceFor(item, field).original;
     const filled = (value) => Array.isArray(value) ? value.length > 0 : value === true || value === false || (value !== null && value !== undefined && String(value).trim() !== "");
     const secondaryGetter = (item) => (key) => {
       const all = registry.secondary[genderOf(item)];
@@ -98,9 +100,11 @@
       const correction = correctionFor(item, field);
       const current = correction?.corrected_value ?? source.original;
       if (field.kind === "photos") {
-        const photoCount = item.photoBase?.photoRefs?.length || 0;
+        const photoCount = allPhotoCount(item);
+        const originalCount = item.photoBase?.photoRefs?.length || 0;
+        const added = addedPhotosFor(item);
         if (missingOnly && photoCount) return "";
-        return `<article class="crm-field crm-photo-field ${photoCount ? "" : "missing"}" data-photo-field><div class="crm-field-head"><label>첨부 사진 <small class="crm-required">필수</small></label><span class="crm-source">1차 신청</span></div><div class="crm-photo-card">${photoMarkup(item)}</div><div class="crm-current">${photoCount ? `첨부 완료 · ${photoCount}장 · 클릭해서 전체 보기` : "사진 보완 필요"}</div></article>`;
+        return `<article class="crm-field crm-photo-field ${photoCount ? "" : "missing"}" data-photo-field><div class="crm-field-head"><label>첨부 사진 <small class="crm-required">필수</small></label><span class="crm-source">사진 관리</span></div><div class="crm-photo-card"><div class="crm-photo-collection">${originalCount ? photoMarkup(item) : ""}${added.map((photo, index) => `<button type="button" class="crm-added-photo" data-added-photo="${esc(photo.id)}" aria-label="추가 사진 ${index + 1} 보기">불러오는 중</button>`).join("")}${!photoCount ? '<div class="crm-photo-empty">등록된 사진이 없습니다.</div>' : ""}</div></div><div class="crm-photo-actions"><input type="file" data-add-photo-input accept="image/jpeg,image/png,image/webp" hidden><button type="button" class="secondary" data-add-photo>사진 추가</button><span>${photoCount ? `총 ${photoCount}장 · 눌러서 크게 보기` : "JPG · PNG · WEBP / 8MB 이하"}</span></div></article>`;
       }
       if (missingOnly && filled(current)) return "";
       return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(field.sourceLabel)}</span></div><div class="crm-original">신청 내용 · ${esc(valueForDisplay(source.original, source.key))}</div><div class="crm-current">확인값 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}</article>`;
@@ -134,7 +138,10 @@
       const fields = registry.phone[genderOf(item)].filter((field) => !field.conditionalHealth || healthFollowupRequired(item) || filled(latestValues(state.phoneConsultations, item)[field.key]));
       const values = latestValues(state.phoneConsultations, item);
       const labels = Object.fromEntries(registry.phone[genderOf(item)].map((field) => [field.key, field.label]));
-      return `<section class="crm-category" data-crm-phone><div class="crm-category-head"><div><h3>전화상담 확인 항목</h3><p class="desc">${genderOf(item) === "female" ? "여성 고객 전화상담 확인 항목" : "남성 고객 사실 확인 항목"}</p></div><small>상담 기록</small></div>${!consultationStarted(item) ? '<div class="crm-stage-note">아직 전화상담 전입니다. 처음 저장한 내용부터 상담 기록에 반영됩니다.</div>' : ""}<form id="phone-consultation-form"><div class="crm-revision-form">${fields.map((field) => `<div class="crm-revision-field ${field.control === "textarea" || field.control === "tags" ? "wide" : ""}"><label>${esc(field.label)}</label>${field.control === "tags" ? `<input data-phone-field="${esc(field.key)}" value="${esc(Array.isArray(values[field.key]) ? values[field.key].join(", ") : values[field.key] || "")}" placeholder="쉼표로 구분 · 최대 ${field.max}개">` : revisionControl(field, values[field.key], "phone")}</div>`).join("")}</div><button class="action" style="margin-top:11px">전화상담 저장</button></form>${priorRevisionMarkup(state.phoneConsultations, item, labels)}</section>`;
+      const grouped = new Map();
+      fields.forEach((field) => { const category = field.category || "사실 확인"; if (!grouped.has(category)) grouped.set(category, []); grouped.get(category).push(field); });
+      const input = (field) => `<div class="crm-revision-field ${field.control === "textarea" || field.control === "tags" ? "wide" : ""}"><label>${esc(field.label)}</label>${field.control === "tags" ? `<input data-phone-field="${esc(field.key)}" value="${esc(Array.isArray(values[field.key]) ? values[field.key].join(", ") : values[field.key] || "")}" placeholder="쉼표로 구분 · 최대 ${field.max}개">` : revisionControl(field, values[field.key], "phone")}</div>`;
+      return `<section class="crm-category" data-crm-phone><div class="crm-category-head"><div><h3>전화상담 확인 항목</h3><p class="desc">${genderOf(item) === "female" ? "여성 고객 전화상담 확인 항목" : "남성 고객 사실 확인 항목"}</p></div><small>상담 기록</small></div>${!consultationStarted(item) ? '<div class="crm-stage-note">아직 전화상담 전입니다. 처음 저장한 내용부터 상담 기록에 반영됩니다.</div>' : ""}<form id="phone-consultation-form"><div class="crm-phone-groups">${[...grouped.entries()].map(([category, group]) => `<section class="crm-phone-group"><h4>${esc(category)}</h4><div class="crm-revision-form">${group.map(input).join("")}</div></section>`).join("")}</div><button class="action" style="margin-top:11px">전화상담 저장</button></form>${priorRevisionMarkup(state.phoneConsultations, item, labels)}</section>`;
     };
     const internalSection = (item) => {
       const fields = registry.internal[genderOf(item)], values = latestValues(state.internalEvaluations, item);
@@ -185,14 +192,14 @@
       state.selected = item;
       const p = item.profile;
       document.querySelector(".layout")?.classList.remove("crm-reference-layout");
-      shell("이룸 상담·심사 CRM", "고객 관리", `<section class="page" data-temp-single-applicant-page data-consultation-crm-detail data-crm-registry="${registry.version}"><button class="secondary" id="back">목록으로</button><section class="profile-head" style="margin-top:14px"><div class="profile-photo">${photoMarkup(item)}</div><div class="profile-copy"><div class="crm-client-summary"><p class="kicker">상담·심사 CRM</p><h2>${esc(p.name || "이름 미입력")} <span class="crm-gender-label">${genderOf(item) === "female" ? "여성" : "남성"}</span></h2><p class="profile-meta">${esc(formatPhone(p.phone))}</p><p class="profile-meta">${esc(p.job || "직업 미입력")} · ${esc(p.region || "지역 미입력")}</p><div class="chips">${stageChip(item.stage)}<span class="chip">${esc(serviceLabel(item.services))}</span>${item.duplicate ? '<span class="chip amber">같은 연락처의 신청 기록</span>' : ""}</div></div>${completionMarkup(item)}<div class="quick-grid"><div><span>2차 링크</span><b>${item.form?.sent_at ? "발송 완료" : item.form ? "발송 전" : "미발급"}</b></div><div><span>2차 제출</span><b>${item.form?.status === "submitted" ? "완료" : "미완료"}</b></div><div><span>상담 상태</span><b>${esc({ before: "상담전", in_progress: "상담중", completed: "상담완료" }[item.consultationStatus] || "상담전")}</b></div><div><span>다음 업무</span><b>${esc(nextTask(item))}</b></div></div><div class="workspace-controls"><select id="workflow-stage"><option value="first_review">1차 검토 중</option>${item.reviewed?.result === "approved" ? '<option value="approved">승인</option>' : ""}${item.reviewed?.result === "hold" ? '<option value="hold">보류</option>' : ""}${item.reviewed?.result === "rejected" ? '<option value="rejected">미승인</option>' : ""}</select><input id="workflow-owner" placeholder="담당자" value="${esc(item.workflow?.assigned_to || item.legacyConsult.consultantName || "")}"><button class="action" id="workflow-save">처리 단계 저장</button></div></div></section><div class="crm-flow"><main class="crm-main-flow">${customerSections(item)}${phoneSection(item)}${internalSection(item)}${feedbackSection(item)}${operationalSections(item)}</main>${historyRail(item)}</div></section>`);
+      shell("이룸 상담·심사 CRM", "고객 관리", `<section class="page" data-temp-single-applicant-page data-consultation-crm-detail data-crm-registry="${registry.version}"><button class="secondary" id="back">목록으로</button><section class="profile-head" style="margin-top:14px"><div class="profile-photo">${photoMarkup(item)}</div><div class="profile-copy"><div class="crm-client-summary"><p class="kicker">상담·심사 CRM</p><h2>${esc(p.name || "이름 미입력")} <span class="crm-gender-label">${genderOf(item) === "female" ? "여성" : "남성"}</span></h2><div class="chips">${stageChip(item.stage)}<span class="chip">${esc(serviceLabel(item.services))}</span>${item.duplicate ? '<span class="chip amber">같은 연락처의 신청 기록</span>' : ""}</div><div class="crm-client-details"><p>${esc(formatPhone(p.phone))}</p><p>${esc(p.job || "직업 미입력")} · ${esc(p.region || "지역 미입력")}</p></div></div>${completionMarkup(item)}<div class="quick-grid"><div><span>2차 링크</span><b>${item.form?.sent_at ? "발송 완료" : item.form ? "발송 전" : "미발급"}</b></div><div><span>2차 제출</span><b>${item.form?.status === "submitted" ? "완료" : "미완료"}</b></div><div><span>상담 상태</span><b>${esc({ before: "상담전", in_progress: "상담중", completed: "상담완료" }[item.consultationStatus] || "상담전")}</b></div><div><span>다음 업무</span><b>${esc(nextTask(item))}</b></div></div><div class="workspace-controls"><select id="workflow-stage"><option value="first_review">1차 검토 중</option>${item.reviewed?.result === "approved" ? '<option value="approved">승인</option>' : ""}${item.reviewed?.result === "hold" ? '<option value="hold">보류</option>' : ""}${item.reviewed?.result === "rejected" ? '<option value="rejected">미승인</option>' : ""}</select><input id="workflow-owner" placeholder="담당자" value="${esc(item.workflow?.assigned_to || item.legacyConsult.consultantName || "")}"><button class="action" id="workflow-save">처리 단계 저장</button></div></div></section><div class="crm-flow"><main class="crm-main-flow">${customerSections(item)}${phoneSection(item)}${internalSection(item)}${feedbackSection(item)}${operationalSections(item)}</main>${historyRail(item)}</div></section>`);
       const profileCopy = document.querySelector("[data-consultation-crm-detail] .profile-copy"), crmCompletion = document.querySelector("[data-consultation-crm-detail] .crm-main-flow > [data-crm-completion]"), backButton = document.getElementById("back"), workflowControls = document.querySelector("[data-consultation-crm-detail] .workspace-controls");
       if (workflowControls && backButton) workflowControls.prepend(backButton);
       document.getElementById("back").onclick = () => renderApplicants();
       const workflowStage = document.getElementById("workflow-stage");
       if ([...workflowStage.options].some((option) => option.value === item.workflow?.workflow_stage)) workflowStage.value = item.workflow.workflow_stage;
       document.getElementById("workflow-save").onclick = () => saveWorkflow(item);
-      bindPhotos(); bindReview(item); bindDocuments(); bindLinks(item); bindMemo(item); bindSchedules(item); bindContinuous(item);
+      bindPhotos(); bindAddedPhotos(item); bindReview(item); bindDocuments(); bindLinks(item); bindMemo(item); bindSchedules(item); bindContinuous(item);
     };
 
     const refreshSelected = async (item, message) => {
@@ -205,6 +212,41 @@
       group.dataset.value = button.dataset.optionValue;
       group.querySelectorAll("[data-option-value]").forEach((option) => option.classList.toggle("selected", option === button));
     }));
+    const addedPhotoUrl = async (photo, purpose = "thumbnail") => (await invokeAdmin("admin-added-photo-url", { photo_id: photo.id, purpose })).signed_url;
+    const openAddedPhoto = async (photo) => {
+      const modal = document.createElement("div");
+      modal.className = "modal";
+      modal.innerHTML = '<section class="modal-dialog" role="dialog" aria-modal="true"><header class="modal-head"><b>추가 사진</b><button data-close>닫기</button></header><div class="modal-stage">불러오는 중</div></section>';
+      document.body.appendChild(modal); document.body.style.overflow = "hidden";
+      const close = () => { modal.remove(); document.body.style.overflow = ""; };
+      modal.querySelector("[data-close]").onclick = close; modal.onclick = (event) => { if (event.target === modal) close(); };
+      try { const img = document.createElement("img"); img.alt = "추가 사진"; img.src = await addedPhotoUrl(photo, "gallery"); modal.querySelector(".modal-stage").replaceChildren(img); } catch { modal.querySelector(".modal-stage").textContent = "사진을 불러오지 못했습니다."; }
+    };
+    const bindAddedPhotos = (item) => {
+      const added = addedPhotosFor(item);
+      document.querySelectorAll("[data-added-photo]").forEach((button) => {
+        const photo = added.find((row) => row.id === button.dataset.addedPhoto); if (!photo) return;
+        button.onclick = () => openAddedPhoto(photo);
+        addedPhotoUrl(photo).then((url) => { if (!button.isConnected) return; const img = document.createElement("img"); img.alt = "추가 사진"; img.loading = "lazy"; img.src = url; button.replaceChildren(img); }).catch(() => { if (button.isConnected) button.textContent = "사진을 불러오지 못했습니다."; });
+      });
+      const input = document.querySelector("[data-add-photo-input]"), trigger = document.querySelector("[data-add-photo]");
+      if (!input || !trigger) return;
+      trigger.onclick = () => input.click();
+      input.onchange = async () => {
+        const file = input.files?.[0]; input.value = "";
+        if (!file) return;
+        if (!new Set(["image/jpeg", "image/png", "image/webp"]).has(file.type) || file.size < 1 || file.size > 8 * 1024 * 1024) { toast("JPG·PNG·WEBP 형식, 8MB 이하 사진만 추가할 수 있습니다.", true); return; }
+        trigger.disabled = true; trigger.textContent = "사진 추가 중";
+        try {
+          const upload = await invokeAdmin("admin-added-photo-upload-url", { subject_type: item.canonical.type, subject_id: item.canonical.id, file_name: file.name, content_type: file.type });
+          const response = await fetch(upload.upload_url, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+          if (!response.ok) throw Object.assign(new Error("PHOTO_UPLOAD_FAILED"), { code: "PHOTO_UPLOAD_FAILED" });
+          await invokeAdmin("admin-added-photo-complete", { subject_type: item.canonical.type, subject_id: item.canonical.id, upload_path: upload.upload_path });
+          await refreshSelected(item, "사진을 추가했습니다.");
+        } catch (error) { toast(`사진 추가 실패 (${error.code || "UPLOAD_FAILED"})`, true); }
+        finally { trigger.disabled = false; trigger.textContent = "사진 추가"; }
+      };
+    };
     const bindContinuous = (item) => {
       document.querySelector("[data-missing-toggle]").onclick = () => { missingOnly = !missingOnly; render(item); };
       bindOptionRows();

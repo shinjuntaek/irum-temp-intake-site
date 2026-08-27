@@ -86,14 +86,14 @@
   ];
 
   const femalePhone = [
-    { key: "femaleImage", label: "주변에서 듣는 이미지", control: "textarea" },
-    { key: "femaleAssetAppeal", label: "자산 어필", control: "textarea" },
-    { key: "profileCardDisclosure", label: "프로필 카드 공개 가능 여부", control: "chips", options: ["사진 포함", "사진 제외", "공개 불가"] },
-    { key: "irumMeetingWillingness", label: "이룸을 믿고 만나볼 의향", control: "textarea" },
-    { key: "desiredMaleDescription", label: "원하는 남성에 대한 자유 설명", control: "textarea" },
-    { key: "femaleAvoidConditions", label: "절대 피하고 싶은 조건", control: "tags", max: 3 },
-    { key: "healthFollowup", label: "병력 추가 확인 내용", control: "textarea", conditionalHealth: true },
-    { key: "phoneMemo", label: "전화상담 메모", control: "textarea" },
+    { key: "femaleImage", label: "주변에서 듣는 이미지", category: "이미지·인상", control: "textarea" },
+    { key: "femaleAssetAppeal", label: "자산 어필", category: "직업·경제", control: "textarea" },
+    { key: "profileCardDisclosure", label: "프로필 카드 공개 가능 여부", category: "서비스", control: "chips", options: ["사진 포함", "사진 제외", "공개 불가"] },
+    { key: "irumMeetingWillingness", label: "이룸을 믿고 만나볼 의향", category: "서비스", control: "chips", options: ["Y", "N"] },
+    { key: "desiredMaleDescription", label: "원하는 남성에 대한 자유 설명", category: "원하는 상대", control: "textarea" },
+    { key: "femaleAvoidConditions", label: "절대 피하고 싶은 조건", category: "원하는 상대", control: "tags", max: 3 },
+    { key: "healthFollowup", label: "병력 추가 확인 내용", category: "건강", control: "textarea", conditionalHealth: true },
+    { key: "phoneMemo", label: "전화상담 메모", category: "상담 메모", control: "textarea" },
   ];
 
   const malePhone = [
