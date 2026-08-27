@@ -491,6 +491,11 @@
       .os-filter { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; border:1px solid #e2ddd4; background:#fff; padding:12px; }
       .os-filter input,.os-filter select { height:40px; min-width:0; border:1px solid #ded9d0; background:#fff; padding:0 11px; color:#4a443b; font:inherit; font-size:13px; }
       .os-filter input { flex:1 1 260px; }
+      .social-schedule-counts { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px; }
+      @media (max-width:600px) {
+        .social-schedule-counts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+        .social-schedule-counts .os-chip { justify-content:center; min-width:0; white-space:normal; text-align:center; line-height:1.35; }
+      }
       .view-toggle { display:inline-flex; overflow:hidden; border:1px solid #ded9d0; }
       .view-toggle button { width:40px; border:0; background:#fff; color:#776e61; font-weight:700; }
       .view-toggle button.active { background:#29241e; color:#fff; }
@@ -1759,7 +1764,7 @@
           const schedule = socialScheduleValue(item);
           return `<tr data-social-workspace="${osEsc(item.key)}"><td><b>${osEsc(item.profile?.name || "이름 미입력")}</b><br/><small>AP-${osEsc(item.id.padStart(8,"0"))}</small></td><td><span class="os-chip ${schedule.legacy ? "legacy" : "done"}">${osEsc(schedule.label)}</span></td><td>${osEsc(osFormatDate(item.createdAt))}</td><td>${osSourceChip(item)}</td></tr>`;
         }).join("");
-        page.insertAdjacentHTML("beforeend", `<section class="os-panel" data-social-application-schedules style="margin-top:18px"><div class="os-panel-head"><div><h2>소셜 신청자 선택 일정</h2><p>신청폼에서 선택한 8월 29일 · 9월 19일 · 다음 모임 희망을 확인합니다. 구형 신청은 일정 미수집으로 구분합니다.</p></div><span class="os-chip">${socialApplicants.length}건</span></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px"><span class="os-chip done">8월 29일 ${scheduleCounts["30001"] || 0}건</span><span class="os-chip done">9월 19일 ${scheduleCounts["30002"] || 0}건</span><span class="os-chip progress">다음 모임 희망 ${scheduleCounts.next_event || 0}건</span><span class="os-chip legacy">구형 일정 미수집 ${scheduleCounts.legacy_missing || 0}건</span></div>${osOperationalTable(["신청자","선택 일정","접수일","출처"], rows)}</section>`);
+        page.insertAdjacentHTML("beforeend", `<section class="os-panel" data-social-application-schedules style="margin-top:18px"><div class="os-panel-head"><div><h2>소셜 신청자 선택 일정</h2><p>신청폼에서 선택한 8월 29일 · 9월 19일 · 다음 모임 희망을 확인합니다. 구형 신청은 일정 미수집으로 구분합니다.</p></div><span class="os-chip">${socialApplicants.length}건</span></div><div class="social-schedule-counts"><span class="os-chip done">8월 29일 ${scheduleCounts["30001"] || 0}건</span><span class="os-chip done">9월 19일 ${scheduleCounts["30002"] || 0}건</span><span class="os-chip progress">다음 모임 희망 ${scheduleCounts.next_event || 0}건</span><span class="os-chip legacy">구형 일정 미수집 ${scheduleCounts.legacy_missing || 0}건</span></div>${osOperationalTable(["신청자","선택 일정","접수일","출처"], rows)}</section>`);
         document.querySelectorAll("[data-social-workspace]").forEach((node) => node.onclick = () => {
           const item = osWorkspaces().find((candidate) => candidate.key === node.dataset.socialWorkspace);
           if (item) osWorkspace(item);
