@@ -2,9 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const root = "/home/ubuntu/irum-temp-intake";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = fs.readFileSync(path.join(root, "supabase/functions/temporary-secondary-profile/index.ts"), "utf8");
 const helperStart = source.indexOf("const normalizePhone =");
 const helperEnd = source.indexOf("function normalizePrefillSnapshot(");

@@ -4,13 +4,14 @@ const FORM_TABLE = "temporary_secondary_profile_forms";
 const DOCUMENT_TABLE = "temporary_secondary_profile_documents";
 const EVENT_TABLE = "temporary_secondary_profile_events";
 const REVIEW_TABLE = "temporary_secondary_profile_reviews";
+const ADMIN_AUDIT_TABLE = "temporary_admin_audit_events";
 const DOCUMENT_BUCKET = "temporary-secondary-profile-documents";
 const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
 const REVIEW_RESULTS = new Set(["approved", "hold", "rejected", "materials_requested"]);
-const BUILD_ID = "secondary-temp-admin-operations-20260827-3";
+const BUILD_ID = "secondary-sent-ownership-hardening-20260827-4";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -309,6 +310,24 @@ async function appendEvent(
     actor_type: actorType,
     actor_user_id: actor?.id ?? null,
     actor_email: actor?.email ?? null,
+    detail: stripSecrets(detail),
+  });
+  if (error) throw error;
+}
+
+async function appendAdminAudit(
+  database: ReturnType<typeof serviceClient>,
+  action: string,
+  formId: string,
+  user: { id: string; email?: string | null },
+  detail: Record<string, unknown>,
+) {
+  const { error } = await database.from(ADMIN_AUDIT_TABLE).insert({
+    action,
+    entity_type: "secondary_profile_form",
+    entity_id: formId,
+    actor_user_id: user.id,
+    actor_email: user.email ?? "temporary-admin",
     detail: stripSecrets(detail),
   });
   if (error) throw error;
@@ -684,12 +703,16 @@ Deno.serve(async (req) => {
       const user = await requireTemporaryAdmin(req);
       if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
       const formId = text(body.form_id);
+      const subjectType = text(body.subject_type);
+      const subjectId = text(body.subject_id);
+      if (!formId || !ALLOWED_SUBJECT_TYPES.has(subjectType) || !subjectId) return json({ error: "INVALID_SENT_STATUS_REQUEST" }, 422);
       const { data: current, error: currentError } = await database.from(FORM_TABLE)
-        .select("id, status, sent_at, sent_by_user_id, sent_by_email")
+        .select("id, subject_type, subject_id, status, sent_at, sent_by_user_id, sent_by_email")
         .eq("id", formId)
         .maybeSingle();
       if (currentError) throw currentError;
       if (!current) return json({ error: "FORM_NOT_FOUND" }, 404);
+      if (current.subject_type !== subjectType || String(current.subject_id) !== subjectId) return json({ error: "FORM_SUBJECT_MISMATCH" }, 409);
       if (!["pending", "in_progress", "submitted"].includes(current.status)) return json({ error: "FORM_NOT_SENDABLE" }, 409);
       if (current.sent_at) return json({ ok: true, unchanged: true, form: current, build_id: BUILD_ID });
       const sentAt = new Date().toISOString();
@@ -703,7 +726,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: "SENT_STATUS_CONFLICT" }, 409);
-      await appendEvent(database, formId, "link_sent_marked", "temporary_admin", { id: user.id, email: user.email });
+      await appendEvent(database, formId, "link_sent_marked", "temporary_admin", { id: user.id, email: user.email }, { previous_sent_at: null, previous_sent_by_email: null });
+      await appendAdminAudit(database, "secondary_link_sent_marked", formId, user, { subject_type: subjectType, subject_id: subjectId, previous_sent_at: null, sent_at: sentAt });
       return json({ ok: true, unchanged: false, form: data, build_id: BUILD_ID });
     }
 
@@ -711,12 +735,16 @@ Deno.serve(async (req) => {
       const user = await requireTemporaryAdmin(req);
       if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
       const formId = text(body.form_id);
+      const subjectType = text(body.subject_type);
+      const subjectId = text(body.subject_id);
+      if (!formId || !ALLOWED_SUBJECT_TYPES.has(subjectType) || !subjectId) return json({ error: "INVALID_SENT_STATUS_REQUEST" }, 422);
       const { data: current, error: currentError } = await database.from(FORM_TABLE)
-        .select("id, status, sent_at, sent_by_user_id, sent_by_email")
+        .select("id, subject_type, subject_id, status, sent_at, sent_by_user_id, sent_by_email")
         .eq("id", formId)
         .maybeSingle();
       if (currentError) throw currentError;
       if (!current) return json({ error: "FORM_NOT_FOUND" }, 404);
+      if (current.subject_type !== subjectType || String(current.subject_id) !== subjectId) return json({ error: "FORM_SUBJECT_MISMATCH" }, 409);
       if (!current.sent_at) return json({ ok: true, unchanged: true, form: current, build_id: BUILD_ID });
       const updatedAt = new Date().toISOString();
       const { data, error } = await database.from(FORM_TABLE).update({
@@ -730,6 +758,7 @@ Deno.serve(async (req) => {
       if (error) throw error;
       if (!data) return json({ error: "SENT_STATUS_CONFLICT" }, 409);
       await appendEvent(database, formId, "link_sent_cleared", "temporary_admin", { id: user.id, email: user.email }, { previous_sent_at: current.sent_at, previous_sent_by_email: current.sent_by_email || null });
+      await appendAdminAudit(database, "secondary_link_sent_cleared", formId, user, { subject_type: subjectType, subject_id: subjectId, previous_sent_at: current.sent_at, previous_sent_by_email: current.sent_by_email || null });
       return json({ ok: true, unchanged: false, form: data, build_id: BUILD_ID });
     }
 

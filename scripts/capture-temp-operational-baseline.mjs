@@ -99,6 +99,51 @@ admin_users as (
     md5(coalesce(string_agg(id::text, ',' order by id), '')) as id_checksum,
     md5(coalesce(string_agg(md5(lower(coalesce(email, ''))), ',' order by id), '')) as email_checksum
   from auth.users
+),
+admin_subject_workflows as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_subject_workflows t
+),
+admin_workflow_events as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_workflow_events t
+),
+secondary_reviews as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_secondary_profile_reviews t
+),
+admin_schedule_events as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_schedule_events t
+),
+admin_member_events as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_member_events t
+),
+admin_matching_cases as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_matching_cases t
+),
+admin_matching_events as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_matching_events t
+),
+admin_social_events as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_social_events t
+),
+admin_audit_events as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_audit_events t
 )
 select json_build_object(
   'captured_at', now(),
@@ -111,6 +156,17 @@ select json_build_object(
   'secondary_events', (select row_to_json(secondary_events) from secondary_events),
   'storage', (select row_to_json(storage_summary) from storage_summary),
   'auth_users', (select row_to_json(admin_users) from admin_users),
+  'admin_overlays', json_build_object(
+    'subject_workflows', (select row_to_json(admin_subject_workflows) from admin_subject_workflows),
+    'workflow_events', (select row_to_json(admin_workflow_events) from admin_workflow_events),
+    'secondary_reviews', (select row_to_json(secondary_reviews) from secondary_reviews),
+    'schedule_events', (select row_to_json(admin_schedule_events) from admin_schedule_events),
+    'member_events', (select row_to_json(admin_member_events) from admin_member_events),
+    'matching_cases', (select row_to_json(admin_matching_cases) from admin_matching_cases),
+    'matching_events', (select row_to_json(admin_matching_events) from admin_matching_events),
+    'social_events', (select row_to_json(admin_social_events) from admin_social_events),
+    'audit_events', (select row_to_json(admin_audit_events) from admin_audit_events)
+  ),
   'storage_by_bucket', (
     select coalesce(json_agg(row_to_json(bucket_counts) order by bucket_id), '[]'::json)
     from (

@@ -14,10 +14,11 @@ const SCHEDULE_EVENT_TABLE = "temporary_admin_schedule_events";
 const MEMBER_EVENT_TABLE = "temporary_admin_member_events";
 const MATCHING_CASE_TABLE = "temporary_admin_matching_cases";
 const MATCHING_EVENT_TABLE = "temporary_admin_matching_events";
-const SOCIAL_EVENT_TABLE = "temporary_admin_social_events";
+const LEGACY_SOCIAL_EVENT_TABLE = "temporary_admin_social_events";
+const SOCIAL_EVENT_TABLE = "temporary_admin_social_participation_events_v2";
 const ADMIN_AUDIT_TABLE = "temporary_admin_audit_events";
 const REVIEW_TABLE = "temporary_secondary_profile_reviews";
-const INTAKE_BUILD_ID = "temporary-intake-admin-operations-20260827-2";
+const INTAKE_BUILD_ID = "temporary-intake-operations-hardening-20260827-4";
 const MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
@@ -26,7 +27,28 @@ const REVIEW_RESULTS = new Set(["approved", "hold", "rejected", "materials_reque
 const SCHEDULE_TYPES = new Set(["consultation", "next_contact"]);
 const MEMBER_STATUSES = new Set(["approval_pending", "converted", "matchable", "matching", "meeting_scheduled", "paused", "ended"]);
 const MATCHING_STATUSES = new Set(["candidate_selected", "male_reviewing", "male_accepted", "male_rejected", "scheduling", "meeting_confirmed", "meeting_completed", "cancelled", "closed"]);
-const SOCIAL_STATUSES = new Set(["applied", "reviewing", "selected", "waitlisted", "confirmed", "cancelled", "attended", "no_show"]);
+const SOCIAL_STATUSES = new Set(["applied", "reviewing", "selected", "waitlisted", "payment_pending", "paid", "confirmed", "cancelled", "attended", "no_show"]);
+const MEMBER_TRANSITIONS: Record<string, string[]> = {
+  approval_pending: ["converted"],
+  converted: ["matchable"],
+  matchable: ["matching"],
+  matching: ["meeting_scheduled"],
+  meeting_scheduled: ["matchable", "paused", "ended"],
+  paused: ["matchable", "ended"],
+  ended: [],
+};
+const SOCIAL_TRANSITIONS: Record<string, string[]> = {
+  applied: ["reviewing", "cancelled"],
+  reviewing: ["selected", "waitlisted", "cancelled"],
+  waitlisted: ["selected", "cancelled"],
+  selected: ["payment_pending", "cancelled"],
+  payment_pending: ["paid", "cancelled"],
+  paid: ["confirmed", "cancelled"],
+  confirmed: ["attended", "no_show", "cancelled"],
+  attended: [],
+  no_show: [],
+  cancelled: [],
+};
 const AUDIT_SECRET_KEYS = new Set(["token", "token_hash", "raw_url", "signed_url", "storage_path", "payload", "draft_payload", "submitted_payload"]);
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -171,6 +193,22 @@ async function latestApprovedReview(
   return data?.result === "approved" ? data : null;
 }
 
+async function latestMemberEvent(
+  database: ReturnType<typeof serviceClient>,
+  subjectType: string,
+  subjectId: string,
+) {
+  const { data, error } = await database.from(MEMBER_EVENT_TABLE)
+    .select("id, review_id, event_type, previous_status, member_status, reason, actor_email, created_at")
+    .eq("subject_type", subjectType)
+    .eq("subject_id", subjectId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
@@ -185,7 +223,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "admin-operations-list") {
       if (!(await requireTemporaryAdmin(req))) return json({ error: "FORBIDDEN" }, 403);
-      const [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, auditResult] = await Promise.all([
+      const [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, legacySocialResult, auditResult] = await Promise.all([
         database.from(WORKFLOW_TABLE).select("id, subject_type, subject_id, workflow_stage, decision, reason, assigned_to, reviewed_by_email, reviewed_at, updated_at").order("updated_at", { ascending: false }),
         database.from(WORKFLOW_EVENT_TABLE).select("id, subject_type, subject_id, previous_stage, workflow_stage, decision, reason, assigned_to, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
         database.from(SCHEDULE_EVENT_TABLE).select("id, subject_type, subject_id, schedule_type, event_action, scheduled_at, replaces_event_id, reason, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
@@ -193,9 +231,10 @@ Deno.serve(async (req) => {
         database.from(MATCHING_CASE_TABLE).select("id, male_subject_type, male_subject_id, female_subject_type, female_subject_id, status, created_by_email, created_at, updated_at").order("updated_at", { ascending: false }).limit(1000),
         database.from(MATCHING_EVENT_TABLE).select("id, matching_case_id, previous_status, status, reason, scheduled_at, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
         database.from(SOCIAL_EVENT_TABLE).select("id, social_event_id, subject_type, subject_id, previous_status, status, reason, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
+        database.from(LEGACY_SOCIAL_EVENT_TABLE).select("id, social_event_id, subject_type, subject_id, previous_status, status, reason, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
         database.from(ADMIN_AUDIT_TABLE).select("id, action, entity_type, entity_id, actor_email, detail, created_at").order("created_at", { ascending: false }).limit(2000),
       ]);
-      const failure = [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, auditResult].find((result) => result.error);
+      const failure = [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, legacySocialResult, auditResult].find((result) => result.error);
       if (failure?.error) throw failure.error;
       return json({
         build_id: INTAKE_BUILD_ID,
@@ -206,6 +245,7 @@ Deno.serve(async (req) => {
         matching_cases: matchingCaseResult.data ?? [],
         matching_events: matchingEventResult.data ?? [],
         social_events: socialResult.data ?? [],
+        legacy_social_events: legacySocialResult.data ?? [],
         audit_events: auditResult.data ?? [],
       });
     }
@@ -254,11 +294,14 @@ Deno.serve(async (req) => {
         if (latestMember?.member_status !== "converted") return json({ error: "MEMBER_CONVERSION_REQUIRED" }, 409);
       }
       const { data: current, error: currentError } = await database.from(WORKFLOW_TABLE)
-        .select("workflow_stage")
+        .select("id, subject_type, subject_id, workflow_stage, decision, reason, assigned_to, reviewed_by_email, reviewed_at, updated_at")
         .eq("subject_type", subjectType)
         .eq("subject_id", subjectId)
         .maybeSingle();
       if (currentError) throw currentError;
+      if (current && current.workflow_stage === workflowStage && (current.decision ?? null) === decision && (current.reason ?? null) === reason && (current.assigned_to ?? null) === assignedTo) {
+        return json({ ok: true, unchanged: true, workflow: current, build_id: INTAKE_BUILD_ID });
+      }
       const now = new Date().toISOString();
       const { data, error } = await database.from(WORKFLOW_TABLE).upsert({
         subject_type: subjectType,
@@ -300,7 +343,7 @@ Deno.serve(async (req) => {
         return json({ error: "INVALID_SCHEDULE_REQUEST" }, 422);
       }
       const { data: previous, error: previousError } = await database.from(SCHEDULE_EVENT_TABLE)
-        .select("id, event_action, scheduled_at")
+        .select("id, subject_type, subject_id, schedule_type, event_action, scheduled_at, replaces_event_id, reason, actor_email, created_at")
         .eq("subject_type", subjectType)
         .eq("subject_id", subjectId)
         .eq("schedule_type", scheduleType)
@@ -308,6 +351,9 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (previousError) throw previousError;
+      if (previous?.event_action !== "cancelled" && previous?.scheduled_at === scheduledAt.toISOString() && (previous?.reason ?? null) === reason) {
+        return json({ ok: true, unchanged: true, event: previous, build_id: INTAKE_BUILD_ID });
+      }
       const { data, error } = await database.from(SCHEDULE_EVENT_TABLE).insert({
         subject_type: subjectType,
         subject_id: subjectId,
@@ -366,21 +412,19 @@ Deno.serve(async (req) => {
       if (!validSubject(subjectType, subjectId) || !MEMBER_STATUSES.has(memberStatus)) return json({ error: "INVALID_MEMBER_REQUEST" }, 422);
       const review = await latestApprovedReview(database, subjectType, subjectId);
       if (!review) return json({ error: "APPROVED_REVIEW_REQUIRED" }, 409);
-      const { data: previous, error: previousError } = await database.from(MEMBER_EVENT_TABLE)
-        .select("member_status")
-        .eq("subject_type", subjectType)
-        .eq("subject_id", subjectId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (previousError) throw previousError;
-      const eventType = memberStatus === "approval_pending" ? "approved" : memberStatus === "converted" ? "converted" : "status_changed";
+      const previous = await latestMemberEvent(database, subjectType, subjectId);
+      const currentStatus = previous?.member_status ?? "approval_pending";
+      if (memberStatus === currentStatus) return json({ ok: true, unchanged: true, event: previous, build_id: INTAKE_BUILD_ID });
+      if (!(MEMBER_TRANSITIONS[currentStatus] ?? []).includes(memberStatus)) {
+        return json({ error: "INVALID_MEMBER_TRANSITION", previous_status: currentStatus }, 409);
+      }
+      const eventType = memberStatus === "converted" ? "converted" : "status_changed";
       const { data, error } = await database.from(MEMBER_EVENT_TABLE).insert({
         subject_type: subjectType,
         subject_id: subjectId,
         review_id: review.id,
         event_type: eventType,
-        previous_status: previous?.member_status ?? null,
+        previous_status: currentStatus,
         member_status: memberStatus,
         reason,
         actor_user_id: user.id,
@@ -412,8 +456,8 @@ Deno.serve(async (req) => {
         });
         if (workflowEventError) throw workflowEventError;
       }
-      await appendAdminAudit(database, "member_status_changed", "applicant_subject", `${subjectType}:${subjectId}`, user, { previous_status: previous?.member_status ?? null, member_status: memberStatus });
-      return json({ event: data, build_id: INTAKE_BUILD_ID });
+      await appendAdminAudit(database, "member_status_changed", "applicant_subject", `${subjectType}:${subjectId}`, user, { previous_status: currentStatus, member_status: memberStatus });
+      return json({ ok: true, unchanged: false, event: data, build_id: INTAKE_BUILD_ID });
     }
 
     if (body.action === "admin-match-create") {
@@ -426,14 +470,19 @@ Deno.serve(async (req) => {
       const repeatConfirmed = body.repeat_confirmed === true;
       const reason = cleanText(body.reason, 2000) || null;
       if (!validSubject(maleSubjectType, maleSubjectId) || !validSubject(femaleSubjectType, femaleSubjectId)) return json({ error: "INVALID_MATCH_REQUEST" }, 422);
-      const [maleGender, femaleGender, maleReview, femaleReview] = await Promise.all([
+      const [maleGender, femaleGender, maleReview, femaleReview, maleMember, femaleMember] = await Promise.all([
         subjectGender(database, maleSubjectType, maleSubjectId),
         subjectGender(database, femaleSubjectType, femaleSubjectId),
         latestApprovedReview(database, maleSubjectType, maleSubjectId),
         latestApprovedReview(database, femaleSubjectType, femaleSubjectId),
+        latestMemberEvent(database, maleSubjectType, maleSubjectId),
+        latestMemberEvent(database, femaleSubjectType, femaleSubjectId),
       ]);
       if (maleGender !== "male" || femaleGender !== "female") return json({ error: "MATCH_GENDER_MISMATCH" }, 422);
       if (!maleReview || !femaleReview) return json({ error: "APPROVED_REVIEW_REQUIRED" }, 409);
+      if (maleMember?.member_status !== "matchable" || femaleMember?.member_status !== "matchable") {
+        return json({ error: "MEMBER_NOT_MATCHABLE" }, 409);
+      }
       const { data: previousPair, error: pairError } = await database.from(MATCHING_CASE_TABLE)
         .select("id, status")
         .eq("male_subject_type", maleSubjectType)
@@ -464,6 +513,31 @@ Deno.serve(async (req) => {
         actor_email: user.email,
       });
       if (eventError) throw eventError;
+      const { error: memberStateError } = await database.from(MEMBER_EVENT_TABLE).insert([
+        {
+          subject_type: maleSubjectType,
+          subject_id: maleSubjectId,
+          review_id: maleMember.review_id,
+          event_type: "status_changed",
+          previous_status: "matchable",
+          member_status: "matching",
+          reason: "matching_case_created",
+          actor_user_id: user.id,
+          actor_email: user.email,
+        },
+        {
+          subject_type: femaleSubjectType,
+          subject_id: femaleSubjectId,
+          review_id: femaleMember.review_id,
+          event_type: "status_changed",
+          previous_status: "matchable",
+          member_status: "matching",
+          reason: "matching_case_created",
+          actor_user_id: user.id,
+          actor_email: user.email,
+        },
+      ]);
+      if (memberStateError) throw memberStateError;
       await appendAdminAudit(database, "matching_case_created", "matching_case", data.id, user, { repeated_pair: Boolean(previousPair), repeat_confirmed: repeatConfirmed });
       return json({ matching_case: data, build_id: INTAKE_BUILD_ID });
     }
@@ -528,8 +602,9 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (eventSnapshotError) throw eventSnapshotError;
       if (!eventSnapshot) return json({ error: "SOCIAL_EVENT_NOT_FOUND" }, 404);
+      if (["cancelled", "no_show"].includes(status) && !reason) return json({ error: "SOCIAL_STATUS_REASON_REQUIRED" }, 422);
       const { data: previous, error: previousError } = await database.from(SOCIAL_EVENT_TABLE)
-        .select("status")
+        .select("id, status, created_at")
         .eq("social_event_id", socialEventId)
         .eq("subject_type", subjectType)
         .eq("subject_id", subjectId)
@@ -537,19 +612,24 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       if (previousError) throw previousError;
+      const currentStatus = previous?.status ?? "applied";
+      if (status === currentStatus) return json({ ok: true, unchanged: true, event: previous, build_id: INTAKE_BUILD_ID });
+      if (!(SOCIAL_TRANSITIONS[currentStatus] ?? []).includes(status)) {
+        return json({ error: "INVALID_SOCIAL_TRANSITION", previous_status: currentStatus }, 409);
+      }
       const { data, error } = await database.from(SOCIAL_EVENT_TABLE).insert({
         social_event_id: socialEventId,
         subject_type: subjectType,
         subject_id: subjectId,
-        previous_status: previous?.status ?? null,
+        previous_status: currentStatus,
         status,
         reason,
         actor_user_id: user.id,
         actor_email: user.email,
       }).select("id, social_event_id, subject_type, subject_id, previous_status, status, reason, actor_email, created_at").single();
       if (error) throw error;
-      await appendAdminAudit(database, "social_status_changed", "social_event", socialEventId, user, { subject_type: subjectType, subject_id: subjectId, previous_status: previous?.status ?? null, status });
-      return json({ event: data, build_id: INTAKE_BUILD_ID });
+      await appendAdminAudit(database, status === "paid" ? "social_payment_confirmed" : "social_status_changed", "social_event", socialEventId, user, { subject_type: subjectType, subject_id: subjectId, previous_status: currentStatus, status });
+      return json({ ok: true, unchanged: false, event: data, build_id: INTAKE_BUILD_ID });
     }
 
     if (body.action === "snapshot-export-start") {

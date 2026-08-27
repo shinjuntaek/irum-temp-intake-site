@@ -7,6 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const intake = await readFile(resolve(root, "supabase/functions/temporary-intake-submit/index.ts"), "utf8");
 const secondary = await readFile(resolve(root, "supabase/functions/temporary-secondary-profile/index.ts"), "utf8");
 const migration = await readFile(resolve(root, "supabase/migrations/20260827_temporary_admin_operations.sql"), "utf8");
+const socialPaymentMigration = await readFile(resolve(root, "supabase/migrations/20260827_temporary_social_payment_states_v2.sql"), "utf8");
 
 const originalIntakeActions = [
   "create",
@@ -76,8 +77,8 @@ for (const action of [
   assert.ok(intake.includes(`body.action === "${action}"`), `new intake action missing: ${action}`);
 }
 
-assert.match(intake, /INTAKE_BUILD_ID = "temporary-intake-admin-operations-20260827-2"/);
-assert.match(secondary, /BUILD_ID = "secondary-temp-admin-operations-20260827-3"/);
+assert.match(intake, /INTAKE_BUILD_ID = "temporary-intake-operations-hardening-20260827-4"/);
+assert.match(secondary, /BUILD_ID = "secondary-sent-ownership-hardening-20260827-4"/);
 assert.ok(secondary.includes('action === "secondary-admin-review"'));
 assert.ok(secondary.includes('form.status !== "submitted"'));
 assert.ok(secondary.includes('return json({ error: "FORM_NOT_SUBMITTED" }, 409)'));
@@ -92,6 +93,21 @@ assert.ok(!intake.includes("female_rejected"));
 assert.ok(intake.includes('return json({ error: "REPEAT_RECOMMENDATION_CONFIRMATION_REQUIRED" }, 409)'));
 assert.ok(intake.includes('return json({ error: "MATCH_REJECTION_REASON_REQUIRED" }, 422)'));
 assert.ok(intake.includes('return json({ error: "APPROVED_REVIEW_REQUIRED" }, 409)'));
+assert.ok(intake.includes('return json({ error: "INVALID_MEMBER_TRANSITION", previous_status: currentStatus }, 409)'));
+assert.ok(intake.includes('maleMember?.member_status !== "matchable" || femaleMember?.member_status !== "matchable"'));
+assert.ok(intake.includes('return json({ error: "MEMBER_NOT_MATCHABLE" }, 409)'));
+assert.ok(intake.includes('const SOCIAL_EVENT_TABLE = "temporary_admin_social_participation_events_v2"'));
+for (const status of ["payment_pending", "paid"]) assert.ok(intake.includes(`"${status}"`));
+assert.ok(intake.includes('return json({ error: "INVALID_SOCIAL_TRANSITION", previous_status: currentStatus }, 409)'));
+assert.ok(intake.includes('return json({ error: "SOCIAL_STATUS_REASON_REQUIRED" }, 422)'));
+assert.ok(intake.includes('return json({ ok: true, unchanged: true, workflow: current, build_id: INTAKE_BUILD_ID })'));
+assert.ok(intake.includes('previous?.scheduled_at === scheduledAt.toISOString()'));
+
+assert.ok(secondary.includes('current.subject_type !== subjectType || String(current.subject_id) !== subjectId'));
+assert.ok(secondary.includes('return json({ error: "FORM_SUBJECT_MISMATCH" }, 409)'));
+assert.ok(secondary.includes('secondary_link_sent_marked'));
+assert.ok(secondary.includes('secondary_link_sent_cleared'));
+assert.equal((secondary.match(/select\("id, subject_type, subject_id, status, sent_at, sent_by_user_id, sent_by_email"\)/g) || []).length, 2);
 
 assert.ok(!/\bdelete\s+from\b/i.test(migration));
 assert.ok(!/\btruncate\s+table\b/i.test(migration));
@@ -115,5 +131,13 @@ const protectedTables = [
 for (const table of protectedTables) {
   assert.ok(!new RegExp(`(?:update|delete\\s+from|truncate\\s+table|alter\\s+table)\\s+public\\.${table}\\b`, "i").test(migration), `protected table mutation in migration: ${table}`);
 }
+
+assert.ok(!/\b(delete\s+from|truncate\s+table|drop\s+(?:table|column)|update\s+public\.)\b/i.test(socialPaymentMigration));
+assert.equal((socialPaymentMigration.match(/^create table if not exists/gm) || []).length, 1);
+assert.equal((socialPaymentMigration.match(/enable row level security/g) || []).length, 1);
+assert.ok(socialPaymentMigration.includes("temporary_admin_social_participation_events_v2"));
+assert.ok(socialPaymentMigration.includes("payment_pending"));
+assert.ok(socialPaymentMigration.includes("paid"));
+assert.ok(socialPaymentMigration.includes("status not in ('cancelled', 'no_show')"));
 
 console.log("Temporary admin Edge operations contract passed");

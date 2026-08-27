@@ -15,6 +15,7 @@ const expectedTables = [
   "temporary_admin_matching_cases",
   "temporary_admin_matching_events",
   "temporary_admin_social_events",
+  "temporary_admin_social_participation_events_v2",
   "temporary_admin_audit_events",
 ];
 
@@ -42,6 +43,7 @@ select json_build_object(
   'temporary_admin_matching_cases', (select count(*)::int from public.temporary_admin_matching_cases),
   'temporary_admin_matching_events', (select count(*)::int from public.temporary_admin_matching_events),
   'temporary_admin_social_events', (select count(*)::int from public.temporary_admin_social_events),
+  'temporary_admin_social_participation_events_v2', (select count(*)::int from public.temporary_admin_social_participation_events_v2),
   'temporary_admin_audit_events', (select count(*)::int from public.temporary_admin_audit_events)
 ) as counts;
 `;
@@ -64,6 +66,9 @@ from public.temporary_admin_matching_events group by status
 union all
 select 'social', status, count(*)::int
 from public.temporary_admin_social_events group by status
+union all
+select 'social_v2', status, count(*)::int
+from public.temporary_admin_social_participation_events_v2 group by status
 union all
 select 'audit', action, count(*)::int
 from public.temporary_admin_audit_events group by action

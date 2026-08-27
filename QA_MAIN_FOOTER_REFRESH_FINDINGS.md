@@ -9,3 +9,9 @@
 ## 임시 관리자 새로고침
 
 Chromium fixture에서 `admin-list`가 `TEMPORARY_INTAKE_UNAVAILABLE` 500을 두 번 반환한 뒤 세 번째에 정상 응답하는 시나리오를 검증했다. read-only action만 최대 3회 retry하며, 최초 batch가 복구된 뒤 다음 batch가 시작된다. 기존 화면이 있는 refresh가 최종 실패하면 기존 데이터를 유지하고 일시 지연 안내를 표시한다. `FORBIDDEN` 403은 한 번만 호출하고 재시도하지 않는다. QA 중 운영 DB write action 호출은 0건이다.
+
+## pasted_content_5 관리자 시각 검수
+
+격리 fixture 기준 데스크톱 신청자 화면에서 검색과 8개 선택 필터, 동일 판정 함수 기반 결과 건수, 3열 카드 grid, 단계·서비스·담당자 정보가 겹침 없이 표시됐다. 기존 Snapshot은 접힌 읽기 전용 영역으로 분리됐고 가로 overflow는 없었다.
+
+390px 모임 운영 화면에서는 Event명·일시·장소·참가비 50,000원, 결제 완료 chip, 허용된 다음 상태 select, 사유 입력, 상태 저장과 신청자 보기 버튼이 한 열로 정렬됐다. 취소·불참 사유 안내와 수동 입금 확인 문구가 읽기 쉬웠고 가로 overflow는 없었다.
