@@ -988,9 +988,12 @@
 
       let temporaryConsultationEntries = [];
       let secondarySubmittedSubjects = new Set();
+      let secondaryForms = [];
       let osApplicantView = "card";
       let osApplicantGender = "all";
       let osApplicantStatus = "all";
+      let osApplicantSentStatus = "all";
+      let osApplicantSecondaryStatus = "all";
       let osApplicantSearch = "";
       let osApplicantSearchTimer = null;
       let osDetailTab = "profile";
@@ -1236,7 +1239,10 @@
         if(legacyResult.status==="fulfilled") legacyRecords=legacyResult.value.records||[];
         if(entryResult.status==="fulfilled") temporaryConsultationEntries=entryResult.value.records||[];
         if(operationalResult.status==="fulfilled") operationalRecords=operationalResult.value.records||[];
-        if(secondaryResult.status==="fulfilled") secondarySubmittedSubjects=new Set((secondaryResult.value.forms||[]).filter((form)=>form.status==="submitted").map((form)=>`${form.subject_type}:${form.subject_id}`));
+        if(secondaryResult.status==="fulfilled") {
+          secondaryForms=secondaryResult.value.forms||[];
+          secondarySubmittedSubjects=new Set(secondaryForms.filter((form)=>form.status==="submitted").map((form)=>`${form.subject_type}:${form.subject_id}`));
+        }
         if([tempResult,legacyResult,entryResult,operationalResult,secondaryResult].some((result)=>result.status==="fulfilled")) osDataLoadedAt=Date.now();})();
         try{return await osDataLoadPromise;}finally{osDataLoadPromise=null;}
       }
@@ -1543,13 +1549,19 @@
           const rows = forms.map((form) => {
             const docs = documents.filter((document) => document.form_id === form.id);
             const isActive = ["pending","in_progress"].includes(form.status);
+            const isSendable = ["pending","in_progress","submitted"].includes(form.status);
             const cachedUrl = isActive ? String(issuedLinks[String(form.id)] || "") : "";
+            const sentPanel = form.sent_at
+              ? `<div data-secondary-sent-state="sent" style="margin-top:12px;border:1px solid #bbd4c3;background:#f3faf5;padding:12px"><div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px"><div><span class="os-chip done">2차 링크 발송 완료</span><p class="workspace-sub" style="margin-top:7px">발송일시 · ${osEsc(secondaryDate(form.sent_at))}<br/>처리 관리자 · ${osEsc(form.sent_by_email || "기존 이력 보정")}</p></div><button type="button" class="menu" data-secondary-clear-sent="${osEsc(form.id)}" style="width:auto">발송 완료 취소</button></div></div>`
+              : isSendable
+                ? `<div data-secondary-sent-state="unsent" style="margin-top:12px;border:1px solid #e3d9c9;background:#fffaf2;padding:12px"><p class="workspace-sub">카카오톡 등으로 직접 링크를 보낸 뒤 아래 버튼을 수동으로 체크해 주세요. 링크 복사·열기는 자동 처리되지 않습니다.</p><button type="button" class="os-action" data-secondary-mark-sent="${osEsc(form.id)}" style="margin-top:9px">2차 링크 발송 완료</button></div>`
+                : "";
             const linkPanel = cachedUrl
               ? `<div class="secondary-link-card"><div class="secondary-link-head"><div><b>고객 전달 링크</b><p>개인화된 만료형 링크입니다. 아래 버튼으로 복사해 고객에게 전달하세요.</p></div><span class="secondary-link-status">발급됨</span></div><div class="secondary-link-row"><input class="secondary-link-url" data-secondary-url readonly aria-label="고객 전달 링크 주소" value="${osEsc(cachedUrl)}"/><button type="button" class="secondary-copy" data-secondary-copy aria-label="고객 전달 링크 복사" aria-live="polite">링크 복사</button></div><p class="secondary-link-help">보안을 위해 URL 원문은 링크를 발급한 관리자 탭에만 임시 보관됩니다.</p></div>`
               : isActive
                 ? '<p class="workspace-sub" style="margin-top:10px">보안을 위해 URL 원문은 발급한 관리자 탭에서만 다시 표시됩니다. 링크 주소가 보이지 않으면 기존 링크를 폐기한 뒤 새로 발급해주세요.</p>'
                 : "";
-            return `<article style="border:1px solid #ded9d0;background:#fff;padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><div><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><p class="workspace-sub">${osEsc(secondaryStatusLabel(form.status))} · 만료 ${osEsc(secondaryDate(form.expires_at))} · TOKEN ${osEsc(form.token_prefix)}…</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}</div>${isActive?`<div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px"><button class="menu" data-secondary-reissue="${osEsc(form.id)}" style="width:auto">링크 재발급</button><button class="menu" data-secondary-revoke="${osEsc(form.id)}" style="width:auto">링크 폐기</button></div>`:""}</div>${form.draft_saved_at?`<p class="workspace-sub">마지막 자동저장 ${osEsc(secondaryDate(form.draft_saved_at))} · revision ${osEsc(form.draft_revision)}</p>`:""}${form.submitted_at?`<p class="workspace-sub">제출 ${osEsc(secondaryDate(form.submitted_at))}</p>`:""}${linkPanel}<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">${docs.map((document)=>`<button class="menu" data-secondary-document="${osEsc(document.id)}" data-secondary-form="${osEsc(form.id)}" style="width:auto" ${document.status==="verified"?"":"disabled"}>${osEsc(document.document_type)} · ${osEsc(document.status)}</button>`).join("")||'<span class="workspace-sub">서류 없음</span>'}</div></article>`;
+            return `<article style="border:1px solid #ded9d0;background:#fff;padding:14px;margin-top:10px"><div style="display:flex;justify-content:space-between;gap:12px"><div><b>${osEsc(secondaryTypeLabel(form.form_type))}</b><p class="workspace-sub">${osEsc(secondaryStatusLabel(form.status))} · 만료 ${osEsc(secondaryDate(form.expires_at))} · TOKEN ${osEsc(form.token_prefix)}…</p>${form.event_snapshot?.title?`<p class="workspace-sub">${osEsc(form.event_snapshot.title)} · ${osEsc(secondaryDate(form.event_snapshot.startsAt))}</p>`:""}</div>${isActive?`<div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px"><button class="menu" data-secondary-reissue="${osEsc(form.id)}" style="width:auto">링크 재발급</button><button class="menu" data-secondary-revoke="${osEsc(form.id)}" style="width:auto">링크 폐기</button></div>`:""}</div>${form.draft_saved_at?`<p class="workspace-sub">마지막 자동저장 ${osEsc(secondaryDate(form.draft_saved_at))} · revision ${osEsc(form.draft_revision)}</p>`:""}${form.submitted_at?`<p class="workspace-sub">제출 ${osEsc(secondaryDate(form.submitted_at))}</p>`:""}${linkPanel}${sentPanel}<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px">${docs.map((document)=>`<button class="menu" data-secondary-document="${osEsc(document.id)}" data-secondary-form="${osEsc(form.id)}" style="width:auto" ${document.status==="verified"?"":"disabled"}>${osEsc(document.document_type)} · ${osEsc(document.status)}</button>`).join("")||'<span class="workspace-sub">서류 없음</span>'}</div></article>`;
           }).join("") || '<p class="workspace-sub">아직 발급된 2차 신청 링크가 없습니다.</p>';
           const canIssue = options.length > 0;
           target.innerHTML = `<div style="border:1px solid #d8d0c5;background:#faf8f4;padding:15px"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px"><label class="field"><label>폼 유형</label><select id="secondary-form-type">${options.map(([value,label])=>`<option value="${osEsc(value)}">${osEsc(label)}</option>`).join("")}</select></label><label class="field"><label>유효기간</label><select id="secondary-expiry"><option value="7">7일</option><option value="14" selected>14일</option><option value="30">30일</option></select></label></div><label class="field" id="secondary-event-wrap" style="display:none;margin-top:10px"><label>담당 모임 일정</label><select id="secondary-event"><option value="">이벤트를 선택해주세요</option>${events.map((event)=>`<option value="${osEsc(event.id)}">${osEsc(event.title||"IRUM SOCIAL")} · ${osEsc(secondaryDate(event.startsAt))}</option>`).join("")}</select></label><button class="os-action" id="secondary-issue" style="margin-top:12px" ${canIssue?"":"disabled"}>개인화 링크 발급</button>${!canIssue?'<p class="workspace-sub">성별 또는 신청 서비스가 확인되지 않아 발급 가능한 폼이 없습니다.</p>':""}<div id="secondary-raw-link"></div><div id="secondary-error" class="login-error"></div></div><div style="margin-top:14px">${rows}</div>`;
@@ -1576,6 +1588,7 @@
                   form_id:activeForm.id,
                   expires_in_days:Number(document.getElementById("secondary-expiry").value),
                 });
+                secondaryRememberForm(reissued.form);
                 rememberSecondaryIssuedLink(reissued.form?.id, reissued.raw_url);
                 await mountSecondaryPanel(item);
                 return;
@@ -1612,9 +1625,30 @@
                 form_id:button.dataset.secondaryReissue,
                 expires_in_days:Number(document.getElementById("secondary-expiry")?.value || 14),
               });
+              secondaryRememberForm(reissued.form);
               rememberSecondaryIssuedLink(reissued.form?.id, reissued.raw_url);
               await mountSecondaryPanel(item);
             } catch { alert("링크를 재발급하지 못했습니다."); }
+            finally { button.disabled = false; }
+          });
+          target.querySelectorAll("[data-secondary-mark-sent]").forEach((button) => button.onclick = async () => {
+            if (!confirm("고객에게 2차 링크를 실제로 발송했나요? 링크 복사 여부와 관계없이 수동 발송 완료로 기록됩니다.")) return;
+            button.disabled = true;
+            try {
+              const marked = await invokeSecondaryAdmin("secondary-admin-mark-sent", { form_id:button.dataset.secondaryMarkSent });
+              secondaryRememberForm(marked.form);
+              await mountSecondaryPanel(item);
+            } catch { alert("발송 완료 상태를 저장하지 못했습니다."); }
+            finally { button.disabled = false; }
+          });
+          target.querySelectorAll("[data-secondary-clear-sent]").forEach((button) => button.onclick = async () => {
+            if (!confirm("수동 발송 완료 표시를 취소할까요? 링크와 고객 작성 내용은 유지됩니다.")) return;
+            button.disabled = true;
+            try {
+              const cleared = await invokeSecondaryAdmin("secondary-admin-clear-sent", { form_id:button.dataset.secondaryClearSent });
+              secondaryRememberForm(cleared.form);
+              await mountSecondaryPanel(item);
+            } catch { alert("발송 완료 상태를 취소하지 못했습니다."); }
             finally { button.disabled = false; }
           });
           target.querySelectorAll("[data-secondary-copy]").forEach((button) => button.onclick = () => copySecondaryIssuedLink(button));
@@ -1662,11 +1696,105 @@
           };
         });
       };
-      const osApplicantsWithTemporaryDescription = osApplicants;
-      osApplicants = async function (...args) {
-        await osApplicantsWithTemporaryDescription(...args);
-        const description = document.querySelector(".os-page .os-desc");
-        if (description) description.textContent = "기존 홈페이지 신청자와 신규 신청을 카드 또는 목록으로 같은 상담 기준에서 확인합니다.";
+      const secondaryFormsForItem = (item) => secondaryForms
+        .filter((form) => form.subject_type === item.kind && String(form.subject_id) === String(item.id))
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      const secondaryRememberForm = (form) => {
+        if (!form?.id) return;
+        const index = secondaryForms.findIndex((entry) => entry.id === form.id);
+        if (index >= 0) secondaryForms[index] = { ...secondaryForms[index], ...form };
+        else secondaryForms = [form, ...secondaryForms];
+        secondarySubmittedSubjects = new Set(secondaryForms.filter((entry) => entry.status === "submitted").map((entry) => `${entry.subject_type}:${entry.subject_id}`));
+      };
+      const secondaryLatestValidForm = (item) => {
+        const forms = secondaryFormsForItem(item);
+        return forms.find((form) => ["pending","in_progress"].includes(form.status))
+          || forms.find((form) => form.status === "submitted")
+          || forms[0]
+          || null;
+      };
+      const secondaryWorkspaceState = (item) => {
+        const form = secondaryLatestValidForm(item);
+        return { form, sent:Boolean(form?.sent_at), submitted:Boolean(form?.status === "submitted") };
+      };
+      const osSecondaryChipWithSubmittedOnly = osSecondaryChip;
+      osSecondaryChip = function (item) {
+        const state = secondaryWorkspaceState(item);
+        const chips = [];
+        if (state.sent) chips.push('<span data-secondary-sent-chip class="os-chip done">2차 링크 발송 완료</span>');
+        if (state.submitted) chips.push('<span data-secondary-complete-chip class="os-chip secondary-done">2차 신청 완료</span>');
+        return chips.join("") || osSecondaryChipWithSubmittedOnly(item);
+      };
+      const socialScheduleValue = (item) => {
+        const profile = item.profile || {};
+        const rawPayload = item.payload || item.record?.payload || {};
+        const intent = String(secondaryFirstValue(profile.socialAttendanceIntent, profile.social_attendance_intent, rawPayload.socialAttendanceIntent, rawPayload.social_attendance_intent)).toLowerCase();
+        const eventId = String(secondaryFirstValue(profile.socialEventId, profile.social_event_id, rawPayload.socialEventId, rawPayload.social_event_id));
+        if (intent === "next_event" || intent.includes("다음")) return { key:"next_event", label:"다음 모임 희망", legacy:false };
+        if (eventId === "30001" || intent.includes("08.29") || intent.includes("8월 29")) return { key:"30001", label:"8월 29일", legacy:false };
+        if (eventId === "30002" || intent.includes("09.19") || intent.includes("9월 19")) return { key:"30002", label:"9월 19일", legacy:false };
+        if (intent === "specific_event" && eventId) return { key:eventId, label:`일정 ID ${eventId}`, legacy:false };
+        return { key:"legacy_missing", label:"구형 신청 · 일정 미수집", legacy:true };
+      };
+      const osCardWithoutSocialSchedule = osCard;
+      osCard = function (item) {
+        const markup = osCardWithoutSocialSchedule(item);
+        if (item.service !== "social") return markup;
+        const schedule = socialScheduleValue(item);
+        return markup.replace('<p class="os-next">', `<p class="workspace-sub" data-social-schedule="${osEsc(schedule.key)}"><b>모임 일정 · ${osEsc(schedule.label)}</b></p><p class="os-next">`);
+      };
+      const osOperationalPageWithoutTemporarySchedules = osOperationalPage;
+      osOperationalPage = async function (target) {
+        await osOperationalPageWithoutTemporarySchedules(target);
+        if (target !== "social") return;
+        const page = document.querySelector(".os-page");
+        if (!page) return;
+        const socialApplicants = osWorkspaces().filter((item) => item.service === "social");
+        const scheduleCounts = socialApplicants.reduce((counts, item) => {
+          const key = socialScheduleValue(item).key;
+          counts[key] = (counts[key] || 0) + 1;
+          return counts;
+        }, {});
+        const rows = socialApplicants.map((item) => {
+          const schedule = socialScheduleValue(item);
+          return `<tr data-social-workspace="${osEsc(item.key)}"><td><b>${osEsc(item.profile?.name || "이름 미입력")}</b><br/><small>AP-${osEsc(item.id.padStart(8,"0"))}</small></td><td><span class="os-chip ${schedule.legacy ? "legacy" : "done"}">${osEsc(schedule.label)}</span></td><td>${osEsc(osFormatDate(item.createdAt))}</td><td>${osSourceChip(item)}</td></tr>`;
+        }).join("");
+        page.insertAdjacentHTML("beforeend", `<section class="os-panel" data-social-application-schedules style="margin-top:18px"><div class="os-panel-head"><div><h2>소셜 신청자 선택 일정</h2><p>신청폼에서 선택한 8월 29일 · 9월 19일 · 다음 모임 희망을 확인합니다. 구형 신청은 일정 미수집으로 구분합니다.</p></div><span class="os-chip">${socialApplicants.length}건</span></div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px"><span class="os-chip done">8월 29일 ${scheduleCounts["30001"] || 0}건</span><span class="os-chip done">9월 19일 ${scheduleCounts["30002"] || 0}건</span><span class="os-chip progress">다음 모임 희망 ${scheduleCounts.next_event || 0}건</span><span class="os-chip legacy">구형 일정 미수집 ${scheduleCounts.legacy_missing || 0}건</span></div>${osOperationalTable(["신청자","선택 일정","접수일","출처"], rows)}</section>`);
+        document.querySelectorAll("[data-social-workspace]").forEach((node) => node.onclick = () => {
+          const item = osWorkspaces().find((candidate) => candidate.key === node.dataset.socialWorkspace);
+          if (item) osWorkspace(item);
+        });
+      };
+      osApplicants = async function (force = false) {
+        await osLoadData(force);
+        const all = osWorkspaces();
+        const gendered = all.filter((item) => osApplicantGender === "all" || item.profile.gender === osApplicantGender);
+        const filtered = gendered.filter((item) => {
+          const hay = [item.profile.name,item.profile.phone,item.id,item.profile.job,item.profile.region].join(" ").toLowerCase();
+          const secondary = secondaryWorkspaceState(item);
+          const sentMatch = osApplicantSentStatus === "all" || (osApplicantSentStatus === "sent" ? secondary.sent : !secondary.sent);
+          const submittedMatch = osApplicantSecondaryStatus === "all" || (osApplicantSecondaryStatus === "completed" ? secondary.submitted : !secondary.submitted);
+          return hay.includes(osApplicantSearch.toLowerCase())
+            && (osApplicantStatus === "all" || item.consultation.consultationStatus === osApplicantStatus)
+            && sentMatch
+            && submittedMatch;
+        });
+        const counts = { all:all.length, male:all.filter((item)=>item.profile.gender==="male").length, female:all.filter((item)=>item.profile.gender==="female").length };
+        const listBody = osApplicantView === "card"
+          ? `<section class="workspace-grid">${filtered.map(osCard).join("") || '<div class="os-muted-page">조건에 맞는 신청자가 없습니다.</div>'}</section>`
+          : `<section class="os-table-wrap"><table class="os-table"><thead><tr><th>신청자</th><th>나이 · 지역</th><th>직업</th><th>신청 서비스</th><th>2차 상태</th><th>상담 상태</th><th>출처</th><th>다음 할 일</th></tr></thead><tbody>${filtered.map((item)=>`<tr data-os-workspace="${osEsc(item.key)}"><td><b>${osEsc(item.profile.name||"이름 미입력")}</b><br/><small>AP-${osEsc(item.id.padStart(8,"0"))} · ${osEsc(osFormatPhone(item.profile.phone))}</small></td><td>${osEsc(osAge(item.profile.birthYear))}세<br/><small>${osEsc(item.profile.region)}</small></td><td>${osEsc(item.profile.job)}</td><td>${osEsc(osServiceLabel(item.service))}</td><td>${osSecondaryChip(item) || '<span class="workspace-sub">발송 전 · 신청 미완료</span>'}</td><td>${osStatusChip(item.consultation.consultationStatus)}</td><td>${osSourceChip(item)}</td><td>${osEsc(item.consultation.nextAction||"담당자 배정")}</td></tr>`).join("")}</tbody></table></section>`;
+        osShell("applicants","신청자 관리","자동 분류",`<section class="os-page"><header class="os-head"><div><p class="os-kicker">자동 분류</p><h2 class="os-title">신청자 관리</h2><p class="os-desc">기존 홈페이지 신청자와 신규 신청을 카드 또는 목록으로 같은 상담 기준에서 확인합니다.</p></div><button class="os-action" id="os-app-refresh">새로고침</button></header><nav class="os-tabs">${["all","male","female"].map((value)=>`<button class="${osApplicantGender===value?"active":""}" data-os-gender="${value}">${value==="all"?"전체":value==="male"?"남성":"여성"} <small>${counts[value]}</small></button>`).join("")}</nav><section class="os-filter" data-secondary-list-filters><input id="os-app-search" value="${osEsc(osApplicantSearch)}" placeholder="이름 · 연락처 · Applicant ID 검색"/><select id="os-app-status"><option value="all">상담 상태 전체</option><option value="before">상담전</option><option value="in_progress">상담중</option><option value="completed">상담완료</option></select><select id="os-app-sent-status"><option value="all">2차 링크 발송 전체</option><option value="unsent">발송 전</option><option value="sent">발송 완료</option></select><select id="os-app-secondary-status"><option value="all">2차 신청 상태 전체</option><option value="incomplete">2차 신청 미완료</option><option value="completed">2차 신청 완료</option></select><div class="view-toggle"><button class="${osApplicantView==="card"?"active":""}" data-os-view="card">▦</button><button class="${osApplicantView==="list"?"active":""}" data-os-view="list">☷</button></div></section>${listBody}</section>`);
+        document.getElementById("os-app-status").value = osApplicantStatus;
+        document.getElementById("os-app-sent-status").value = osApplicantSentStatus;
+        document.getElementById("os-app-secondary-status").value = osApplicantSecondaryStatus;
+        document.getElementById("os-app-refresh").onclick = () => osApplicants(true);
+        document.getElementById("os-app-search").oninput = (event) => { osApplicantSearch=event.target.value; clearTimeout(osApplicantSearchTimer); osApplicantSearchTimer=setTimeout(()=>osApplicants(),140); };
+        document.getElementById("os-app-status").onchange = (event) => { osApplicantStatus=event.target.value; osApplicants(); };
+        document.getElementById("os-app-sent-status").onchange = (event) => { osApplicantSentStatus=event.target.value; osApplicants(); };
+        document.getElementById("os-app-secondary-status").onchange = (event) => { osApplicantSecondaryStatus=event.target.value; osApplicants(); };
+        document.querySelectorAll("[data-os-gender]").forEach((button)=>button.onclick=()=>{osApplicantGender=button.dataset.osGender;osApplicants();});
+        document.querySelectorAll("[data-os-view]").forEach((button)=>button.onclick=()=>{osApplicantView=button.dataset.osView;osApplicants();});
+        osBindWorkspace();
       };
       function osSingleWorkspaceSection(order, key, title, source, body) {
         return `<section class="os-section" data-temp-applicant-section="${osEsc(key)}" data-temp-section-order="${order}"><div class="os-section-head"><h3><span style="display:inline-grid;place-items:center;width:24px;height:24px;margin-right:8px;background:#28231c;color:#d8ad36;font-size:11px">${order}</span>${osEsc(title)}</h3><span class="os-source">${osEsc(source)}</span></div>${body}</section>`;
@@ -1753,7 +1881,7 @@
         const p = item.profile || {};
         const photoArea = `<div class="os-profile-photo">비공개 사진<br/>${item.photoRefs.length}장<br/><button id="os-open-photo" ${item.photoRefs.length ? "" : "disabled"}>사진 보기</button></div>`;
         const header = `<section class="os-profile-head" data-temp-applicant-header>${photoArea}<div class="os-profile-copy"><p class="os-kicker">APPLICANT · AP-${osEsc(item.id.padStart(8,"0"))}</p><h2>${osEsc(p.name || "이름 미입력")}</h2><p class="os-profile-meta">${osEsc(osGenderLabel(p.gender))} · ${osEsc(osAge(p.birthYear))}세</p></div></section>`;
-        const primaryFields = [["이름",p.name],["연락처",osFormatPhone(p.phone)],["출생연도",p.birthYear],["성별",osGenderLabel(p.gender)],["신청 서비스",osServiceLabel(item.service)],["신청일",osFormatDate(item.createdAt)],["직업",p.job],["학력",p.education],["직장·사업체",p.company],["지역",p.region],["키",p.height],["MBTI",p.mbti],["체형",p.bodyType],["스타일·분위기",p.styleMood],["매력 포인트",osParse(p.appealPoints).join(", ")],["라이프스타일",osParse(p.lifestyle).join(", ")],["이용 목적",p.datingPurpose || p.servicePurpose],["소셜 참석 의향",p.socialAttendanceIntent],["중요 조건",p.importantConditions],["유입 경로",p.journeyKey || p.entryPath]];
+        const primaryFields = [["이름",p.name],["연락처",osFormatPhone(p.phone)],["출생연도",p.birthYear],["성별",osGenderLabel(p.gender)],["신청 서비스",osServiceLabel(item.service)],["신청일",osFormatDate(item.createdAt)],...(item.service === "social" ? [["모임 참석 일정",socialScheduleValue(item).label]] : []),["직업",p.job],["학력",p.education],["직장·사업체",p.company],["지역",p.region],["키",p.height],["MBTI",p.mbti],["체형",p.bodyType],["스타일·분위기",p.styleMood],["매력 포인트",osParse(p.appealPoints).join(", ")],["라이프스타일",osParse(p.lifestyle).join(", ")],["이용 목적",p.datingPurpose || p.servicePurpose],["중요 조건",p.importantConditions],["유입 경로",p.journeyKey || p.entryPath]];
         const body = header
           + osSingleWorkspaceSection(1,"primary-profile","1차 기본 프로필","신청자 입력",`<dl class="os-fields">${primaryFields.map(([label,value]) => osField(label,value)).join("")}</dl>`)
           + osSingleWorkspaceSection(2,"secondary-responses","2차 신청폼 응답","신청자 입력",'<div id="os-secondary-review"><p class="workspace-sub">2차 작성 내용을 불러오는 중입니다.</p></div>')

@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const root = "/home/ubuntu/irum-temp-intake";
 const projectRef = "wiesmommcmwwwkwufgqg";
-const buildId = "secondary-link-reissue-20260826-3";
+const buildId = "secondary-manual-sent-social-schedule-20260827-1";
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
 if (!accessToken) throw new Error("SUPABASE_ACCESS_TOKEN is required");
 const profile = await readFile(`${root}/profile/index.html`, "utf8");

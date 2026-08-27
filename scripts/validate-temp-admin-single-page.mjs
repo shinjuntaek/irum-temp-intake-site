@@ -32,6 +32,18 @@ const requiredMarkers = [
   'data-secondary-document',
   'invokeSecondaryAdmin("secondary-admin-document-url"',
   'data-secondary-copy',
+  'data-secondary-mark-sent',
+  'data-secondary-clear-sent',
+  'invokeSecondaryAdmin("secondary-admin-mark-sent"',
+  'invokeSecondaryAdmin("secondary-admin-clear-sent"',
+  'data-secondary-list-filters',
+  'id="os-app-sent-status"',
+  'id="os-app-secondary-status"',
+  'data-social-application-schedules',
+  '8월 29일',
+  '9월 19일',
+  '다음 모임 희망',
+  '구형 신청 · 일정 미수집',
 ];
 for (const marker of requiredMarkers) {
   if (!source.includes(marker)) throw new Error(`missing temp admin single-page marker: ${marker}`);
@@ -69,6 +81,13 @@ if (!reviewBlock.includes("return written") || reviewBlock.includes("currentPref
 
 if (!singlePageBlock.includes("osSinglePageTemporaryPattern.test(action) ? \"담당자 배정\"")) {
   throw new Error("temporary intake placeholder action is not normalized for display");
+}
+
+const copyStart = source.indexOf("const copySecondaryIssuedLink");
+const copyEnd = source.indexOf("const secondaryEvents", copyStart);
+const copyBlock = source.slice(copyStart, copyEnd);
+if (copyStart < 0 || copyEnd <= copyStart || copyBlock.includes("secondary-admin-mark-sent")) {
+  throw new Error("link copy must not auto-mark secondary delivery complete");
 }
 
 console.log(

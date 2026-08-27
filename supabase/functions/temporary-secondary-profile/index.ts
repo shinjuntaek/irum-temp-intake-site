@@ -8,7 +8,7 @@ const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
-const BUILD_ID = "secondary-link-reissue-20260826-3";
+const BUILD_ID = "secondary-manual-sent-social-schedule-20260827-1";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -664,9 +664,12 @@ Deno.serve(async (req) => {
         token_hash: tokenHash,
         token_prefix: tokenPrefix,
         expires_at: expiresAt,
+        sent_at: null,
+        sent_by_user_id: null,
+        sent_by_email: null,
         updated_at: updatedAt,
       }).eq("id", formId).in("status", ["pending", "in_progress"])
-        .select("id, form_type, status, expires_at, token_prefix, draft_revision, draft_saved_at, updated_at")
+        .select("id, form_type, status, expires_at, token_prefix, draft_revision, draft_saved_at, sent_at, sent_by_user_id, sent_by_email, updated_at")
         .maybeSingle();
       if (error) throw error;
       if (!data) return json({ error: "FORM_NOT_REISSUABLE" }, 409);
@@ -675,10 +678,63 @@ Deno.serve(async (req) => {
       return json({ form: data, raw_url: `${origin}/profile/#${rawToken}`, build_id: BUILD_ID });
     }
 
+    if (action === "secondary-admin-mark-sent") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const formId = text(body.form_id);
+      const { data: current, error: currentError } = await database.from(FORM_TABLE)
+        .select("id, status, sent_at, sent_by_user_id, sent_by_email")
+        .eq("id", formId)
+        .maybeSingle();
+      if (currentError) throw currentError;
+      if (!current) return json({ error: "FORM_NOT_FOUND" }, 404);
+      if (!["pending", "in_progress", "submitted"].includes(current.status)) return json({ error: "FORM_NOT_SENDABLE" }, 409);
+      if (current.sent_at) return json({ ok: true, unchanged: true, form: current, build_id: BUILD_ID });
+      const sentAt = new Date().toISOString();
+      const { data, error } = await database.from(FORM_TABLE).update({
+        sent_at: sentAt,
+        sent_by_user_id: user.id,
+        sent_by_email: user.email,
+        updated_at: sentAt,
+      }).eq("id", formId).is("sent_at", null)
+        .select("id, status, sent_at, sent_by_user_id, sent_by_email")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "SENT_STATUS_CONFLICT" }, 409);
+      await appendEvent(database, formId, "link_sent_marked", "temporary_admin", { id: user.id, email: user.email });
+      return json({ ok: true, unchanged: false, form: data, build_id: BUILD_ID });
+    }
+
+    if (action === "secondary-admin-clear-sent") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const formId = text(body.form_id);
+      const { data: current, error: currentError } = await database.from(FORM_TABLE)
+        .select("id, status, sent_at, sent_by_user_id, sent_by_email")
+        .eq("id", formId)
+        .maybeSingle();
+      if (currentError) throw currentError;
+      if (!current) return json({ error: "FORM_NOT_FOUND" }, 404);
+      if (!current.sent_at) return json({ ok: true, unchanged: true, form: current, build_id: BUILD_ID });
+      const updatedAt = new Date().toISOString();
+      const { data, error } = await database.from(FORM_TABLE).update({
+        sent_at: null,
+        sent_by_user_id: null,
+        sent_by_email: null,
+        updated_at: updatedAt,
+      }).eq("id", formId).eq("sent_at", current.sent_at)
+        .select("id, status, sent_at, sent_by_user_id, sent_by_email")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return json({ error: "SENT_STATUS_CONFLICT" }, 409);
+      await appendEvent(database, formId, "link_sent_cleared", "temporary_admin", { id: user.id, email: user.email }, { previous_sent_at: current.sent_at, previous_sent_by_email: current.sent_by_email || null });
+      return json({ ok: true, unchanged: false, form: data, build_id: BUILD_ID });
+    }
+
     if (action === "secondary-admin-list") {
       const user = await requireTemporaryAdmin(req);
       if (!user) return json({ error: "FORBIDDEN" }, 403);
-      let query = database.from(FORM_TABLE).select("id, subject_type, subject_id, form_type, gender_snapshot, social_event_id, event_snapshot, prefill_snapshot, token_prefix, status, expires_at, first_opened_at, last_opened_at, draft_payload, draft_revision, draft_saved_at, submitted_payload, submitted_at, consent_version, consent_at, issued_by_email, revoked_at, created_at, updated_at").order("created_at", { ascending: false });
+      let query = database.from(FORM_TABLE).select("id, subject_type, subject_id, form_type, gender_snapshot, social_event_id, event_snapshot, prefill_snapshot, token_prefix, status, expires_at, first_opened_at, last_opened_at, draft_payload, draft_revision, draft_saved_at, submitted_payload, submitted_at, consent_version, consent_at, issued_by_email, sent_at, sent_by_user_id, sent_by_email, revoked_at, created_at, updated_at").order("created_at", { ascending: false });
       if (text(body.subject_type)) query = query.eq("subject_type", text(body.subject_type));
       if (text(body.subject_id)) query = query.eq("subject_id", text(body.subject_id));
       const { data: forms, error } = await query;

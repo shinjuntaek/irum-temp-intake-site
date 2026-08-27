@@ -25,6 +25,8 @@ const requiredMarkers = [
   "링크 복사",
   "링크 재발급",
   'invokeSecondaryAdmin("secondary-admin-reissue"',
+  'invokeSecondaryAdmin("secondary-admin-mark-sent"',
+  'invokeSecondaryAdmin("secondary-admin-clear-sent"',
   "보안을 위해 URL 원문은 발급한 관리자 탭에서만 다시 표시됩니다.",
   "sessionStorage.removeItem(secondaryIssuedLinksKey)",
 ];
@@ -58,6 +60,9 @@ for (const marker of [
   "token_hash: tokenHash",
   "token_prefix: tokenPrefix",
   "expires_at: expiresAt",
+  "sent_at: null",
+  "sent_by_user_id: null",
+  "sent_by_email: null",
   'appendEvent(database, formId, "reissued"',
   "raw_url:",
   "build_id: BUILD_ID",
@@ -66,6 +71,19 @@ for (const marker of [
 }
 for (const forbidden of ["draft_payload:", "submitted_payload:", "prefill_snapshot:", "status:"]) {
   if (reissueContract.includes(forbidden)) throw new Error(`secondary reissue must not overwrite existing form data: ${forbidden}`);
+}
+
+for (const [action, event] of [["secondary-admin-mark-sent", "link_sent_marked"], ["secondary-admin-clear-sent", "link_sent_cleared"]]) {
+  const start = edge.indexOf(`if (action === "${action}")`);
+  const end = edge.indexOf('if (action === "', start + 10);
+  const block = edge.slice(start, end > start ? end : undefined);
+  for (const marker of ["requireTemporaryAdmin(req)", "sent_at", "sent_by_user_id", "sent_by_email", event, "build_id: BUILD_ID"]) {
+    if (!block.includes(marker)) throw new Error(`missing ${action} marker: ${marker}`);
+  }
+}
+
+for (const marker of ["sent_at", "sent_by_user_id", "sent_by_email"]) {
+  if (!listContract.includes(marker)) throw new Error(`secondary admin list missing sent metadata: ${marker}`);
 }
 
 console.log(`secondary_link_ui_qa=pass scripts=${scripts.length} synchronized=true token_list_leak=false`);

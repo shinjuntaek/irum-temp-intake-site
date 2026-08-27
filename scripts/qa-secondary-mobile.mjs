@@ -103,7 +103,7 @@ try {
           }
           if (payload.privacyConsent !== true) missing.push('privacyConsent');
           if (missing.length) return new Response(JSON.stringify({ error:kind === 'male' ? 'MALE_REQUIRED_FIELDS_MISSING' : 'FEMALE_REQUIRED_FIELDS_MISSING', missing_fields:missing }), { status:422, headers:{'Content-Type':'application/json'} });
-          return new Response(JSON.stringify({ ok:true, status:'submitted', build_id:'secondary-link-reissue-20260826-3', submitted_at:new Date().toISOString() }), { status:200, headers:{'Content-Type':'application/json'} });
+          return new Response(JSON.stringify({ ok:true, status:'submitted', build_id:'secondary-manual-sent-social-schedule-20260827-1', submitted_at:new Date().toISOString() }), { status:200, headers:{'Content-Type':'application/json'} });
         }
       }
       return nativeFetch(input, init);

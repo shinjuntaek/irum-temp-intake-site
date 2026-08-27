@@ -36,7 +36,7 @@ const edgeRequired = [
   'missing.push("assetDocument")',
   "missing_fields: validationError.missing",
   '"realCheckDate"',
-  'const BUILD_ID = "secondary-link-reissue-20260826-3"',
+  'const BUILD_ID = "secondary-manual-sent-social-schedule-20260827-1"',
   'select("draft_revision")',
   'status: "submitted"',
 ];
