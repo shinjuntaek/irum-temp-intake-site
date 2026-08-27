@@ -3,12 +3,14 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const FORM_TABLE = "temporary_secondary_profile_forms";
 const DOCUMENT_TABLE = "temporary_secondary_profile_documents";
 const EVENT_TABLE = "temporary_secondary_profile_events";
+const REVIEW_TABLE = "temporary_secondary_profile_reviews";
 const DOCUMENT_BUCKET = "temporary-secondary-profile-documents";
 const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
-const BUILD_ID = "secondary-manual-sent-social-schedule-20260827-1";
+const REVIEW_RESULTS = new Set(["approved", "hold", "rejected", "materials_requested"]);
+const BUILD_ID = "secondary-temp-admin-operations-20260827-3";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -731,6 +733,54 @@ Deno.serve(async (req) => {
       return json({ ok: true, unchanged: false, form: data, build_id: BUILD_ID });
     }
 
+    if (action === "secondary-admin-review") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const formId = text(body.form_id);
+      const result = text(body.result);
+      const reason = limitedText(body.reason, 2000) || null;
+      if (!formId || !REVIEW_RESULTS.has(result)) return json({ error: "INVALID_REVIEW_REQUEST" }, 422);
+      if (result !== "approved" && !reason) return json({ error: "REVIEW_REASON_REQUIRED" }, 422);
+      const { data: form, error: formError } = await database.from(FORM_TABLE)
+        .select("id, subject_type, subject_id, status")
+        .eq("id", formId)
+        .maybeSingle();
+      if (formError) throw formError;
+      if (!form) return json({ error: "FORM_NOT_FOUND" }, 404);
+      if (form.status !== "submitted") return json({ error: "FORM_NOT_SUBMITTED" }, 409);
+      const { data: previous, error: previousError } = await database.from(REVIEW_TABLE)
+        .select("result")
+        .eq("form_id", formId)
+        .order("reviewed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (previousError) throw previousError;
+      const { data, error } = await database.from(REVIEW_TABLE).insert({
+        form_id: formId,
+        subject_type: form.subject_type,
+        subject_id: form.subject_id,
+        result,
+        reason,
+        previous_result: previous?.result ?? null,
+        reviewed_by_user_id: user.id,
+        reviewed_by_email: user.email,
+      }).select("id, form_id, subject_type, subject_id, result, reason, previous_result, reviewed_by_email, reviewed_at").single();
+      if (error) throw error;
+      try {
+        await appendEvent(database, formId, "review_changed", "temporary_admin", { id: user.id, email: user.email }, {
+          result,
+          previous_result: previous?.result ?? null,
+          reason_provided: Boolean(reason),
+        });
+      } catch (eventError) {
+        console.error("secondary_review_event_failed", {
+          form_id: formId,
+          error: eventError instanceof Error ? eventError.message : "unknown",
+        });
+      }
+      return json({ review: data, build_id: BUILD_ID });
+    }
+
     if (action === "secondary-admin-list") {
       const user = await requireTemporaryAdmin(req);
       if (!user) return json({ error: "FORBIDDEN" }, 403);
@@ -741,6 +791,8 @@ Deno.serve(async (req) => {
       if (error) throw error;
       const formIds = (forms ?? []).map((form) => form.id);
       let documents: unknown[] = [];
+      let reviews: unknown[] = [];
+      let profileEvents: unknown[] = [];
       if (formIds.length) {
         const documentResult = await database.from(DOCUMENT_TABLE)
           .select("id, form_id, document_type, original_name, declared_mime_type, verified_mime_type, file_size, status, reject_reason, created_at, updated_at")
@@ -748,8 +800,21 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: true });
         if (documentResult.error) throw documentResult.error;
         documents = documentResult.data ?? [];
+        const reviewResult = await database.from(REVIEW_TABLE)
+          .select("id, form_id, subject_type, subject_id, result, reason, previous_result, reviewed_by_email, reviewed_at")
+          .in("form_id", formIds)
+          .order("reviewed_at", { ascending: false });
+        if (reviewResult.error) throw reviewResult.error;
+        reviews = reviewResult.data ?? [];
+        const eventResult = await database.from(EVENT_TABLE)
+          .select("id, form_id, event_type, actor_type, actor_email, detail, created_at")
+          .in("form_id", formIds)
+          .order("created_at", { ascending: false })
+          .limit(2000);
+        if (eventResult.error) throw eventResult.error;
+        profileEvents = eventResult.data ?? [];
       }
-      return json({ forms: forms ?? [], documents });
+      return json({ forms: forms ?? [], documents, reviews, profile_events: profileEvents, build_id: BUILD_ID });
     }
 
     if (action === "secondary-admin-document-url") {

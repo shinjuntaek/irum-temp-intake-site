@@ -1,48 +1,42 @@
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
+import { fileURLToPath } from "node:url";
 
-const root = "/home/ubuntu/irum-temp-intake";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = fs.readFileSync(path.join(root, "admin.html"), "utf8");
 const route = fs.readFileSync(path.join(root, "admin", "index.html"), "utf8");
 
 if (source !== route) throw new Error("admin.html and admin/index.html are not synchronized");
 
-const scripts = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(match => match[1]);
-scripts.forEach((script, index) => {
-  try {
-    new Function(script);
-  } catch (error) {
-    throw new Error(`admin inline script ${index + 1} syntax error: ${error.message}`);
-  }
-});
+const scripts = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
+for (const script of scripts) new vm.Script(script);
 
-const requiredMarkers = [
-  'const secondaryIssuedLinksKey = "irum-temp-secondary-issued-links-v1"',
-  "rememberSecondaryIssuedLink(issued.form?.id, issued.raw_url)",
-  "data-secondary-url",
-  "data-secondary-copy",
-  "data-secondary-reissue",
+for (const marker of [
+  'const issuedLinksKey = "irum-temp-secondary-issued-links-v1"',
+  "rememberLink(result.form?.id,result.raw_url)",
+  "data-raw-link",
+  "data-copy-link",
+  "data-reissue",
   "링크 복사",
   "링크 재발급",
-  'invokeSecondaryAdmin("secondary-admin-reissue"',
-  'invokeSecondaryAdmin("secondary-admin-mark-sent"',
-  'invokeSecondaryAdmin("secondary-admin-clear-sent"',
-  "보안을 위해 URL 원문은 발급한 관리자 탭에서만 다시 표시됩니다.",
-  "sessionStorage.removeItem(secondaryIssuedLinksKey)",
-];
-
-for (const marker of requiredMarkers) {
+  'invokeSecondary("secondary-admin-reissue"',
+  'invokeSecondary("secondary-admin-mark-sent"',
+  'invokeSecondary("secondary-admin-clear-sent"',
+  "raw token은 저장하지 않습니다.",
+  "sessionStorage.removeItem(issuedLinksKey)",
+]) {
   if (!source.includes(marker)) throw new Error(`missing secondary link UI marker: ${marker}`);
 }
 
-if (source.includes('id="secondary-copy"')) {
-  throw new Error("legacy one-frame copy button remains and can be erased by panel remount");
+const copyStart = source.indexOf("async function copyText");
+const copyEnd = source.indexOf("function resetRedirectUrl", copyStart);
+const copyBlock = source.slice(copyStart, copyEnd);
+if (copyStart < 0 || copyEnd <= copyStart || copyBlock.includes("secondary-admin-mark-sent")) {
+  throw new Error("link copy must not auto-mark secondary delivery complete");
 }
 
-const edge = fs.readFileSync(
-  path.join(root, "supabase", "functions", "temporary-secondary-profile", "index.ts"),
-  "utf8",
-);
+const edge = fs.readFileSync(path.join(root, "supabase", "functions", "temporary-secondary-profile", "index.ts"), "utf8");
 const listStart = edge.indexOf('if (action === "secondary-admin-list")');
 const documentStart = edge.indexOf('if (action === "secondary-admin-document-url")');
 if (listStart < 0 || documentStart <= listStart) throw new Error("secondary admin list contract not found");
@@ -52,9 +46,9 @@ if (listContract.includes("token_hash") || listContract.includes("raw_url")) {
 }
 
 const reissueStart = edge.indexOf('if (action === "secondary-admin-reissue")');
-const listAfterReissue = edge.indexOf('if (action === "secondary-admin-list")', reissueStart);
-if (reissueStart < 0 || listAfterReissue <= reissueStart) throw new Error("secondary reissue action contract not found");
-const reissueContract = edge.slice(reissueStart, listAfterReissue);
+const reissueEnd = edge.indexOf('if (action === "secondary-admin-mark-sent")', reissueStart);
+if (reissueStart < 0 || reissueEnd <= reissueStart) throw new Error("secondary reissue action contract not found");
+const reissueContract = edge.slice(reissueStart, reissueEnd);
 for (const marker of [
   '.in("status", ["pending", "in_progress"])',
   "token_hash: tokenHash",
@@ -82,8 +76,8 @@ for (const [action, event] of [["secondary-admin-mark-sent", "link_sent_marked"]
   }
 }
 
-for (const marker of ["sent_at", "sent_by_user_id", "sent_by_email"]) {
-  if (!listContract.includes(marker)) throw new Error(`secondary admin list missing sent metadata: ${marker}`);
+for (const marker of ["sent_at", "sent_by_user_id", "sent_by_email", "reviews", "profile_events"]) {
+  if (!listContract.includes(marker)) throw new Error(`secondary admin list missing metadata: ${marker}`);
 }
 
-console.log(`secondary_link_ui_qa=pass scripts=${scripts.length} synchronized=true token_list_leak=false`);
+console.log(`secondary_link_ui_qa=pass scripts=${scripts.length} synchronized=true token_list_leak=false manual_sent_independent=true`);
