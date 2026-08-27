@@ -1011,6 +1011,7 @@
       let osApplicantStatus = "all";
       let osApplicantSentStatus = "all";
       let osApplicantSecondaryStatus = "all";
+      let osApplicantServiceType = new URLSearchParams(location.search).get("service") || "all";
       let osApplicantSearch = "";
       let osApplicantSearchTimer = null;
       let osDetailTab = "profile";
@@ -1726,7 +1727,7 @@
       };
       const osWorkspacesWithRawTemporaryLabels = osWorkspaces;
       osWorkspaces = function () {
-        return osWorkspacesWithRawTemporaryLabels().map((item) => {
+        const cleaned = osWorkspacesWithRawTemporaryLabels().map((item) => {
           const action = String(item.consultation?.nextAction || "").trim();
           return {
             ...item,
@@ -1736,6 +1737,47 @@
             },
           };
         });
+        const signals = new Map();
+        cleaned.forEach((item) => {
+          const profile = item.profile || {};
+          const payload = item.payload || item.record?.payload || {};
+          const identity = String(profile.phone || payload?.profile?.phone || `${item.kind}:${item.id}`).replace(/\D/g, "") || `${item.kind}:${item.id}`;
+          const source = [
+            item.service,
+            profile.journeyKey,
+            profile.entryPath,
+            profile.socialAttendanceIntent,
+            profile.socialEventId,
+            payload.submission_type,
+            payload?.profile?.socialAttendanceIntent,
+            payload?.profile?.socialEventId,
+          ].filter(Boolean).join(" ").toLowerCase();
+          const social = item.service === "social" || /social|모임|event|next_event|specific_event/.test(source);
+          const matching = item.service === "matching" || /matching|match|1:1|일대일/.test(source) || !social;
+          const current = signals.get(identity) || { matching:false, social:false };
+          current.matching = current.matching || matching;
+          current.social = current.social || social;
+          signals.set(identity, current);
+        });
+        return cleaned.map((item) => {
+          const profile = item.profile || {};
+          const payload = item.payload || item.record?.payload || {};
+          const identity = String(profile.phone || payload?.profile?.phone || `${item.kind}:${item.id}`).replace(/\D/g, "") || `${item.kind}:${item.id}`;
+          const service = signals.get(identity) || { matching:true, social:false };
+          return { ...item, serviceType: service.matching && service.social ? "both" : service.social ? "social" : "matching" };
+        });
+      };
+      const osApplicationServiceLabel = (item) => ({ matching:"1:1 매칭", social:"프라이빗 소셜", both:"둘 다 신청" }[item.serviceType] || "1:1 매칭");
+      const osApplicationServiceChip = (item) => {
+        const type = item.serviceType || "matching";
+        const tone = type === "both" ? "done" : type === "social" ? "progress" : "";
+        return `<span class="os-chip ${tone}" data-application-service="${osEsc(type)}">${osEsc(osApplicationServiceLabel(item))}</span>`;
+      };
+      const osUpdateApplicantServiceQuery = () => {
+        const url = new URL(window.location.href);
+        if (osApplicantServiceType === "all") url.searchParams.delete("service");
+        else url.searchParams.set("service", osApplicantServiceType);
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       };
       const secondaryFormsForItem = (item) => secondaryForms
         .filter((form) => form.subject_type === item.kind && String(form.subject_id) === String(item.id))
@@ -1779,9 +1821,10 @@
       const osCardWithoutSocialSchedule = osCard;
       osCard = function (item) {
         const markup = osCardWithoutSocialSchedule(item);
-        if (item.service !== "social") return markup;
+        const withService = markup.replace(`신청 서비스 · ${osEsc(osServiceLabel(item.service))}`, `신청 서비스 · ${osApplicationServiceChip(item)}`);
+        if (item.service !== "social") return withService;
         const schedule = socialScheduleValue(item);
-        return markup.replace('<p class="os-next">', `<p class="workspace-sub" data-social-schedule="${osEsc(schedule.key)}"><b>모임 일정 · ${osEsc(schedule.label)}</b></p><p class="os-next">`);
+        return withService.replace('<p class="os-next">', `<p class="workspace-sub" data-social-schedule="${osEsc(schedule.key)}"><b>모임 일정 · ${osEsc(schedule.label)}</b></p><p class="os-next">`);
       };
       const osOperationalPageWithoutTemporarySchedules = osOperationalPage;
       osOperationalPage = async function (target) {
@@ -1814,24 +1857,28 @@
           const secondary = secondaryWorkspaceState(item);
           const sentMatch = osApplicantSentStatus === "all" || (osApplicantSentStatus === "sent" ? secondary.sent : !secondary.sent);
           const submittedMatch = osApplicantSecondaryStatus === "all" || (osApplicantSecondaryStatus === "completed" ? secondary.submitted : !secondary.submitted);
+          const serviceMatch = osApplicantServiceType === "all" || item.serviceType === osApplicantServiceType;
           return hay.includes(osApplicantSearch.toLowerCase())
             && (osApplicantStatus === "all" || item.consultation.consultationStatus === osApplicantStatus)
             && sentMatch
-            && submittedMatch;
+            && submittedMatch
+            && serviceMatch;
         });
         const counts = { all:all.length, male:all.filter((item)=>item.profile.gender==="male").length, female:all.filter((item)=>item.profile.gender==="female").length };
         const listBody = osApplicantView === "card"
           ? `<section class="workspace-grid">${filtered.map(osCard).join("") || '<div class="os-muted-page">조건에 맞는 신청자가 없습니다.</div>'}</section>`
-          : `<section class="os-table-wrap"><table class="os-table"><thead><tr><th>신청자</th><th>나이 · 지역</th><th>직업</th><th>신청 서비스</th><th>2차 상태</th><th>상담 상태</th><th>출처</th><th>다음 할 일</th></tr></thead><tbody>${filtered.map((item)=>`<tr data-os-workspace="${osEsc(item.key)}"><td><b>${osEsc(item.profile.name||"이름 미입력")}</b><br/><small>AP-${osEsc(item.id.padStart(8,"0"))} · ${osEsc(osFormatPhone(item.profile.phone))}</small></td><td>${osEsc(osAge(item.profile.birthYear))}세<br/><small>${osEsc(item.profile.region)}</small></td><td>${osEsc(item.profile.job)}</td><td>${osEsc(osServiceLabel(item.service))}</td><td>${osSecondaryChip(item) || '<span class="workspace-sub">발송 전 · 신청 미완료</span>'}</td><td>${osStatusChip(item.consultation.consultationStatus)}</td><td>${osSourceChip(item)}</td><td>${osEsc(item.consultation.nextAction||"담당자 배정")}</td></tr>`).join("")}</tbody></table></section>`;
-        osShell("applicants","신청자 관리","자동 분류",`<section class="os-page"><header class="os-head"><div><p class="os-kicker">자동 분류</p><h2 class="os-title">신청자 관리</h2><p class="os-desc">기존 홈페이지 신청자와 신규 신청을 카드 또는 목록으로 같은 상담 기준에서 확인합니다.</p></div><button class="os-action" id="os-app-refresh">새로고침</button></header><nav class="os-tabs">${["all","male","female"].map((value)=>`<button class="${osApplicantGender===value?"active":""}" data-os-gender="${value}">${value==="all"?"전체":value==="male"?"남성":"여성"} <small>${counts[value]}</small></button>`).join("")}</nav><section class="os-filter" data-secondary-list-filters><input id="os-app-search" value="${osEsc(osApplicantSearch)}" placeholder="이름 · 연락처 · Applicant ID 검색"/><select id="os-app-status"><option value="all">상담 상태 전체</option><option value="before">상담전</option><option value="in_progress">상담중</option><option value="completed">상담완료</option></select><select id="os-app-sent-status"><option value="all">2차 링크 발송 전체</option><option value="unsent">발송 전</option><option value="sent">발송 완료</option></select><select id="os-app-secondary-status"><option value="all">2차 신청 상태 전체</option><option value="incomplete">2차 신청 미완료</option><option value="completed">2차 신청 완료</option></select><div class="view-toggle"><button class="${osApplicantView==="card"?"active":""}" data-os-view="card">▦</button><button class="${osApplicantView==="list"?"active":""}" data-os-view="list">☷</button></div></section>${listBody}</section>`);
+          : `<section class="os-table-wrap"><table class="os-table"><thead><tr><th>신청자</th><th>나이 · 지역</th><th>직업</th><th>신청 서비스</th><th>2차 상태</th><th>상담 상태</th><th>출처</th><th>다음 할 일</th></tr></thead><tbody>${filtered.map((item)=>`<tr data-os-workspace="${osEsc(item.key)}"><td><b>${osEsc(item.profile.name||"이름 미입력")}</b><br/><small>AP-${osEsc(item.id.padStart(8,"0"))} · ${osEsc(osFormatPhone(item.profile.phone))}</small></td><td>${osEsc(osAge(item.profile.birthYear))}세<br/><small>${osEsc(item.profile.region)}</small></td><td>${osEsc(item.profile.job)}</td><td>${osApplicationServiceChip(item)}</td><td>${osSecondaryChip(item) || '<span class="workspace-sub">발송 전 · 신청 미완료</span>'}</td><td>${osStatusChip(item.consultation.consultationStatus)}</td><td>${osSourceChip(item)}</td><td>${osEsc(item.consultation.nextAction||"담당자 배정")}</td></tr>`).join("")}</tbody></table></section>`;
+        osShell("applicants","신청자 관리","자동 분류",`<section class="os-page"><header class="os-head"><div><p class="os-kicker">자동 분류</p><h2 class="os-title">신청자 관리</h2><p class="os-desc">기존 홈페이지 신청자와 신규 신청을 카드 또는 목록으로 같은 상담 기준에서 확인합니다.</p></div><button class="os-action" id="os-app-refresh">새로고침</button></header><nav class="os-tabs">${["all","male","female"].map((value)=>`<button class="${osApplicantGender===value?"active":""}" data-os-gender="${value}">${value==="all"?"전체":value==="male"?"남성":"여성"} <small>${counts[value]}</small></button>`).join("")}</nav><section class="os-filter" data-secondary-list-filters><input id="os-app-search" value="${osEsc(osApplicantSearch)}" placeholder="이름 · 연락처 · Applicant ID 검색"/><select id="os-app-status"><option value="all">상담 상태 전체</option><option value="before">상담전</option><option value="in_progress">상담중</option><option value="completed">상담완료</option></select><select id="os-app-sent-status"><option value="all">2차 링크 발송 전체</option><option value="unsent">발송 전</option><option value="sent">발송 완료</option></select><select id="os-app-secondary-status"><option value="all">2차 신청 상태 전체</option><option value="incomplete">2차 신청 미완료</option><option value="completed">2차 신청 완료</option></select><select id="os-app-service-type"><option value="all">신청 서비스 전체</option><option value="matching">1:1 매칭</option><option value="social">프라이빗 소셜</option><option value="both">둘 다 신청</option></select><div class="view-toggle"><button class="${osApplicantView==="card"?"active":""}" data-os-view="card">▦</button><button class="${osApplicantView==="list"?"active":""}" data-os-view="list">☷</button></div></section>${listBody}</section>`);
         document.getElementById("os-app-status").value = osApplicantStatus;
         document.getElementById("os-app-sent-status").value = osApplicantSentStatus;
         document.getElementById("os-app-secondary-status").value = osApplicantSecondaryStatus;
+        document.getElementById("os-app-service-type").value = osApplicantServiceType;
         document.getElementById("os-app-refresh").onclick = () => osApplicants(true);
         document.getElementById("os-app-search").oninput = (event) => { osApplicantSearch=event.target.value; clearTimeout(osApplicantSearchTimer); osApplicantSearchTimer=setTimeout(()=>osApplicants(),140); };
         document.getElementById("os-app-status").onchange = (event) => { osApplicantStatus=event.target.value; osApplicants(); };
         document.getElementById("os-app-sent-status").onchange = (event) => { osApplicantSentStatus=event.target.value; osApplicants(); };
         document.getElementById("os-app-secondary-status").onchange = (event) => { osApplicantSecondaryStatus=event.target.value; osApplicants(); };
+        document.getElementById("os-app-service-type").onchange = (event) => { osApplicantServiceType=event.target.value; osUpdateApplicantServiceQuery(); osApplicants(); };
         document.querySelectorAll("[data-os-gender]").forEach((button)=>button.onclick=()=>{osApplicantGender=button.dataset.osGender;osApplicants();});
         document.querySelectorAll("[data-os-view]").forEach((button)=>button.onclick=()=>{osApplicantView=button.dataset.osView;osApplicants();});
         osBindWorkspace();

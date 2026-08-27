@@ -39,6 +39,12 @@ const requiredMarkers = [
   'data-secondary-list-filters',
   'id="os-app-sent-status"',
   'id="os-app-secondary-status"',
+  'id="os-app-service-type"',
+  'let osApplicantServiceType = new URLSearchParams(location.search).get("service") || "all"',
+  'const osApplicationServiceLabel',
+  'const osApplicationServiceChip',
+  'const osUpdateApplicantServiceQuery',
+  'data-application-service',
   'data-social-application-schedules',
   '8월 29일',
   '9월 19일',
@@ -106,6 +112,16 @@ if (latestFormStart < 0 || latestFormEnd <= latestFormStart || latestFormBlock.i
   throw new Error("revoked or expired secondary forms must not count as the current sent/submitted state");
 }
 
+const serviceStart = source.indexOf("const osWorkspacesWithRawTemporaryLabels");
+const serviceEnd = source.indexOf("const secondaryFormsForItem", serviceStart);
+const serviceBlock = source.slice(serviceStart, serviceEnd);
+if (serviceStart < 0 || serviceEnd <= serviceStart || !serviceBlock.includes('serviceType: service.matching && service.social ? "both" : service.social ? "social" : "matching"')) {
+  throw new Error("temporary admin application service classification is missing");
+}
+for (const contract of ["socialAttendanceIntent", "payload.submission_type", "osApplicantServiceType", "serviceMatch", "osUpdateApplicantServiceQuery()"]) {
+  if (!source.includes(contract)) throw new Error(`missing temporary application service filter contract: ${contract}`);
+}
+
 const mobileMenuStart = source.indexOf("function osInitMobileMenu()");
 const mobileMenuEnd = source.indexOf("const osShellWithTierLead", mobileMenuStart);
 const mobileMenuBlock = source.slice(mobileMenuStart, mobileMenuEnd);
@@ -118,5 +134,5 @@ for (const label of ["대시보드", "신청자", "회원", "1:1 매칭", "프�
 }
 
 console.log(
-  `temp_admin_single_page_qa=pass scripts=${scripts.length} synchronized=true sections=${sectionKeys.length} private_media_preserved=true secondary_links_preserved=true mobile_navigation=true`,
+  `temp_admin_single_page_qa=pass scripts=${scripts.length} synchronized=true sections=${sectionKeys.length} private_media_preserved=true secondary_links_preserved=true mobile_navigation=true application_service_filter=true`,
 );

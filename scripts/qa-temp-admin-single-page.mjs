@@ -164,7 +164,8 @@ try {
     }];
     records = [
       { id:'2', created_at:'2026-08-26T01:00:00.000Z', payload:{ submission_type:'matching', profile:{ name:'QA 신규 신청자', phone:'01011112222', birthYear:'1992', gender:'male', job:'대표', education:'대졸', region:'서울', height:'180', mbti:'ENTJ', appealPoints:['리더십'] }, photo_refs:[{ path:'submissions/2/qa.jpg' }] } },
-      { id:'3', created_at:'2026-08-26T02:00:00.000Z', payload:{ submission_type:'social', profile:{ name:'QA 소셜 신청자', phone:'01033334444', birthYear:'1995', gender:'female', job:'마케터', region:'서울', socialAttendanceIntent:'specific_event', socialEventId:'30002' }, photo_refs:[] } }
+      { id:'3', created_at:'2026-08-26T02:00:00.000Z', payload:{ submission_type:'social', profile:{ name:'QA 복수 신청자', phone:'01033334444', birthYear:'1995', gender:'female', job:'마케터', region:'서울', socialAttendanceIntent:'specific_event', socialEventId:'30002' }, photo_refs:[] } },
+      { id:'4', created_at:'2026-08-26T03:00:00.000Z', payload:{ submission_type:'matching', profile:{ name:'QA 복수 신청자', phone:'01033334444', birthYear:'1995', gender:'female', job:'마케터', region:'서울' }, photo_refs:[] } }
     ];
     temporaryConsultationEntries = [];
     operationalRecords = [];
@@ -182,10 +183,21 @@ try {
     hasNewApplicantLabel:document.body.innerText.includes('신규 신청'),
     hasSentFilter:!!document.querySelector('#os-app-sent-status'),
     hasSecondaryStatusFilter:!!document.querySelector('#os-app-secondary-status'),
+    hasServiceFilter:!!document.querySelector('#os-app-service-type'),
     hasSocialSchedule:document.body.innerText.includes('9월 19일'),
     applicantCount:document.querySelectorAll('[data-os-workspace]').length
   })`);
   await screenshot(`${outputDir}/desktop-list.png`);
+
+  await evaluate(`(() => { const select=document.querySelector('#os-app-service-type'); select.value='both'; select.onchange({ target:select }); })()`);
+  await waitFor("new URL(location.href).searchParams.get('service') === 'both' && document.querySelectorAll('[data-os-workspace]').length === 2", "both application service filter");
+  const bothServiceFilter = await evaluate(`({
+    url:new URL(location.href).search,
+    count:document.querySelectorAll('[data-os-workspace]').length,
+    badges:Array.from(document.querySelectorAll('[data-application-service]')).map(node=>node.dataset.applicationService)
+  })`);
+  await evaluate(`(() => { const select=document.querySelector('#os-app-service-type'); select.value='all'; select.onchange({ target:select }); })()`);
+  await waitFor("document.querySelectorAll('[data-os-workspace]').length >= 4 && !new URL(location.href).searchParams.has('service')", "reset application service filter");
 
   await evaluate("document.querySelector('[data-os-workspace=\"temporary-2\"]').click()");
   await waitFor("document.querySelectorAll('[data-temp-applicant-section]').length === 5", "five temp applicant sections");
@@ -264,6 +276,17 @@ try {
   })`);
   await screenshot(`${outputDir}/mobile-detail.png`);
 
+  await evaluate("osApplicants()");
+  await waitFor("document.querySelector('#os-app-service-type')", "mobile application service filter");
+  const mobileList = await evaluate(`({
+    serviceFilterValue:document.querySelector('#os-app-service-type')?.value || '',
+    serviceOptions:Array.from(document.querySelector('#os-app-service-type')?.options || []).map(option=>option.value),
+    scrollWidth:document.documentElement.scrollWidth,
+    viewportWidth:document.documentElement.clientWidth,
+    horizontalOverflow:document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+  })`);
+  await screenshot(`${outputDir}/mobile-list.png`);
+
   await evaluate("document.querySelector('.os-mobile-menu-toggle').click(); document.querySelector('[data-os-nav=dashboard]').click()");
   await waitFor("document.body.innerText.includes('운영 현황') && !document.querySelector('.layout').classList.contains('os-mobile-menu-open')", "navigate from mobile drawer");
   const menuNavigationClosed = await evaluate("document.querySelector('.os-mobile-menu-toggle').getAttribute('aria-expanded') === 'false' && document.body.style.overflow === ''");
@@ -275,12 +298,13 @@ try {
   await sleep(300);
   await screenshot(`${outputDir}/desktop-social.png`);
   const social = await evaluate(`({ hasScheduleTable:!!document.querySelector('[data-social-application-schedules]'), hasSeptember19:document.body.innerText.includes('9월 19일'), legacyLabelVisible:document.body.innerText.includes('구형 신청 · 일정 미수집') })`);
-  const result = { unauthenticated, list, detail, reissue, mobileMenuOpen, overlayClosed, escapeClosed, menuNavigationClosed, mobile, social };
+  const result = { unauthenticated, list, bothServiceFilter, detail, reissue, mobileMenuOpen, overlayClosed, escapeClosed, menuNavigationClosed, mobile, mobileList, social };
   await writeFile(`${outputDir}/result.json`, `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result));
 
   if (!unauthenticated.hasLoginButton || unauthenticated.hasAdminLayout) throw new Error("Unauthenticated admin gate failed");
-  if (list.hasTierLeadMenu || list.hasTemporaryIntakeText || !list.hasNewApplicantLabel || !list.hasSentFilter || !list.hasSecondaryStatusFilter || !list.hasSocialSchedule) throw new Error("Temporary admin sidebar/card/filter/schedule normalization failed");
+  if (list.hasTierLeadMenu || list.hasTemporaryIntakeText || !list.hasNewApplicantLabel || !list.hasSentFilter || !list.hasSecondaryStatusFilter || !list.hasServiceFilter || !list.hasSocialSchedule) throw new Error("Temporary admin sidebar/card/filter/schedule normalization failed");
+  if (bothServiceFilter.url !== '?service=both' || bothServiceFilter.count !== 2 || bothServiceFilter.badges.some(value => value !== 'both')) throw new Error("Temporary admin application service filter or badge failed");
   if (detail.sectionCount !== 5 || detail.orders.join(",") !== "1,2,3,4,5") throw new Error("Temporary admin five-section order mismatch");
   if (detail.sections.join(",") !== "primary-profile,secondary-responses,secondary-links,unified-notes,consultation-date") throw new Error("Temporary admin section keys mismatch");
   if (detail.hasLegacyTabs || detail.currentWorkCount !== 0) throw new Error("Legacy tabs or CURRENT WORK remain visible");
@@ -291,6 +315,7 @@ try {
   if (mobileMenuOpen.expanded !== "true" || mobileMenuOpen.controls !== "temp-admin-mobile-navigation" || mobileMenuOpen.drawerId !== "temp-admin-mobile-navigation" || mobileMenuOpen.drawerHidden !== "false" || mobileMenuOpen.bodyOverflow !== "hidden" || mobileMenuOpen.focusedLabel !== "메뉴 닫기" || !mobileMenuOpen.activeLabel.includes("신청자") || expectedMobileLabels.some(label => !mobileMenuOpen.labels.some(entry => entry.includes(label)))) throw new Error("Temporary admin mobile navigation open/accessibility state failed");
   if (!overlayClosed || !escapeClosed || !menuNavigationClosed) throw new Error("Temporary admin mobile navigation close behavior failed");
   if (mobile.horizontalOverflow || mobile.sectionCount !== 5 || mobile.privatePhotoCount !== 1 || mobile.secondaryLinkCount !== 1) throw new Error("Temporary admin mobile layout failed");
+  if (mobileList.serviceFilterValue !== "all" || mobileList.serviceOptions.join(",") !== "all,matching,social,both" || mobileList.horizontalOverflow) throw new Error("Temporary admin mobile application service filter layout failed");
   if (!social.hasScheduleTable || !social.hasSeptember19 || !social.legacyLabelVisible) throw new Error("Private social schedule rendering failed");
 } finally {
   socket.close();
