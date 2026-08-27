@@ -97,7 +97,7 @@
       const correction = correctionFor(item, field);
       const current = correction?.corrected_value ?? source.original;
       if (missingOnly && filled(current)) return "";
-      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(field.sourceLabel)}</span></div><div class="crm-original">불변 원본 · ${esc(valueForDisplay(source.original, source.key))}</div><div class="crm-current">현재 적용값 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 식별 정보는 읽기 전용입니다.</div>' : `<div class="crm-control">${controlMarkup(field, current)}<div class="crm-edit-meta"><label class="inline full"><input type="checkbox" data-customer-request style="min-width:auto;width:16px"> 고객 요청으로 반영</label><button type="button" class="crm-save full" data-direct-save>변경사항 반영</button><div class="crm-save-state full" aria-live="polite"></div></div></div>`}</article>`;
+      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(field.sourceLabel)}</span></div><div class="crm-original">불변 원본 · ${esc(valueForDisplay(source.original, source.key))}</div><div class="crm-current">현재 적용값 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 식별 정보는 읽기 전용입니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}</article>`;
     };
     const customerSections = (item) => {
       const all = activeCustomerFields(item);
@@ -202,18 +202,24 @@
     const bindContinuous = (item) => {
       document.querySelector("[data-missing-toggle]").onclick = () => { missingOnly = !missingOnly; render(item); };
       bindOptionRows();
-      document.querySelectorAll("[data-direct-save]").forEach((button) => button.onclick = async () => {
-        const card = button.closest("[data-direct-field]"), field = activeCustomerFields(item).find((entry) => entry.id === card.dataset.directField), source = sourceFor(item, field);
+      const saveDirectCard = async (card) => {
+        if (card.dataset.saving === "true") return;
+        const field = activeCustomerFields(item).find((entry) => entry.id === card.dataset.directField), source = sourceFor(item, field);
         const control = card.querySelector("[data-edit-value]"), option = card.querySelector("[data-option-group]");
         let value = option ? normalizedControlValue(option) : control.value;
-        const customerRequested = card.querySelector("[data-customer-request]").checked, reason = customerRequested ? "customer_request" : "admin_correction";
-        if (!filled(value)) { toast("반영할 값을 입력해 주세요.", true); return; }
-        button.disabled = true; card.querySelector(".crm-save-state").textContent = "저장 중…";
+        if (!filled(value) || JSON.stringify(value) === JSON.stringify(currentFor(item, field))) return;
+        card.dataset.saving = "true";
         try {
-          await invokeAdmin("admin-field-correction-add", { subject_type: source.subject.type, subject_id: source.subject.id, form_id: source.form?.id || null, field_group: field.group, field_key: source.key, field_label: field.label, corrected_value: value, customer_requested: customerRequested, correction_reason: reason, reason_note: null });
-          await refreshSelected(item, `${field.label} 변경사항을 반영했습니다.`);
-        } catch (error) { button.disabled = false; card.querySelector(".crm-save-state").textContent = `저장 실패 (${error.code})`; toast(`변경사항 반영 실패 (${error.code})`, true); }
-      });
+          await invokeAdmin("admin-field-correction-add", { subject_type: source.subject.type, subject_id: source.subject.id, form_id: source.form?.id || null, field_group: field.group, field_key: source.key, field_label: field.label, corrected_value: value, customer_requested: false, correction_reason: "admin_correction", reason_note: null });
+          await refreshSelected(item);
+        } catch (error) { card.dataset.saving = ""; toast(`입력값 저장 실패 (${error.code})`, true); }
+      };
+      document.querySelectorAll("[data-direct-field] [data-edit-value]").forEach((control) => control.onchange = () => saveDirectCard(control.closest("[data-direct-field]")));
+      document.querySelectorAll("[data-direct-field] [data-option-group]").forEach((group) => group.querySelectorAll("[data-option-value]").forEach((button) => button.onclick = () => {
+        group.dataset.value = button.dataset.optionValue;
+        group.querySelectorAll("[data-option-value]").forEach((option) => option.classList.toggle("selected", option === button));
+        saveDirectCard(button.closest("[data-direct-field]"));
+      }));
       document.getElementById("phone-consultation-form")?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const values = {};
