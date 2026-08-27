@@ -12,6 +12,8 @@ delete before.captured_at;
 delete after.captured_at;
 
 const differences = [];
+const isEmptyAdditiveOverlay = (value) =>
+  value && typeof value === "object" && value.total === 0 && Object.keys(value).every((key) => key === "total" || key === "content_checksum");
 function compare(left, right, path = "root") {
   const keys = new Set([
     ...Object.keys(left && typeof left === "object" ? left : {}),
@@ -25,6 +27,7 @@ function compare(left, right, path = "root") {
     const next = `${path}.${key}`;
     const l = left?.[key];
     const r = right?.[key];
+    if (l === undefined && isEmptyAdditiveOverlay(r)) continue;
     if (l && r && typeof l === "object" && typeof r === "object") compare(l, r, next);
     else if (JSON.stringify(l) !== JSON.stringify(r)) differences.push({ path: next, before: l, after: r });
   }

@@ -144,6 +144,26 @@ admin_audit_events as (
   select count(*)::int as total,
     md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
   from public.temporary_admin_audit_events t
+),
+admin_field_corrections as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_field_corrections t
+),
+admin_phone_consultation_revisions as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_phone_consultation_revisions t
+),
+admin_internal_evaluation_revisions as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_internal_evaluation_revisions t
+),
+admin_matching_feedback_revisions as (
+  select count(*)::int as total,
+    md5(coalesce(string_agg(id::text || ':' || md5(to_jsonb(t)::text), ',' order by id::text), '')) as content_checksum
+  from public.temporary_admin_matching_feedback_revisions t
 )
 select json_build_object(
   'captured_at', now(),
@@ -165,7 +185,11 @@ select json_build_object(
     'matching_cases', (select row_to_json(admin_matching_cases) from admin_matching_cases),
     'matching_events', (select row_to_json(admin_matching_events) from admin_matching_events),
     'social_events', (select row_to_json(admin_social_events) from admin_social_events),
-    'audit_events', (select row_to_json(admin_audit_events) from admin_audit_events)
+    'audit_events', (select row_to_json(admin_audit_events) from admin_audit_events),
+    'field_corrections', (select row_to_json(admin_field_corrections) from admin_field_corrections),
+    'phone_consultation_revisions', (select row_to_json(admin_phone_consultation_revisions) from admin_phone_consultation_revisions),
+    'internal_evaluation_revisions', (select row_to_json(admin_internal_evaluation_revisions) from admin_internal_evaluation_revisions),
+    'matching_feedback_revisions', (select row_to_json(admin_matching_feedback_revisions) from admin_matching_feedback_revisions)
   ),
   'storage_by_bucket', (
     select coalesce(json_agg(row_to_json(bucket_counts) order by bucket_id), '[]'::json)
