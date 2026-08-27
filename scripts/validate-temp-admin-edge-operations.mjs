@@ -76,7 +76,7 @@ for (const action of [
   assert.ok(intake.includes(`body.action === "${action}"`), `new intake action missing: ${action}`);
 }
 
-assert.match(intake, /INTAKE_BUILD_ID = "temporary-intake-admin-operations-20260827-1"/);
+assert.match(intake, /INTAKE_BUILD_ID = "temporary-intake-admin-operations-20260827-2"/);
 assert.match(secondary, /BUILD_ID = "secondary-temp-admin-operations-20260827-3"/);
 assert.ok(secondary.includes('action === "secondary-admin-review"'));
 assert.ok(secondary.includes('form.status !== "submitted"'));

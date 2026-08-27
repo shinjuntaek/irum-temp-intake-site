@@ -1,5 +1,6 @@
 const projectRef = "wiesmommcmwwwkwufgqg";
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
+const expectEmpty = process.argv.includes("--expect-empty");
 
 if (!accessToken) {
   throw new Error("SUPABASE_ACCESS_TOKEN is required");
@@ -45,6 +46,30 @@ select json_build_object(
 ) as counts;
 `;
 
+const distributionQuery = `
+select 'workflow' as category, workflow_stage as event, count(*)::int as count
+from public.temporary_admin_workflow_events group by workflow_stage
+union all
+select 'review', result, count(*)::int
+from public.temporary_secondary_profile_reviews group by result
+union all
+select 'schedule', schedule_type || ':' || event_action, count(*)::int
+from public.temporary_admin_schedule_events group by schedule_type, event_action
+union all
+select 'member', member_status, count(*)::int
+from public.temporary_admin_member_events group by member_status
+union all
+select 'matching', status, count(*)::int
+from public.temporary_admin_matching_events group by status
+union all
+select 'social', status, count(*)::int
+from public.temporary_admin_social_events group by status
+union all
+select 'audit', action, count(*)::int
+from public.temporary_admin_audit_events group by action
+order by category, event;
+`;
+
 async function managementQuery(sql) {
   const response = await fetch(
     `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
@@ -65,6 +90,7 @@ async function managementQuery(sql) {
 
 const schemaRows = await managementQuery(query);
 const countRows = await managementQuery(countQuery);
+const distributions = await managementQuery(distributionQuery);
 const counts = countRows?.[0]?.counts || {};
 
 if (schemaRows.length !== expectedTables.length) {
@@ -73,8 +99,8 @@ if (schemaRows.length !== expectedTables.length) {
 if (schemaRows.some((row) => !row.rls_enabled)) {
   throw new Error("RLS is not enabled on every operational overlay table");
 }
-if (expectedTables.some((table) => counts[table] !== 0)) {
+if (expectEmpty && expectedTables.some((table) => counts[table] !== 0)) {
   throw new Error("Operational overlay tables were not empty immediately after migration");
 }
 
-console.log(JSON.stringify({ tables: schemaRows, counts }));
+console.log(JSON.stringify({ tables: schemaRows, counts, distributions, expect_empty: expectEmpty }));

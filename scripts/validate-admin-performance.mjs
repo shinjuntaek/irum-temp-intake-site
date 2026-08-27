@@ -38,11 +38,13 @@ for (const marker of [
   'path.startsWith("legacy/")',
   'path.startsWith(`submissions/${recordId}/`)',
   'appendAdminAudit(database, "photo_opened"',
+  'cleanText(body.purpose, 20) === "gallery"',
 ]) {
   if (!edge.includes(marker)) throw new Error(`missing Edge private-photo marker: ${marker}`);
 }
 
 if (/publicUrl|createPublicUrl|getPublicUrl/.test(edge)) throw new Error("private applicant photos must not use public URLs");
 if (/appendAdminAudit\([^)]*(path|signed_url|storage_path)/s.test(edge)) throw new Error("photo audit must not persist paths or signed URLs");
+if (!admin.includes('photoUrl(item,index,"gallery")')) throw new Error("only explicit gallery opens may be audited as photo views");
 
 console.log(`admin_performance_qa=pass scripts=${scripts.length} synchronized=true data_cache=true lazy_private_photo=true short_signed_url=true`);

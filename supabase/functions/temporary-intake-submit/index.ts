@@ -17,7 +17,7 @@ const MATCHING_EVENT_TABLE = "temporary_admin_matching_events";
 const SOCIAL_EVENT_TABLE = "temporary_admin_social_events";
 const ADMIN_AUDIT_TABLE = "temporary_admin_audit_events";
 const REVIEW_TABLE = "temporary_secondary_profile_reviews";
-const INTAKE_BUILD_ID = "temporary-intake-admin-operations-20260827-1";
+const INTAKE_BUILD_ID = "temporary-intake-admin-operations-20260827-2";
 const MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
@@ -892,7 +892,9 @@ Deno.serve(async (req) => {
         .from(BUCKET)
         .createSignedUrl(path, 600);
       if (error) throw error;
-      await appendAdminAudit(database, "photo_opened", "temporary_submission", String(recordId), user);
+      if (cleanText(body.purpose, 20) === "gallery") {
+        await appendAdminAudit(database, "photo_opened", "temporary_submission", String(recordId), user);
+      }
       return json({ signed_url: data.signedUrl, expires_in_seconds: 600 });
     }
 
@@ -912,7 +914,9 @@ Deno.serve(async (req) => {
       if (!path.startsWith("legacy/")) return json({ error: "INVALID_PHOTO_PATH" }, 422);
       const { data, error } = await database.storage.from(LEGACY_BUCKET).createSignedUrl(path, 600);
       if (error) throw error;
-      await appendAdminAudit(database, "photo_opened", "legacy_snapshot", null, user);
+      if (cleanText(body.purpose, 20) === "gallery") {
+        await appendAdminAudit(database, "photo_opened", "legacy_snapshot", null, user);
+      }
       return json({ signed_url: data.signedUrl, expires_in_seconds: 600 });
     }
 
