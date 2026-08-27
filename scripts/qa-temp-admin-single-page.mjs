@@ -232,6 +232,28 @@ try {
 
   await send("Emulation.setDeviceMetricsOverride", { width:390, height:844, deviceScaleFactor:1, mobile:true });
   await sleep(300);
+  await evaluate("document.querySelector('.os-mobile-menu-toggle').click()");
+  await waitFor("document.querySelector('.layout').classList.contains('os-mobile-menu-open')", "open mobile admin navigation");
+  const mobileMenuOpen = await evaluate(`({
+    expanded:document.querySelector('.os-mobile-menu-toggle')?.getAttribute('aria-expanded'),
+    controls:document.querySelector('.os-mobile-menu-toggle')?.getAttribute('aria-controls'),
+    drawerId:document.querySelector('.side')?.id,
+    drawerHidden:document.querySelector('.side')?.getAttribute('aria-hidden'),
+    bodyOverflow:document.body.style.overflow,
+    focusedLabel:document.activeElement?.getAttribute('aria-label') || '',
+    activeLabel:document.querySelector('[data-os-nav][aria-current="page"]')?.textContent?.trim() || '',
+    labels:Array.from(document.querySelectorAll('[data-os-nav]')).map(node => node.textContent.trim()),
+  })`);
+  await screenshot(`${outputDir}/mobile-menu.png`);
+  await evaluate("document.querySelector('.os-mobile-menu-backdrop').click()");
+  await waitFor("!document.querySelector('.layout').classList.contains('os-mobile-menu-open')", "close mobile navigation from backdrop");
+  const overlayClosed = await evaluate("document.querySelector('.os-mobile-menu-toggle').getAttribute('aria-expanded') === 'false' && document.body.style.overflow === ''");
+  await evaluate("document.querySelector('.os-mobile-menu-toggle').click()");
+  await send("Input.dispatchKeyEvent", { type:"keyDown", key:"Escape", code:"Escape", windowsVirtualKeyCode:27, nativeVirtualKeyCode:27 });
+  await send("Input.dispatchKeyEvent", { type:"keyUp", key:"Escape", code:"Escape", windowsVirtualKeyCode:27, nativeVirtualKeyCode:27 });
+  await waitFor("!document.querySelector('.layout').classList.contains('os-mobile-menu-open')", "close mobile navigation from escape");
+  await waitFor("document.activeElement === document.querySelector('.os-mobile-menu-toggle') && document.body.style.overflow === ''", "restore mobile menu focus after escape");
+  const escapeClosed = await evaluate("document.activeElement === document.querySelector('.os-mobile-menu-toggle') && document.body.style.overflow === ''");
   const mobile = await evaluate(`({
     sectionCount:document.querySelectorAll('[data-temp-applicant-section]').length,
     scrollWidth:document.documentElement.scrollWidth,
@@ -242,6 +264,10 @@ try {
   })`);
   await screenshot(`${outputDir}/mobile-detail.png`);
 
+  await evaluate("document.querySelector('.os-mobile-menu-toggle').click(); document.querySelector('[data-os-nav=dashboard]').click()");
+  await waitFor("document.body.innerText.includes('운영 현황') && !document.querySelector('.layout').classList.contains('os-mobile-menu-open')", "navigate from mobile drawer");
+  const menuNavigationClosed = await evaluate("document.querySelector('.os-mobile-menu-toggle').getAttribute('aria-expanded') === 'false' && document.body.style.overflow === ''");
+
   await evaluate("osOperationalPage('social')");
   await waitFor("document.querySelector('[data-social-application-schedules]') && document.body.innerText.includes('9월 19일')", "private social schedule table");
   await screenshot(`${outputDir}/mobile-social.png`);
@@ -249,7 +275,7 @@ try {
   await sleep(300);
   await screenshot(`${outputDir}/desktop-social.png`);
   const social = await evaluate(`({ hasScheduleTable:!!document.querySelector('[data-social-application-schedules]'), hasSeptember19:document.body.innerText.includes('9월 19일'), legacyLabelVisible:document.body.innerText.includes('구형 신청 · 일정 미수집') })`);
-  const result = { unauthenticated, list, detail, reissue, mobile, social };
+  const result = { unauthenticated, list, detail, reissue, mobileMenuOpen, overlayClosed, escapeClosed, menuNavigationClosed, mobile, social };
   await writeFile(`${outputDir}/result.json`, `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result));
 
@@ -261,6 +287,9 @@ try {
   if ([detail.secondaryReviewCount, detail.secondaryLinkCount, detail.unifiedMemoCount, detail.consultationDateCount].some(count => count !== 1)) throw new Error("Single-page panel duplication detected");
   if (detail.privatePhotoCount !== 1 || detail.privateDocumentCount !== 1 || detail.reissueButtonCount !== 1 || detail.markSentButtonCount !== 1 || detail.issueButtonText !== "기존 링크 재발급") throw new Error("Private photo/document or secondary reissue/manual-sent control regression detected");
   if (reissue.reissueCalls !== 1 || reissue.formId !== "qa-form" || reissue.expiresInDays !== 14 || reissue.rawUrl !== "https://irum.click/profile/#qa-new-token" || reissue.copyButtonCount !== 1 || !reissue.draftRevisionText || reissue.markSentCalls !== 1 || reissue.clearSentCalls !== 1 || !reissue.sentResetAfterReissue) throw new Error("Secondary reissue/manual-sent UI flow failed");
+  const expectedMobileLabels = ["대시보드", "신청자", "회원", "1:1 매칭", "프라이빗 소셜", "Host 유입 검수", "할 일 · 일정", "통계 · Funnel", "관리자 · 권한", "감사 로그", "설정"];
+  if (mobileMenuOpen.expanded !== "true" || mobileMenuOpen.controls !== "temp-admin-mobile-navigation" || mobileMenuOpen.drawerId !== "temp-admin-mobile-navigation" || mobileMenuOpen.drawerHidden !== "false" || mobileMenuOpen.bodyOverflow !== "hidden" || mobileMenuOpen.focusedLabel !== "메뉴 닫기" || !mobileMenuOpen.activeLabel.includes("신청자") || expectedMobileLabels.some(label => !mobileMenuOpen.labels.some(entry => entry.includes(label)))) throw new Error("Temporary admin mobile navigation open/accessibility state failed");
+  if (!overlayClosed || !escapeClosed || !menuNavigationClosed) throw new Error("Temporary admin mobile navigation close behavior failed");
   if (mobile.horizontalOverflow || mobile.sectionCount !== 5 || mobile.privatePhotoCount !== 1 || mobile.secondaryLinkCount !== 1) throw new Error("Temporary admin mobile layout failed");
   if (!social.hasScheduleTable || !social.hasSeptember19 || !social.legacyLabelVisible) throw new Error("Private social schedule rendering failed");
 } finally {

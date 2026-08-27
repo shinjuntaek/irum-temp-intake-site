@@ -44,6 +44,15 @@ const requiredMarkers = [
   '9월 19일',
   '다음 모임 희망',
   '구형 신청 · 일정 미수집',
+  '.os-mobile-menu-toggle',
+  'side.id="temp-admin-mobile-navigation"',
+  'aria-controls="temp-admin-mobile-navigation"',
+  'aria-expanded="false"',
+  'side.setAttribute("aria-label","관리자 전체 메뉴")',
+  'event.key==="Escape"',
+  'document.body.style.overflow="hidden"',
+  'layout.classList.contains("os-mobile-menu-open")',
+  'osInitMobileMenu()',
 ];
 for (const marker of requiredMarkers) {
   if (!source.includes(marker)) throw new Error(`missing temp admin single-page marker: ${marker}`);
@@ -97,6 +106,17 @@ if (latestFormStart < 0 || latestFormEnd <= latestFormStart || latestFormBlock.i
   throw new Error("revoked or expired secondary forms must not count as the current sent/submitted state");
 }
 
+const mobileMenuStart = source.indexOf("function osInitMobileMenu()");
+const mobileMenuEnd = source.indexOf("const osShellWithTierLead", mobileMenuStart);
+const mobileMenuBlock = source.slice(mobileMenuStart, mobileMenuEnd);
+if (mobileMenuStart < 0 || mobileMenuEnd <= mobileMenuStart) throw new Error("temp admin mobile menu initializer not found");
+for (const contract of ["focusable", "event.shiftKey", "closeButton.focus()", "trigger.focus()", "os-mobile-menu-lock", "[data-os-nav]", "aria-current"]) {
+  if (!mobileMenuBlock.includes(contract)) throw new Error(`missing temp admin mobile navigation contract: ${contract}`);
+}
+for (const label of ["대시보드", "신청자", "회원", "1:1 매칭", "프라이빗 소셜", "Host 유입 검수", "할 일 · 일정", "통계 · Funnel", "관리자 · 권한", "감사 로그", "설정", "로그아웃"]) {
+  if (!source.includes(label)) throw new Error(`missing temp admin navigation label: ${label}`);
+}
+
 console.log(
-  `temp_admin_single_page_qa=pass scripts=${scripts.length} synchronized=true sections=${sectionKeys.length} private_media_preserved=true secondary_links_preserved=true`,
+  `temp_admin_single_page_qa=pass scripts=${scripts.length} synchronized=true sections=${sectionKeys.length} private_media_preserved=true secondary_links_preserved=true mobile_navigation=true`,
 );
