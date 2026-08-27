@@ -1482,7 +1482,7 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
   var anim=null;
   var lastPct=0;
 
-  function base(){ return {gender:'',role:'',income:'',assets:'',roleOther:'',incomeOther:'',assetsOther:'',qualification:'',otherJob:'',bodyType:'',points:[],name:'',birthdate:'',phone:'',height:'',region:'',isAdult:false,terms:false,privacy:false,marketing:false,socialAttendanceIntent:'',socialEventId:null,socialEvents:[],socialEventsLoaded:false}; }
+  function base(){ return {gender:'',role:'',income:'',assets:'',roleOther:'',incomeOther:'',assetsOther:'',qualification:'',otherJob:'',bodyType:'',points:[],name:'',birthdate:'',phone:'',height:'',weight:'',region:'',seoulMeetingAvailability:'',isAdult:false,terms:false,privacy:false,marketing:false,socialAttendanceIntent:'',socialEventId:null,socialEvents:[],socialEventsLoaded:false}; }
   var esc=function(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
   var fmtPhone=function(v){ var d=String(v).replace(/\D/g,'').slice(0,11); return d.length<=3?d:(d.length<=7?(d.slice(0,3)+'-'+d.slice(3)):(d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7))); };
   var fmtBirth=function(v){ var d=String(v).replace(/\D/g,'').slice(0,6); return d.length<=2?d:(d.length<=4?(d.slice(0,2)+'.'+d.slice(2)):(d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4))); };
@@ -1502,6 +1502,7 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
     var isOther=(S.data.qualification===OTHER), h='';
     h+='<div class="af-field">'+label('직업 선택',true)+'<div class="af-opts">'+qualRow('기타',false)+(isOther?'<input class="af-in af-otherjob" data-in="otherJob" value="'+esc(S.data.otherJob)+'" placeholder="직업 또는 활동을 입력해 주세요">':'')+["전문직","대기업","인플루언서","셀럽/연예인","아이돌 지망생"].map(function(v){return qualRow(v,true);}).join('')+'</div></div>';
     h+='<div class="af-field">'+label('체형',true)+'<div class="af-opts col2">'+bodies.map(function(v){return opt('bodyType',v,(v==='날씬')?'우대':'');}).join('')+'</div></div>';
+    h+='<div class="af-field">'+label('몸무게',false,'상담 전 확인이 필요한 경우에만 활용합니다.')+'<div class="af-suffix-wrap"><input class="af-in af-in-suffix" data-in="weight" inputmode="numeric" maxlength="3" value="'+esc(S.data.weight||'')+'" placeholder="예: 52"><span class="af-suffix">kg</span></div></div>';
     h+='<div class="af-field">'+label('매력 포인트',true,'해당하는 것을 모두 선택 · 많을수록 매칭 품질이 올라갑니다.')+'<div class="af-opts">'+points.map(pointOpt).join('')+'</div></div>';
     h+='<div class="af-field">'+label('사진 2장',true,'정면·일상 각 1장 (JPG·PNG·WEBP / 5MB 이하)')+'<div class="af-photos">'+photoBox('front','정면 사진')+photoBox('lifestyle','일상 사진')+'</div></div>';
     return h;
@@ -1512,7 +1513,8 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
       +'<div class="af-field">'+label('생년월일',true)+'<input class="af-in" data-in="birthdate" inputmode="numeric" maxlength="8" value="'+esc(S.data.birthdate)+'" placeholder="ex. 990320"></div>'
       +'<div class="af-field">'+label('휴대전화 번호',true)+'<input class="af-in" data-in="phone" inputmode="numeric" maxlength="13" value="'+esc(S.data.phone)+'" placeholder="010-0000-0000"></div>'
       +'<div class="af-field">'+label('키',true)+'<div class="af-suffix-wrap"><input class="af-in af-in-suffix" data-in="height" inputmode="numeric" maxlength="3" value="'+esc(S.data.height)+'" placeholder="예: 174"><span class="af-suffix">cm</span></div></div>'
-      +'<div class="af-field">'+label('주 활동 지역',true)+'<div class="af-opts col2">'+regions.map(function(v){return opt('region',v);}).join('')+'</div></div>';
+      +'<div class="af-field">'+label('주 활동 지역',true)+'<div class="af-opts col2">'+regions.map(function(v){return opt('region',v);}).join('')+'</div></div>'
+      +'<div class="af-field">'+label('서울 만남 가능 여부',false,'상담·소개 가능 일정 조율에만 활용합니다.')+'<div class="af-opts col2">'+['가능','일정 조율 시 가능','불가능'].map(function(v){return opt('seoulMeetingAvailability',v);}).join('')+'</div></div>';
   }
   function consent(key,title,sub){ return '<label class="af-consent"><input type="checkbox" data-check="'+key+'" '+(S.data[key]?'checked':'')+'><span class="af-box"></span><span class="af-consent-txt"><strong>'+title+'</strong>'+(sub?'<small>'+sub+'</small>':'')+'</span></label>'; }
   function confirmStep(){
@@ -1620,7 +1622,7 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
       var payload={
         external_submission_id:S.externalSubmissionId||(S.externalSubmissionId=(crypto.randomUUID?crypto.randomUUID():'irum-'+Date.now())),
         submission_type:S.service==='social'?'social':'matching',
-        profile:{name:S.data.name||'',gender:S.data.gender||'',birthYear:birthYear,phone:S.data.phone||'',job:((S.data.role==='기타'?S.data.roleOther:S.data.role)||(S.data.qualification==='기타'?S.data.otherJob:S.data.qualification)||'').trim(),region:S.data.region||'',income:S.data.income||'',height:S.data.height||'',bodyType:S.data.bodyType||'',assets:S.data.assets||'',appealPoints:S.data.points||'',socialAttendanceIntent:S.service==='social'?(S.data.socialAttendanceIntent||''):undefined,socialEventId:S.service==='social'&&S.data.socialAttendanceIntent==='specific_event'?(Number(S.data.socialEventId)||null):null,preferences:{marketing:S.data.marketing||''}},
+        profile:{name:S.data.name||'',gender:S.data.gender||'',birthYear:birthYear,phone:S.data.phone||'',job:((S.data.role==='기타'?S.data.roleOther:S.data.role)||(S.data.qualification==='기타'?S.data.otherJob:S.data.qualification)||'').trim(),region:S.data.region||'',income:S.data.income||'',height:S.data.height||'',weight:S.data.gender==='female'?(S.data.weight||''):undefined,seoulMeetingAvailability:S.data.seoulMeetingAvailability||'',bodyType:S.data.bodyType||'',assets:S.data.assets||'',appealPoints:S.data.points||'',socialAttendanceIntent:S.service==='social'?(S.data.socialAttendanceIntent||''):undefined,socialEventId:S.service==='social'&&S.data.socialAttendanceIntent==='specific_event'?(Number(S.data.socialEventId)||null):null,preferences:{marketing:S.data.marketing||''}},
         marketing:{entry_path:location.pathname+location.search,referrer:document.referrer||'',utm:Object.fromEntries(params.entries())},
         consent_at:new Date().toISOString(),
         consent_version:'temporary-v1'

@@ -15,7 +15,7 @@ const scripts = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi
 for (const script of scripts) new vm.Script(script);
 
 const requiredMarkers = [
-  'TEMP_ADMIN_BUILD_ID = "temp-admin-pasted5-operations-20260827-3"',
+  'TEMP_ADMIN_BUILD_ID = "temp-admin-consultation-crm-20260827-1"',
   "const SLA_HOURS = 24",
   "const API_TIMEOUT_MS = 15000",
   'const READ_RETRY_ACTIONS = new Set(["admin-list","snapshot-list","operational-list","consultation-import-manifest","secondary-admin-list","admin-operations-list"])',
@@ -35,9 +35,23 @@ const requiredMarkers = [
   'data-temp-section-order',
   'section(1,"primary-profile","1차 기본 프로필"',
   'section(2,"secondary-responses","2차 신청폼 응답"',
-  'section(3,"secondary-links","2차 신청폼 링크"',
-  'section(4,"unified-notes","통메모장"',
+  'section(3,"consultation-review","상담·심사 기록"',
+  'section(4,"secondary-links-notes","2차 링크 · 통메모장"',
   'section(5,"consultation-date","상담·연락 일정"',
+  'class="change-rail"',
+  '변경 이력',
+  '원본 payload를 수정하지 않고',
+  '정보 수정 요청 / 정정',
+  '전화 상담 기록',
+  '내부 평가',
+  '첫 만남 피드백',
+  'admin-field-correction-add',
+  'admin-phone-consultation-save',
+  'admin-internal-evaluation-save',
+  'admin-matching-feedback-add',
+  'id="matching-feedback-form"',
+  'feedback_subject_type:subject.type',
+  'provider_subject_type:other.type',
   'admin-operations-list',
   'admin-workflow-set',
   'secondary-admin-review',
@@ -97,11 +111,11 @@ for (const removed of ["티어 확인 리드", "Host 유입 검수", "통계 · 
   if (source.includes(removed)) throw new Error(`removed navigation or legacy UI remains: ${removed}`);
 }
 
-const renderStart = source.indexOf("function renderApplicant(item)");
-const renderEnd = source.indexOf("function section(order", renderStart);
+const renderStart = source.lastIndexOf("function renderApplicant(item)");
+const renderEnd = source.indexOf("(async()=>", renderStart);
 if (renderStart < 0 || renderEnd <= renderStart) throw new Error("canonical applicant renderer not found");
 const renderBlock = source.slice(renderStart, renderEnd);
-const sectionKeys = ["primary-profile", "secondary-responses", "secondary-links", "unified-notes", "consultation-date"];
+const sectionKeys = ["primary-profile", "secondary-responses", "consultation-review", "secondary-links-notes", "consultation-date"];
 for (const key of sectionKeys) {
   if ((renderBlock.match(new RegExp(`\"${key}\"`, "g")) || []).length !== 1) {
     throw new Error(`section key must appear exactly once: ${key}`);

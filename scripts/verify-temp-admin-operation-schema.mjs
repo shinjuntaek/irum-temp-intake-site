@@ -17,6 +17,10 @@ const expectedTables = [
   "temporary_admin_social_events",
   "temporary_admin_social_participation_events_v2",
   "temporary_admin_audit_events",
+  "temporary_admin_field_corrections",
+  "temporary_admin_phone_consultation_revisions",
+  "temporary_admin_internal_evaluation_revisions",
+  "temporary_admin_matching_feedback_revisions",
 ];
 
 const tableNames = expectedTables.map((name) => `'${name}'`).join(",");
@@ -44,7 +48,11 @@ select json_build_object(
   'temporary_admin_matching_events', (select count(*)::int from public.temporary_admin_matching_events),
   'temporary_admin_social_events', (select count(*)::int from public.temporary_admin_social_events),
   'temporary_admin_social_participation_events_v2', (select count(*)::int from public.temporary_admin_social_participation_events_v2),
-  'temporary_admin_audit_events', (select count(*)::int from public.temporary_admin_audit_events)
+  'temporary_admin_audit_events', (select count(*)::int from public.temporary_admin_audit_events),
+  'temporary_admin_field_corrections', (select count(*)::int from public.temporary_admin_field_corrections),
+  'temporary_admin_phone_consultation_revisions', (select count(*)::int from public.temporary_admin_phone_consultation_revisions),
+  'temporary_admin_internal_evaluation_revisions', (select count(*)::int from public.temporary_admin_internal_evaluation_revisions),
+  'temporary_admin_matching_feedback_revisions', (select count(*)::int from public.temporary_admin_matching_feedback_revisions)
 ) as counts;
 `;
 
@@ -72,6 +80,18 @@ from public.temporary_admin_social_participation_events_v2 group by status
 union all
 select 'audit', action, count(*)::int
 from public.temporary_admin_audit_events group by action
+union all
+select 'correction', field_group || ':' || correction_reason, count(*)::int
+from public.temporary_admin_field_corrections group by field_group, correction_reason
+union all
+select 'phone_consultation', 'revision', count(*)::int
+from public.temporary_admin_phone_consultation_revisions
+union all
+select 'internal_evaluation', 'revision', count(*)::int
+from public.temporary_admin_internal_evaluation_revisions
+union all
+select 'matching_feedback', reunion_intent, count(*)::int
+from public.temporary_admin_matching_feedback_revisions group by reunion_intent
 order by category, event;
 `;
 

@@ -11,7 +11,7 @@ const ALLOWED_DOCUMENT_TYPES = new Set(["application/pdf", "image/jpeg", "image/
 const ALLOWED_FORM_TYPES = new Set(["profile_female", "profile_male", "social_event"]);
 const ALLOWED_SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
 const REVIEW_RESULTS = new Set(["approved", "hold", "rejected", "materials_requested"]);
-const BUILD_ID = "secondary-sent-ownership-hardening-20260827-4";
+const BUILD_ID = "secondary-consultation-crm-fields-20260827-5";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-snapshot-export-token",
@@ -47,6 +47,8 @@ function normalizeSecondaryPayload(formType: string, rawValue: unknown) {
   const raw = rawValue && typeof rawValue === "object"
     ? rawValue as Record<string, unknown>
     : {};
+  const hasSensitiveConsent = Object.prototype.hasOwnProperty.call(raw, "healthSensitiveConsent") ||
+    Object.prototype.hasOwnProperty.call(raw, "health_sensitive_consent");
   const common = {
     name: limitedText(raw.name, 100),
     phone: normalizePhone(raw.phone).slice(0, 11),
@@ -66,6 +68,9 @@ function normalizeSecondaryPayload(formType: string, rawValue: unknown) {
     healthFlag: limitedText(raw.healthFlag ?? raw.health_flag, 30),
     healthMemo: limitedText(raw.healthMemo ?? raw.health_memo, 2000),
     privacyConsent: booleanValue(raw.privacyConsent ?? raw.privacy_consent ?? raw.profileConsent),
+    ...(hasSensitiveConsent
+      ? { healthSensitiveConsent: booleanValue(raw.healthSensitiveConsent ?? raw.health_sensitive_consent) }
+      : {}),
   };
   if (formType === "profile_female") {
     return {
@@ -95,6 +100,8 @@ function normalizeSecondaryPayload(formType: string, rawValue: unknown) {
       incomeMale: limitedText(raw.incomeMale ?? raw.income_male, 100),
       asset: limitedText(raw.asset, 100),
       car: limitedText(raw.car, 100),
+      carModel: limitedText(raw.carModel ?? raw.car_model, 160),
+      carYear: limitedText(raw.carYear ?? raw.car_year, 10),
       housing: limitedText(raw.housing, 100),
       purpose: limitedText(raw.purpose, 50),
       serviceSelection: limitedText(raw.serviceSelection ?? raw.serviceMale ?? raw.service_male, 50),
@@ -135,6 +142,7 @@ function canonicalizeSecondaryPayloadPatch(formType: string, rawValue: unknown) 
   alias("maritalStatus", "marriage");
   alias("healthFlag", "health_flag");
   alias("healthMemo", "health_memo");
+  alias("healthSensitiveConsent", "health_sensitive_consent");
   alias("privacyConsent", "privacy_consent", "profileConsent");
   if (formType === "profile_female") {
     alias("job", "job_female");
@@ -158,6 +166,8 @@ function canonicalizeSecondaryPayloadPatch(formType: string, rawValue: unknown) 
     alias("targetTattoo", "target_tattoo");
     alias("targetSmoking", "target_smoking");
     alias("targetMarriage", "target_marriage");
+    alias("carModel", "car_model");
+    alias("carYear", "car_year");
     alias("documentDeferred", "document_deferred");
     alias("documentDueDate", "document_due_date");
   } else if (formType === "social_event") {
@@ -371,10 +381,16 @@ type SubmissionValidationIssue = { code: string; missing: string[] };
 function validateSubmission(formType: string, payload: Record<string, unknown>, verifiedTypes: Set<string>): SubmissionValidationIssue | null {
   const missing: string[] = [];
   const requireText = (key: string, value: unknown = payload[key]) => { if (!text(value)) missing.push(key); };
+  const validateSensitiveConsent = () => {
+    const collectsSensitiveHealth = text(payload.healthFlag) === "있음" || Boolean(text(payload.healthMemo));
+    const explicitlyProvided = Object.prototype.hasOwnProperty.call(payload, "healthSensitiveConsent");
+    if (collectsSensitiveHealth && explicitlyProvided && payload.healthSensitiveConsent !== true) missing.push("healthSensitiveConsent");
+  };
   if (formType === "profile_female") {
     ["birthDate", "height", "region", "singleStatus", "maritalStatus", "realCheckMethod", "realCheckDate", "serviceSelection"].forEach((key) => requireText(key));
     if (text(payload.workType) === "기타") requireText("workTypeOther");
     if (payload.privacyConsent !== true) missing.push("privacyConsent");
+    validateSensitiveConsent();
     if (!missing.length) return null;
     return { code: missing.length === 1 && missing[0] === "privacyConsent" ? "PRIVACY_CONSENT_REQUIRED" : "FEMALE_REQUIRED_FIELDS_MISSING", missing };
   }
@@ -392,6 +408,7 @@ function validateSubmission(formType: string, payload: Record<string, unknown>, 
       if (!verifiedTypes.has("asset")) missing.push("assetDocument");
     }
     if (payload.privacyConsent !== true) missing.push("privacyConsent");
+    validateSensitiveConsent();
     if (!missing.length) return null;
     return { code: missing.length === 1 && missing[0] === "privacyConsent" ? "PRIVACY_CONSENT_REQUIRED" : "MALE_REQUIRED_FIELDS_MISSING", missing };
   }

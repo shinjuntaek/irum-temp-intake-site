@@ -8,6 +8,7 @@ const intake = await readFile(resolve(root, "supabase/functions/temporary-intake
 const secondary = await readFile(resolve(root, "supabase/functions/temporary-secondary-profile/index.ts"), "utf8");
 const migration = await readFile(resolve(root, "supabase/migrations/20260827_temporary_admin_operations.sql"), "utf8");
 const socialPaymentMigration = await readFile(resolve(root, "supabase/migrations/20260827_temporary_social_payment_states_v2.sql"), "utf8");
+const consultationCrmMigration = await readFile(resolve(root, "supabase/migrations/20260827_temporary_consultation_crm_revisions_v3.sql"), "utf8");
 
 const originalIntakeActions = [
   "create",
@@ -73,12 +74,16 @@ for (const action of [
   "admin-match-create",
   "admin-match-transition",
   "admin-social-status-set",
+  "admin-field-correction-add",
+  "admin-phone-consultation-save",
+  "admin-internal-evaluation-save",
+  "admin-matching-feedback-add",
 ]) {
   assert.ok(intake.includes(`body.action === "${action}"`), `new intake action missing: ${action}`);
 }
 
-assert.match(intake, /INTAKE_BUILD_ID = "temporary-intake-operations-hardening-20260827-4"/);
-assert.match(secondary, /BUILD_ID = "secondary-sent-ownership-hardening-20260827-4"/);
+assert.match(intake, /INTAKE_BUILD_ID = "temporary-intake-consultation-crm-20260827-5"/);
+assert.match(secondary, /BUILD_ID = "secondary-consultation-crm-fields-20260827-5"/);
 assert.ok(secondary.includes('action === "secondary-admin-review"'));
 assert.ok(secondary.includes('form.status !== "submitted"'));
 assert.ok(secondary.includes('return json({ error: "FORM_NOT_SUBMITTED" }, 409)'));
@@ -102,12 +107,26 @@ assert.ok(intake.includes('return json({ error: "INVALID_SOCIAL_TRANSITION", pre
 assert.ok(intake.includes('return json({ error: "SOCIAL_STATUS_REASON_REQUIRED" }, 422)'));
 assert.ok(intake.includes('return json({ ok: true, unchanged: true, workflow: current, build_id: INTAKE_BUILD_ID })'));
 assert.ok(intake.includes('previous?.scheduled_at === scheduledAt.toISOString()'));
+assert.ok(intake.includes("temporary_admin_field_corrections"));
+assert.ok(intake.includes("temporary_admin_phone_consultation_revisions"));
+assert.ok(intake.includes("temporary_admin_internal_evaluation_revisions"));
+assert.ok(intake.includes("temporary_admin_matching_feedback_revisions"));
+assert.ok(intake.includes('return json({ error: "MATCHING_CASE_NOT_FOUND" }, 404)'));
+assert.ok(intake.includes('return json({ error: "MEETING_NOT_COMPLETED" }, 409)'));
+assert.ok(intake.includes('return json({ error: "MATCHING_FEEDBACK_SUBJECT_MISMATCH" }, 409)'));
+assert.ok(intake.includes("correctionSourceValue"));
+assert.ok(intake.includes("CORRECTION_FIELD_NOT_FOUND"));
+assert.ok(intake.includes("temporary_admin_append_correction_and_audit"));
 
 assert.ok(secondary.includes('current.subject_type !== subjectType || String(current.subject_id) !== subjectId'));
 assert.ok(secondary.includes('return json({ error: "FORM_SUBJECT_MISMATCH" }, 409)'));
 assert.ok(secondary.includes('secondary_link_sent_marked'));
 assert.ok(secondary.includes('secondary_link_sent_cleared'));
 assert.equal((secondary.match(/select\("id, subject_type, subject_id, status, sent_at, sent_by_user_id, sent_by_email"\)/g) || []).length, 2);
+assert.ok(secondary.includes("healthSensitiveConsent"));
+assert.ok(secondary.includes("carModel"));
+assert.ok(secondary.includes("carYear"));
+assert.ok(secondary.includes("preferredAgeMin"));
 
 assert.ok(!/\bdelete\s+from\b/i.test(migration));
 assert.ok(!/\btruncate\s+table\b/i.test(migration));
@@ -139,5 +158,16 @@ assert.ok(socialPaymentMigration.includes("temporary_admin_social_participation_
 assert.ok(socialPaymentMigration.includes("payment_pending"));
 assert.ok(socialPaymentMigration.includes("paid"));
 assert.ok(socialPaymentMigration.includes("status not in ('cancelled', 'no_show')"));
+
+assert.ok(!/\b(delete\s+from|truncate\s+table|drop\s+(?:table|column)|update\s+public\.)\b/i.test(consultationCrmMigration));
+assert.equal((consultationCrmMigration.match(/^create table if not exists/gm) || []).length, 4);
+assert.equal((consultationCrmMigration.match(/enable row level security/g) || []).length, 4);
+assert.ok(consultationCrmMigration.includes("temporary_admin_field_corrections"));
+assert.ok(consultationCrmMigration.includes("temporary_admin_phone_consultation_revisions"));
+assert.ok(consultationCrmMigration.includes("temporary_admin_internal_evaluation_revisions"));
+assert.ok(consultationCrmMigration.includes("temporary_admin_matching_feedback_revisions"));
+assert.ok(consultationCrmMigration.includes("matching_case_id uuid not null"));
+assert.ok(consultationCrmMigration.includes("on delete restrict"));
+assert.ok(consultationCrmMigration.includes("temporary_admin_append_correction_and_audit"));
 
 console.log("Temporary admin Edge operations contract passed");

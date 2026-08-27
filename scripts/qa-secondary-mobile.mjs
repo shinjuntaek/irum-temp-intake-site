@@ -2,8 +2,9 @@ import { createServer } from "node:http";
 import { readFile, stat, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = "/home/ubuntu/irum-temp-intake";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = 4177;
 const debugPort = 9227;
 const mime = { ".html":"text/html; charset=utf-8", ".js":"text/javascript", ".css":"text/css", ".png":"image/png", ".webp":"image/webp" };
@@ -132,7 +133,7 @@ try {
   await sleep(350);
   const femaleSuccess = await call("Runtime.evaluate", { expression:"JSON.stringify({text:document.body.innerText,calls:window.__qaSubmitCalls,drafts:window.__qaDraftCalls,payload:window.__qaSubmitBodies?.[0]?.payload,clientBuild:window.__qaSubmitBodies?.[0]?.client_build_id})", returnByValue:true }, sessionId);
   const femaleSuccessParsed = JSON.parse(femaleSuccess.result.value || "{}");
-  if (!String(femaleSuccessParsed.text).includes("테스트 신청자님의 프로필이 IRUM에 전달되었습니다") || femaleSuccessParsed.calls !== 1 || femaleSuccessParsed.drafts < 1 || femaleSuccessParsed.payload?.privacyConsent !== true || femaleSuccessParsed.payload?.realCheckMethod !== "대면 확인" || femaleSuccessParsed.payload?.realCheckDate !== "2026-09-15" || femaleSuccessParsed.clientBuild !== "secondary-submit-cas-current-payload-20260826-2") throw new Error(`female submit success failed: ${femaleSuccess.result.value}`);
+  if (!String(femaleSuccessParsed.text).includes("테스트 신청자님의 프로필이 IRUM에 전달되었습니다") || femaleSuccessParsed.calls !== 1 || femaleSuccessParsed.drafts < 1 || femaleSuccessParsed.payload?.privacyConsent !== true || femaleSuccessParsed.payload?.realCheckMethod !== "대면 확인" || femaleSuccessParsed.payload?.realCheckDate !== "2026-09-15" || femaleSuccessParsed.clientBuild !== "secondary-consultation-crm-fields-20260827-5") throw new Error(`female submit success failed: ${femaleSuccess.result.value}`);
   const personalizedSafety = await call("Runtime.evaluate", { expression:"form.name='<img src=x onerror=window.__xss=1>';feedback(completionProfileTitle(),'완료',true);JSON.stringify({title:document.querySelector('.feedback-card h1')?.textContent,images:document.querySelectorAll('.feedback-card img').length,xss:window.__xss||0});", returnByValue:true }, sessionId);
   const personalizedSafetyParsed = JSON.parse(personalizedSafety.result.value || "{}");
   if (personalizedSafetyParsed.title !== "<img src=x onerror=window.__xss=1>님의 프로필이 IRUM에 전달되었습니다." || personalizedSafetyParsed.images !== 0 || personalizedSafetyParsed.xss !== 0) throw new Error(`personalized completion XSS guard failed: ${personalizedSafety.result.value}`);

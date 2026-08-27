@@ -23,7 +23,7 @@ for (const [relative, source] of entries) {
 const admin = sources.get("admin.html");
 assert.ok(admin.includes("https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-intake-submit"));
 assert.ok(admin.includes("https://wiesmommcmwwwkwufgqg.supabase.co/functions/v1/temporary-secondary-profile"));
-assert.ok(admin.includes('TEMP_ADMIN_BUILD_ID = "temp-admin-pasted5-operations-20260827-3"'));
+assert.ok(admin.includes('TEMP_ADMIN_BUILD_ID = "temp-admin-consultation-crm-20260827-1"'));
 
 const validator = sources.get("scripts/validate-secondary-submit-edge.mjs");
 assert.ok(validator.includes("fileURLToPath(import.meta.url)"));

@@ -18,7 +18,12 @@ const LEGACY_SOCIAL_EVENT_TABLE = "temporary_admin_social_events";
 const SOCIAL_EVENT_TABLE = "temporary_admin_social_participation_events_v2";
 const ADMIN_AUDIT_TABLE = "temporary_admin_audit_events";
 const REVIEW_TABLE = "temporary_secondary_profile_reviews";
-const INTAKE_BUILD_ID = "temporary-intake-operations-hardening-20260827-4";
+const SECONDARY_FORM_TABLE = "temporary_secondary_profile_forms";
+const CORRECTION_TABLE = "temporary_admin_field_corrections";
+const PHONE_CONSULTATION_TABLE = "temporary_admin_phone_consultation_revisions";
+const INTERNAL_EVALUATION_TABLE = "temporary_admin_internal_evaluation_revisions";
+const MATCHING_FEEDBACK_TABLE = "temporary_admin_matching_feedback_revisions";
+const INTAKE_BUILD_ID = "temporary-intake-consultation-crm-20260827-5";
 const MAX_BYTES = 8 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SUBJECT_TYPES = new Set(["temporary_submission", "legacy_snapshot", "restored_application"]);
@@ -49,6 +54,10 @@ const SOCIAL_TRANSITIONS: Record<string, string[]> = {
   no_show: [],
   cancelled: [],
 };
+const CORRECTION_REASONS = new Set(["customer_request", "phone_consultation", "verification", "admin_correction", "other"]);
+const CORRECTION_SOURCES = new Set(["intake", "secondary", "legacy_snapshot"]);
+const CORRECTION_GROUPS = new Set(["primary", "secondary"]);
+const FEEDBACK_INTENTS = new Set(["very_positive", "positive", "unsure", "negative"]);
 const AUDIT_SECRET_KEYS = new Set(["token", "token_hash", "raw_url", "signed_url", "storage_path", "payload", "draft_payload", "submitted_payload"]);
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -147,6 +156,23 @@ async function appendAdminAudit(
 
 const cleanText = (value: unknown, max = 500) => String(value ?? "").trim().slice(0, max);
 
+const safeRevisionValues = (value: unknown, allowedKeys: Set<string>) => {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const result: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(source)) {
+    if (!allowedKeys.has(key)) continue;
+    if (Array.isArray(raw)) result[key] = raw.map((item) => cleanText(item, 160)).filter(Boolean).slice(0, 20);
+    else if (typeof raw === "boolean") result[key] = raw;
+    else if (typeof raw === "number" && Number.isFinite(raw)) result[key] = raw;
+    else result[key] = cleanText(raw, 4000);
+  }
+  return result;
+};
+
+const sameJson = (left: unknown, right: unknown) => JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+
 const subjectFromBody = (body: Record<string, unknown>) => ({
   subjectType: cleanText(body.subject_type, 40),
   subjectId: cleanText(body.subject_id, 120),
@@ -154,6 +180,79 @@ const subjectFromBody = (body: Record<string, unknown>) => ({
 
 const validSubject = (subjectType: string, subjectId: string) =>
   SUBJECT_TYPES.has(subjectType) && Boolean(subjectId);
+
+async function subjectExists(
+  database: ReturnType<typeof serviceClient>,
+  subjectType: string,
+  subjectId: string,
+) {
+  if (!validSubject(subjectType, subjectId)) return false;
+  if (subjectType === "temporary_submission") {
+    const numericId = Number(subjectId);
+    if (!Number.isInteger(numericId)) return false;
+    const { data, error } = await database.from(TABLE).select("id").eq("id", numericId).maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+  if (subjectType === "legacy_snapshot") {
+    const numericId = Number(subjectId);
+    if (!Number.isInteger(numericId)) return false;
+    const { data, error } = await database.from(LEGACY_SNAPSHOT_TABLE).select("source_application_id").eq("source_application_id", numericId).maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  }
+  const { data, error } = await database.from(WORKFLOW_TABLE)
+    .select("id")
+    .eq("subject_type", subjectType)
+    .eq("subject_id", subjectId)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+const correctionFieldAllowed = (key: string) =>
+  Boolean(key) && !AUDIT_SECRET_KEYS.has(key.toLowerCase()) && !/(token|path|url|idempotency)/i.test(key);
+
+async function correctionSourceValue(
+  database: ReturnType<typeof serviceClient>,
+  subjectType: string,
+  subjectId: string,
+  fieldGroup: string,
+  fieldKey: string,
+  formId: string | null,
+) {
+  if (!correctionFieldAllowed(fieldKey)) return null;
+  if (formId) {
+    const { data: form, error } = await database.from(SECONDARY_FORM_TABLE)
+      .select("id, subject_type, subject_id, draft_payload, submitted_payload, status")
+      .eq("id", formId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!form) return { error: "FORM_NOT_FOUND" as const };
+    if (form.subject_type !== subjectType || String(form.subject_id) !== subjectId) return { error: "FORM_SUBJECT_MISMATCH" as const };
+    const payload = form.status === "submitted" ? form.submitted_payload ?? {} : form.draft_payload ?? {};
+    if (!Object.prototype.hasOwnProperty.call(payload, fieldKey)) return { error: "CORRECTION_FIELD_NOT_FOUND" as const };
+    return { originalValue: payload[fieldKey] ?? null, dataSource: "secondary" };
+  }
+  if (fieldGroup !== "primary") return { error: "INVALID_CORRECTION_SOURCE" as const };
+  if (subjectType === "temporary_submission") {
+    const numericId = Number(subjectId);
+    const { data, error } = await database.from(TABLE).select("payload").eq("id", numericId).maybeSingle();
+    if (error) throw error;
+    const profile = data?.payload?.profile ?? {};
+    if (!Object.prototype.hasOwnProperty.call(profile, fieldKey)) return { error: "CORRECTION_FIELD_NOT_FOUND" as const };
+    return { originalValue: profile[fieldKey] ?? null, dataSource: "intake" };
+  }
+  if (subjectType === "legacy_snapshot") {
+    const numericId = Number(subjectId);
+    const { data, error } = await database.from(LEGACY_SNAPSHOT_TABLE).select("snapshot").eq("source_application_id", numericId).maybeSingle();
+    if (error) throw error;
+    const profile = data?.snapshot?.profile ?? {};
+    if (!Object.prototype.hasOwnProperty.call(profile, fieldKey)) return { error: "CORRECTION_FIELD_NOT_FOUND" as const };
+    return { originalValue: profile[fieldKey] ?? null, dataSource: "legacy_snapshot" };
+  }
+  return { error: "CORRECTION_SOURCE_UNAVAILABLE" as const };
+}
 
 async function subjectGender(
   database: ReturnType<typeof serviceClient>,
@@ -223,7 +322,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "admin-operations-list") {
       if (!(await requireTemporaryAdmin(req))) return json({ error: "FORBIDDEN" }, 403);
-      const [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, legacySocialResult, auditResult] = await Promise.all([
+      const [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, legacySocialResult, auditResult, correctionResult, phoneConsultationResult, internalEvaluationResult, feedbackResult] = await Promise.all([
         database.from(WORKFLOW_TABLE).select("id, subject_type, subject_id, workflow_stage, decision, reason, assigned_to, reviewed_by_email, reviewed_at, updated_at").order("updated_at", { ascending: false }),
         database.from(WORKFLOW_EVENT_TABLE).select("id, subject_type, subject_id, previous_stage, workflow_stage, decision, reason, assigned_to, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
         database.from(SCHEDULE_EVENT_TABLE).select("id, subject_type, subject_id, schedule_type, event_action, scheduled_at, replaces_event_id, reason, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
@@ -233,8 +332,12 @@ Deno.serve(async (req) => {
         database.from(SOCIAL_EVENT_TABLE).select("id, social_event_id, subject_type, subject_id, previous_status, status, reason, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
         database.from(LEGACY_SOCIAL_EVENT_TABLE).select("id, social_event_id, subject_type, subject_id, previous_status, status, reason, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
         database.from(ADMIN_AUDIT_TABLE).select("id, action, entity_type, entity_id, actor_email, detail, created_at").order("created_at", { ascending: false }).limit(2000),
+        database.from(CORRECTION_TABLE).select("id, subject_type, subject_id, form_id, field_group, field_key, field_label, data_source, original_value, previous_value, corrected_value, customer_requested, correction_reason, reason_note, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
+        database.from(PHONE_CONSULTATION_TABLE).select("id, subject_type, subject_id, values, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
+        database.from(INTERNAL_EVALUATION_TABLE).select("id, subject_type, subject_id, values, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
+        database.from(MATCHING_FEEDBACK_TABLE).select("id, matching_case_id, feedback_subject_type, feedback_subject_id, provider_subject_type, provider_subject_id, meeting_at, reunion_intent, positive_points, positive_note, negative_points, negative_note, next_match_adjustment, admin_note, actor_email, created_at").order("created_at", { ascending: false }).limit(2000),
       ]);
-      const failure = [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, legacySocialResult, auditResult].find((result) => result.error);
+      const failure = [workflowResult, workflowEventResult, scheduleResult, memberResult, matchingCaseResult, matchingEventResult, socialResult, legacySocialResult, auditResult, correctionResult, phoneConsultationResult, internalEvaluationResult, feedbackResult].find((result) => result.error);
       if (failure?.error) throw failure.error;
       return json({
         build_id: INTAKE_BUILD_ID,
@@ -247,6 +350,10 @@ Deno.serve(async (req) => {
         social_events: socialResult.data ?? [],
         legacy_social_events: legacySocialResult.data ?? [],
         audit_events: auditResult.data ?? [],
+        field_corrections: correctionResult.data ?? [],
+        phone_consultation_revisions: phoneConsultationResult.data ?? [],
+        internal_evaluation_revisions: internalEvaluationResult.data ?? [],
+        matching_feedback_revisions: feedbackResult.data ?? [],
       });
     }
 
@@ -255,6 +362,153 @@ Deno.serve(async (req) => {
       if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
       await appendAdminAudit(database, "login", "admin_session", null, user);
       return json({ ok: true, build_id: INTAKE_BUILD_ID });
+    }
+
+    if (body.action === "admin-field-correction-add") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const { subjectType, subjectId } = subjectFromBody(body);
+      const fieldGroup = cleanText(body.field_group, 20);
+      const fieldKey = cleanText(body.field_key, 120);
+      const fieldLabel = cleanText(body.field_label, 160);
+      const reason = cleanText(body.correction_reason, 40);
+      const reasonNote = cleanText(body.reason_note, 1000) || null;
+      const formId = cleanText(body.form_id, 80) || null;
+      const customerRequested = body.customer_requested === true;
+      const correctedValue = body.corrected_value ?? null;
+      if (!(await subjectExists(database, subjectType, subjectId)) || !CORRECTION_GROUPS.has(fieldGroup) || !fieldKey || !fieldLabel || !correctionFieldAllowed(fieldKey) || !CORRECTION_REASONS.has(reason) || (reason === "other" && !reasonNote)) {
+        return json({ error: "INVALID_CORRECTION_REQUEST" }, 422);
+      }
+      const source = await correctionSourceValue(database, subjectType, subjectId, fieldGroup, fieldKey, formId);
+      if (!source || "error" in source) return json({ error: source?.error ?? "CORRECTION_SOURCE_UNAVAILABLE" }, source?.error === "FORM_NOT_FOUND" ? 404 : source?.error === "FORM_SUBJECT_MISMATCH" ? 409 : 422);
+      const { data: latest, error: latestError } = await database.from(CORRECTION_TABLE)
+        .select("id, corrected_value, customer_requested, correction_reason, reason_note")
+        .eq("subject_type", subjectType)
+        .eq("subject_id", subjectId)
+        .eq("field_group", fieldGroup)
+        .eq("field_key", fieldKey)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestError) throw latestError;
+      if (latest && sameJson(latest.corrected_value, correctedValue) && latest.customer_requested === customerRequested && latest.correction_reason === reason && (latest.reason_note ?? null) === reasonNote) {
+        return json({ ok: true, unchanged: true, correction: latest, build_id: INTAKE_BUILD_ID });
+      }
+      const { data: correctionId, error: correctionError } = await database.rpc("temporary_admin_append_correction_and_audit", {
+        p_correction: {
+          subject_type: subjectType,
+          subject_id: subjectId,
+          form_id: formId,
+          field_group: fieldGroup,
+          field_key: fieldKey,
+          field_label: fieldLabel,
+          data_source: source.dataSource,
+          original_value: source.originalValue,
+          previous_value: latest?.corrected_value ?? null,
+          corrected_value: correctedValue,
+          customer_requested: customerRequested,
+          correction_reason: reason,
+          reason_note: reasonNote,
+          actor_user_id: user.id,
+          actor_email: user.email,
+        },
+        p_audit: {},
+      });
+      if (correctionError) throw correctionError;
+      return json({ ok: true, id: correctionId, build_id: INTAKE_BUILD_ID });
+    }
+
+    if (body.action === "admin-phone-consultation-save") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const { subjectType, subjectId } = subjectFromBody(body);
+      const allowed = new Set(["consultationConfidence", "marriageView", "relationshipValues", "pastRelationship", "mbti", "smoking", "drinking", "religion", "selfIntroduction", "idealType", "sensitivePoints", "familyRelation", "familyReaction", "seoulMeetingAvailability", "healthFollowup", "healthFollowupNote", "correctionSummary", "followupNeeded", "consultationComplete", "femaleToneManner", "femaleSelfConfidence", "femaleImageConsistency", "femaleSocialAttraction", "femaleWeightConfirmed"]);
+      const values = safeRevisionValues(body.values, allowed);
+      if (!(await subjectExists(database, subjectType, subjectId)) || !Object.keys(values).length) return json({ error: "INVALID_CONSULTATION_REQUEST" }, 422);
+      const { data: previous, error: previousError } = await database.from(PHONE_CONSULTATION_TABLE)
+        .select("id, values")
+        .eq("subject_type", subjectType).eq("subject_id", subjectId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (previousError) throw previousError;
+      if (previous && sameJson(previous.values, values)) return json({ ok: true, unchanged: true, revision: previous, build_id: INTAKE_BUILD_ID });
+      const { data, error } = await database.from(PHONE_CONSULTATION_TABLE).insert({
+        subject_type: subjectType, subject_id: subjectId, values, actor_user_id: user.id, actor_email: user.email,
+      }).select("id, subject_type, subject_id, values, actor_email, created_at").single();
+      if (error) throw error;
+      await appendAdminAudit(database, "phone_consultation_saved", "applicant_subject", `${subjectType}:${subjectId}`, user, { revision_id: data.id });
+      return json({ ok: true, revision: data, build_id: INTAKE_BUILD_ID });
+    }
+
+    if (body.action === "admin-internal-evaluation-save") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const { subjectType, subjectId } = subjectFromBody(body);
+      const allowed = new Set(["maleToneManner", "maleRelationshipConsistency", "femaleAppearanceConsistency", "femaleToneManner", "femaleRelationshipConsistency", "evaluationMemo"]);
+      const values = safeRevisionValues(body.values, allowed);
+      if (!(await subjectExists(database, subjectType, subjectId)) || !Object.keys(values).length) return json({ error: "INVALID_INTERNAL_EVALUATION_REQUEST" }, 422);
+      const { data: previous, error: previousError } = await database.from(INTERNAL_EVALUATION_TABLE)
+        .select("id, values").eq("subject_type", subjectType).eq("subject_id", subjectId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (previousError) throw previousError;
+      if (previous && sameJson(previous.values, values)) return json({ ok: true, unchanged: true, revision: previous, build_id: INTAKE_BUILD_ID });
+      const { data, error } = await database.from(INTERNAL_EVALUATION_TABLE).insert({
+        subject_type: subjectType, subject_id: subjectId, values, actor_user_id: user.id, actor_email: user.email,
+      }).select("id, subject_type, subject_id, values, actor_email, created_at").single();
+      if (error) throw error;
+      await appendAdminAudit(database, "internal_evaluation_saved", "applicant_subject", `${subjectType}:${subjectId}`, user, { revision_id: data.id });
+      return json({ ok: true, revision: data, build_id: INTAKE_BUILD_ID });
+    }
+
+    if (body.action === "admin-matching-feedback-add") {
+      const user = await requireTemporaryAdmin(req);
+      if (!user?.email) return json({ error: "FORBIDDEN" }, 403);
+      const matchingCaseId = cleanText(body.matching_case_id, 80);
+      const feedbackSubjectType = cleanText(body.feedback_subject_type, 40);
+      const feedbackSubjectId = cleanText(body.feedback_subject_id, 120);
+      const providerSubjectType = cleanText(body.provider_subject_type, 40);
+      const providerSubjectId = cleanText(body.provider_subject_id, 120);
+      const meetingAt = new Date(cleanText(body.meeting_at, 80));
+      const reunionIntent = cleanText(body.reunion_intent, 40);
+      const positivePoints = safeRevisionValues({ values: body.positive_points }, new Set(["values"])).values ?? [];
+      const negativePoints = safeRevisionValues({ values: body.negative_points }, new Set(["values"])).values ?? [];
+      const positiveNote = cleanText(body.positive_note, 2000) || null;
+      const negativeNote = cleanText(body.negative_note, 2000) || null;
+      const nextMatchAdjustment = cleanText(body.next_match_adjustment, 2000) || null;
+      const adminNote = cleanText(body.admin_note, 2000) || null;
+      if (!matchingCaseId || !validSubject(feedbackSubjectType, feedbackSubjectId) || !validSubject(providerSubjectType, providerSubjectId) || (feedbackSubjectType === providerSubjectType && feedbackSubjectId === providerSubjectId) || Number.isNaN(meetingAt.getTime()) || !FEEDBACK_INTENTS.has(reunionIntent)) {
+        return json({ error: "INVALID_MATCHING_FEEDBACK_REQUEST" }, 422);
+      }
+      const { data: matchingCase, error: matchingCaseError } = await database.from(MATCHING_CASE_TABLE)
+        .select("id, male_subject_type, male_subject_id, female_subject_type, female_subject_id, status")
+        .eq("id", matchingCaseId).maybeSingle();
+      if (matchingCaseError) throw matchingCaseError;
+      if (!matchingCase) return json({ error: "MATCHING_CASE_NOT_FOUND" }, 404);
+      if (!["meeting_completed", "closed"].includes(matchingCase.status)) return json({ error: "MEETING_NOT_COMPLETED" }, 409);
+      const participantKeys = new Set([
+        `${matchingCase.male_subject_type}:${matchingCase.male_subject_id}`,
+        `${matchingCase.female_subject_type}:${matchingCase.female_subject_id}`,
+      ]);
+      if (!participantKeys.has(`${feedbackSubjectType}:${feedbackSubjectId}`) || !participantKeys.has(`${providerSubjectType}:${providerSubjectId}`)) {
+        return json({ error: "MATCHING_FEEDBACK_SUBJECT_MISMATCH" }, 409);
+      }
+      const payload = { meeting_at: meetingAt.toISOString(), reunion_intent: reunionIntent, positive_points: positivePoints, positive_note: positiveNote, negative_points: negativePoints, negative_note: negativeNote, next_match_adjustment: nextMatchAdjustment, admin_note: adminNote };
+      const { data: previous, error: previousError } = await database.from(MATCHING_FEEDBACK_TABLE)
+        .select("id, meeting_at, reunion_intent, positive_points, positive_note, negative_points, negative_note, next_match_adjustment, admin_note")
+        .eq("matching_case_id", matchingCaseId).eq("feedback_subject_type", feedbackSubjectType).eq("feedback_subject_id", feedbackSubjectId)
+        .eq("provider_subject_type", providerSubjectType).eq("provider_subject_id", providerSubjectId)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (previousError) throw previousError;
+      if (previous && sameJson({ meeting_at: previous.meeting_at, reunion_intent: previous.reunion_intent, positive_points: previous.positive_points, positive_note: previous.positive_note, negative_points: previous.negative_points, negative_note: previous.negative_note, next_match_adjustment: previous.next_match_adjustment, admin_note: previous.admin_note }, payload)) {
+        return json({ ok: true, unchanged: true, feedback: previous, build_id: INTAKE_BUILD_ID });
+      }
+      const { data, error } = await database.from(MATCHING_FEEDBACK_TABLE).insert({
+        matching_case_id: matchingCaseId, feedback_subject_type: feedbackSubjectType, feedback_subject_id: feedbackSubjectId,
+        provider_subject_type: providerSubjectType, provider_subject_id: providerSubjectId, ...payload,
+        actor_user_id: user.id, actor_email: user.email,
+      }).select("id, matching_case_id, feedback_subject_type, feedback_subject_id, provider_subject_type, provider_subject_id, meeting_at, reunion_intent, positive_points, positive_note, negative_points, negative_note, next_match_adjustment, admin_note, actor_email, created_at").single();
+      if (error) throw error;
+      await appendAdminAudit(database, "matching_feedback_added", "matching_case", matchingCaseId, user, { feedback_id: data.id });
+      return json({ ok: true, feedback: data, build_id: INTAKE_BUILD_ID });
     }
 
     if (body.action === "admin-workflow-set") {
