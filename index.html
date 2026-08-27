@@ -1381,6 +1381,7 @@ section[aria-label*="Notifications"] {
       <p class="fine">검증과 큐레이션으로 연결하는 프라이빗 매칭 클럽</p>
     </div>
     <div><h5>서비스</h5><a class="fl" href="#" data-page="main">이룸 소개</a><a class="fl" href="#" data-page="matching">검증 기반 1:1 매칭</a><a class="fl" href="#" data-page="social">프라이빗 소셜 모임</a></div>
+    <div class="main-footer-policy" data-main-footer-policy><h5>정책 및 문의</h5><a class="fl" href="#" data-legal-svc="matching" data-legal="policy">개인정보 처리방침</a><a class="fl" href="#" data-legal-svc="matching" data-legal="terms">이용약관</a><a class="fl" href="tel:01088393764" aria-label="전화 문의 010-8839-3764">전화 문의 010-8839-3764</a></div>
   </div>
   <div class="bottom"><span>© 2026 이룸. Curated in Seoul.</span><span>(주)테스커스 대표 양진혁 / 서울특별시 양천구 오목로 215-1 1층 102호 / 사업자 687-86-03375</span></div>
 </footer>
@@ -1396,7 +1397,7 @@ var ov=document.getElementById('legalModal'); if(!ov) return;
 var body=document.getElementById('legalBody');
 function openLg(svc,key){ var g=legalDocs[svc]||{}; var d=g[key]; if(!d) return; body.innerHTML=d.h; ov.hidden=false; document.body.style.overflow='hidden'; body.scrollTop=0; }
 function closeLg(){ ov.hidden=true; var fm=document.getElementById('applyModal'); document.body.style.overflow=(fm&&!fm.hidden)?'hidden':''; }
-document.addEventListener('click',function(e){ var a=e.target.closest?e.target.closest('[data-legal]'):null; if(a){ e.preventDefault(); e.stopPropagation(); openLg(a.getAttribute('data-legal-svc')||'social', a.getAttribute('data-legal')); } });
+document.addEventListener('click',function(e){ var a=e.target.closest?e.target.closest('[data-legal]'):null; if(a){ e.preventDefault(); e.stopPropagation(); var svc=a.getAttribute('data-legal-svc')||'social'; if(svc==='current'){ var page=document.querySelector('.page.on'); svc=page&&page.id==='social'?'social':'matching'; } openLg(svc, a.getAttribute('data-legal')); } });
 document.getElementById('legalClose').addEventListener('click',closeLg);
 document.getElementById('legalDone').addEventListener('click',closeLg);
 ov.addEventListener('click',function(e){ if(e.target===ov) closeLg(); });
@@ -1409,11 +1410,14 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape' && !ov.hidd
 
 /* ==== */
 
-function show(id){
+function syncMainFooter(id){ var policy=document.querySelector('[data-main-footer-policy]'); if(policy) policy.hidden=id!=='main'; }
+  function show(id){
     document.querySelectorAll('.page').forEach(function(x){x.classList.toggle('on',x.id===id)});
     document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.page===id)});
+    syncMainFooter(id);
     window.scrollTo({top:0,behavior:'smooth'});
   }
+  syncMainFooter((document.querySelector('.page.on')||{}).id||'main');
   document.querySelectorAll('[data-page]').forEach(function(x){
     x.addEventListener('click',function(e){e.preventDefault();show(x.dataset.page)});
   });

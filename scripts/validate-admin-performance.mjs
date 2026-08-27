@@ -17,7 +17,12 @@ for (const source of scripts) new vm.Script(source);
 
 for (const marker of [
   "state.loadedAt&&Date.now()-state.loadedAt<20000",
-  "if(state.loading)return",
+  "if(state.loadPromise)return state.loadPromise",
+  "const API_TIMEOUT_MS = 15000",
+  "const retryable=READ_RETRY_ACTIONS.has(action)",
+  'const [temp,legacy]=await Promise.all',
+  'const [operational,consultation]=await Promise.all',
+  'const [secondary,adminOps]=await Promise.all',
   'img.loading="lazy"',
   "async function loadThumb(button,item)",
   "async function openGallery(item)",

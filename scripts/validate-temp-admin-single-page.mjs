@@ -15,8 +15,21 @@ const scripts = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi
 for (const script of scripts) new vm.Script(script);
 
 const requiredMarkers = [
-  'TEMP_ADMIN_BUILD_ID = "temp-admin-workflow-20260827-1"',
+  'TEMP_ADMIN_BUILD_ID = "temp-admin-refresh-resilience-20260827-2"',
   "const SLA_HOURS = 24",
+  "const API_TIMEOUT_MS = 15000",
+  'const READ_RETRY_ACTIONS = new Set(["admin-list","snapshot-list","operational-list","consultation-import-manifest","secondary-admin-list","admin-operations-list"])',
+  "const RETRY_DELAYS_MS = [350,900]",
+  'error?.code==="TEMPORARY_INTAKE_UNAVAILABLE"',
+  'error?.code==="EDGE_TIMEOUT"',
+  'error?.code==="NETWORK_UNAVAILABLE"',
+  "if(!retryable||!transientError(lastError)||attempt>=attempts-1)throw lastError",
+  "if(state.loadPromise)return state.loadPromise",
+  'const [temp,legacy]=await Promise.all',
+  'const [operational,consultation]=await Promise.all',
+  'const [secondary,adminOps]=await Promise.all',
+  "일시적인 연결 지연으로 기존 화면을 유지했습니다.",
+  'id="retry-load"',
   'data-temp-single-applicant-page',
   'data-temp-applicant-section',
   'data-temp-section-order',
