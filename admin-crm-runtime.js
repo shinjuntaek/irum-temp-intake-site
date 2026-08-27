@@ -97,7 +97,7 @@
       const correction = correctionFor(item, field);
       const current = correction?.corrected_value ?? source.original;
       if (missingOnly && filled(current)) return "";
-      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(field.sourceLabel)}</span></div><div class="crm-original">불변 원본 · ${esc(valueForDisplay(source.original, source.key))}</div><div class="crm-current">현재 적용값 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 식별 정보는 읽기 전용입니다.</div>' : `<div class="crm-control">${controlMarkup(field, current)}<div class="crm-edit-meta"><select data-correction-reason><option value="customer_request">고객 요청</option><option value="phone_consultation">전화상담 확인</option><option value="verification">서류·사실 확인</option><option value="admin_correction" selected>관리자 정정</option><option value="other">기타</option></select><label class="inline"><input type="checkbox" data-customer-request style="min-width:auto;width:16px"> 고객 요청 변경</label><input class="full" data-reason-note maxlength="1000" placeholder="변경 사유 보충 · 기타 선택 시 필수"><button type="button" class="crm-save full" data-direct-save>정정 revision 저장</button><div class="crm-save-state full" aria-live="polite"></div></div></div>`}</article>`;
+      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(field.sourceLabel)}</span></div><div class="crm-original">불변 원본 · ${esc(valueForDisplay(source.original, source.key))}</div><div class="crm-current">현재 적용값 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 식별 정보는 읽기 전용입니다.</div>' : `<div class="crm-control">${controlMarkup(field, current)}<div class="crm-edit-meta"><label class="inline full"><input type="checkbox" data-customer-request style="min-width:auto;width:16px"> 고객 요청으로 반영</label><button type="button" class="crm-save full" data-direct-save>변경사항 반영</button><div class="crm-save-state full" aria-live="polite"></div></div></div>`}</article>`;
     };
     const customerSections = (item) => {
       const all = activeCustomerFields(item);
@@ -157,7 +157,7 @@
       return events;
     };
     const historyRows = (item) => {
-      const corrections = correctionRows(item).map((row) => ({ filter: row.customer_requested ? "customer" : row.correction_reason === "phone_consultation" ? "phone" : row.correction_reason === "verification" ? "verification" : "admin", title: row.field_label, source: row.data_source === "secondary" ? "2차 신청" : row.data_source === "legacy_snapshot" ? "기존 Snapshot" : "1차 신청", original: row.original_value, previous: row.previous_value, next: row.corrected_value, reason: { customer_request: "고객 요청", phone_consultation: "전화상담 확인", verification: "서류·사실 확인", admin_correction: "관리자 정정", other: "기타" }[row.correction_reason] || row.correction_reason, reasonNote: row.reason_note, requested: row.customer_requested, who: row.actor_email, at: row.created_at }));
+      const corrections = correctionRows(item).map((row) => ({ filter: row.customer_requested ? "customer" : row.correction_reason === "phone_consultation" ? "phone" : row.correction_reason === "verification" ? "verification" : "all", title: row.field_label, source: row.data_source === "secondary" ? "2차 신청" : row.data_source === "legacy_snapshot" ? "기존 Snapshot" : "1차 신청", original: row.original_value, previous: row.previous_value, next: row.corrected_value, reason: { customer_request: "고객 요청", phone_consultation: "전화상담 확인", verification: "서류·사실 확인", admin_correction: "정보 반영", other: "기타" }[row.correction_reason] || row.correction_reason, reasonNote: row.reason_note, requested: row.customer_requested, who: row.actor_email, at: row.created_at }));
       const phone = diffRevisionRows(state.phoneConsultations, item, "phone", phoneLabels);
       const internal = diffRevisionRows(state.internalEvaluations, item, "internal", internalLabels);
       const feedback = state.matchingFeedback.filter((row) => matchingCases(item).some((matchingCase) => matchingCase.id === row.matching_case_id)).map((row) => ({ filter: "feedback", title: `첫 만남 피드백 · 매칭 ${row.matching_case_id.slice(0, 8)}`, source: "실제 매칭 건", original: null, previous: null, next: { "만남 일시": date(row.meeting_at), "다시 만날 의향": Object.fromEntries(registry.feedback.intents)[row.reunion_intent] || row.reunion_intent, "좋았던 점": row.positive_points, "좋았던 점 메모": row.positive_note, "아쉬웠던 점": row.negative_points, "아쉬웠던 점 메모": row.negative_note, "다음 소개 조정사항": row.next_match_adjustment, "운영자 메모": row.admin_note }, reason: "첫 만남 피드백", requested: false, who: row.actor_email, at: row.created_at }));
@@ -165,7 +165,7 @@
     };
     const historyRail = (item) => {
       const rows = historyRows(item).filter((row) => historyFilter === "all" || row.filter === historyFilter);
-      const filterOptions = [["all", "전체"], ["customer", "고객 요청"], ["phone", "전화상담 확인"], ["verification", "서류·사실 확인"], ["admin", "관리자 정정"], ["internal", "내부평가"], ["feedback", "첫 만남 피드백"]];
+      const filterOptions = [["all", "전체"], ["customer", "고객 요청"], ["phone", "전화상담 확인"], ["verification", "서류·사실 확인"], ["internal", "내부평가"], ["feedback", "첫 만남 피드백"]];
       return `<aside class="crm-change-rail" aria-label="필드 변경 이력"><header><h3>필드 변경 이력</h3><p>불변 원본과 append-only revision의 변경 전·후를 비교합니다.</p></header><div class="crm-history-filters">${filterOptions.map(([value, label]) => `<button type="button" class="${historyFilter === value ? "active" : ""}" data-history-filter="${value}">${label}</button>`).join("")}</div><ul class="crm-history-list">${rows.map((row) => `<li><b>${esc(row.title)}</b><small>${esc(row.source)} · ${esc(row.reason)}${row.reasonNote ? ` · ${esc(row.reasonNote)}` : ""}</small>${row.requested ? '<span class="customer-request-badge">고객 요청 변경</span>' : ""}<div class="crm-history-values"><div><span>불변 원본값</span><strong>${esc(valueForDisplay(row.original))}</strong></div><div><span>변경 직전값</span><strong>${esc(valueForDisplay(row.previous))}</strong></div><div><span>변경 후 값</span><strong>${esc(valueForDisplay(row.next))}</strong></div></div><small>${esc(row.who || "운영자")} · ${esc(date(row.at))}</small></li>`).join("") || '<li><small>선택한 조건의 변경 이력이 없습니다.</small></li>'}</ul></aside>`;
     };
     const operationalSections = (item) => {
@@ -197,21 +197,17 @@
     const bindContinuous = (item) => {
       document.querySelector("[data-missing-toggle]").onclick = () => { missingOnly = !missingOnly; render(item); };
       bindOptionRows();
-      document.querySelectorAll("[data-correction-reason]").forEach((select) => select.onchange = () => {
-        const card = select.closest("[data-direct-field]");
-        if (select.value === "customer_request") card.querySelector("[data-customer-request]").checked = true;
-      });
       document.querySelectorAll("[data-direct-save]").forEach((button) => button.onclick = async () => {
         const card = button.closest("[data-direct-field]"), field = activeCustomerFields(item).find((entry) => entry.id === card.dataset.directField), source = sourceFor(item, field);
         const control = card.querySelector("[data-edit-value]"), option = card.querySelector("[data-option-group]");
         let value = option ? normalizedControlValue(option) : control.value;
-        const reason = card.querySelector("[data-correction-reason]").value, note = text(card.querySelector("[data-reason-note]").value), customerRequested = card.querySelector("[data-customer-request]").checked;
-        if (!filled(value) || (reason === "other" && !note)) { toast("정정값과 변경 사유를 확인해 주세요.", true); return; }
+        const customerRequested = card.querySelector("[data-customer-request]").checked, reason = customerRequested ? "customer_request" : "admin_correction";
+        if (!filled(value)) { toast("반영할 값을 입력해 주세요.", true); return; }
         button.disabled = true; card.querySelector(".crm-save-state").textContent = "저장 중…";
         try {
-          await invokeAdmin("admin-field-correction-add", { subject_type: source.subject.type, subject_id: source.subject.id, form_id: source.form?.id || null, field_group: field.group, field_key: source.key, field_label: field.label, corrected_value: value, customer_requested: customerRequested, correction_reason: reason, reason_note: note });
-          await refreshSelected(item, `${field.label} 정정 revision을 저장했습니다.`);
-        } catch (error) { button.disabled = false; card.querySelector(".crm-save-state").textContent = `저장 실패 (${error.code})`; toast(`정정 저장 실패 (${error.code})`, true); }
+          await invokeAdmin("admin-field-correction-add", { subject_type: source.subject.type, subject_id: source.subject.id, form_id: source.form?.id || null, field_group: field.group, field_key: source.key, field_label: field.label, corrected_value: value, customer_requested: customerRequested, correction_reason: reason, reason_note: null });
+          await refreshSelected(item, `${field.label} 변경사항을 반영했습니다.`);
+        } catch (error) { button.disabled = false; card.querySelector(".crm-save-state").textContent = `저장 실패 (${error.code})`; toast(`변경사항 반영 실패 (${error.code})`, true); }
       });
       document.getElementById("phone-consultation-form")?.addEventListener("submit", async (event) => {
         event.preventDefault();
