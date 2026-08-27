@@ -90,6 +90,13 @@ if (copyStart < 0 || copyEnd <= copyStart || copyBlock.includes("secondary-admin
   throw new Error("link copy must not auto-mark secondary delivery complete");
 }
 
+const latestFormStart = source.indexOf("const secondaryLatestValidForm");
+const latestFormEnd = source.indexOf("const secondaryWorkspaceState", latestFormStart);
+const latestFormBlock = source.slice(latestFormStart, latestFormEnd);
+if (latestFormStart < 0 || latestFormEnd <= latestFormStart || latestFormBlock.includes("forms[0]")) {
+  throw new Error("revoked or expired secondary forms must not count as the current sent/submitted state");
+}
+
 console.log(
   `temp_admin_single_page_qa=pass scripts=${scripts.length} synchronized=true sections=${sectionKeys.length} private_media_preserved=true secondary_links_preserved=true`,
 );

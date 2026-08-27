@@ -1715,7 +1715,6 @@
         const forms = secondaryFormsForItem(item);
         return forms.find((form) => ["pending","in_progress"].includes(form.status))
           || forms.find((form) => form.status === "submitted")
-          || forms[0]
           || null;
       };
       const secondaryWorkspaceState = (item) => {
