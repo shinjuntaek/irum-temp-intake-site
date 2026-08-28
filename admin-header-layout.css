@@ -1,0 +1,6 @@
+/* Detail header shares the exact desktop main-column edge: CRM flow main + rail. */
+@media(min-width:1121px){
+  .page[data-consultation-crm-detail]{--crm-rail-width:292px;--crm-flow-gap:10px}
+  .page[data-consultation-crm-detail] .crm-flow{grid-template-columns:minmax(0,1fr) var(--crm-rail-width);gap:var(--crm-flow-gap)}
+  .page[data-consultation-crm-detail] .profile-head{width:calc(100% - var(--crm-rail-width) - var(--crm-flow-gap));max-width:calc(100% - var(--crm-rail-width) - var(--crm-flow-gap));margin-right:calc(var(--crm-rail-width) + var(--crm-flow-gap));margin-left:0}
+}
