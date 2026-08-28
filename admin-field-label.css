@@ -1,0 +1,3 @@
+/* Keep every editable CRM field label at a single, readable size. */
+.page[data-consultation-crm-detail] .crm-field label,
+.page[data-consultation-crm-detail] .crm-revision-field > label{font-size:13px;line-height:1.35}
