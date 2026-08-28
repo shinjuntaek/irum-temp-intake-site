@@ -20,6 +20,7 @@
     field("primary-photos", "1차 기본정보", "첨부 사진", "primary", "photos", text(), { locked: true, required: true, kind: "photos" }),
     field("primary-region", "1차 기본정보", "거주지역", "primary", "region", text("예: 서울 강남구"), { required: true }),
     field("primary-job", "1차 기본정보", "현재 직업", "primary", "job", text("예: 브랜드 마케터"), { required: true }),
+    field("primary-income", "1차 기본정보", "연소득", "primary", "income", text(), { locked: true, gender: "male" }),
     field("primary-height", "1차 기본정보", "키", "primary", "height", number(130, 230, "cm"), { required: true }),
     field("primary-body", "1차 기본정보", "체형", "primary", "bodyType", select(["슬림", "보통", "탄탄", "근육형", "통통"])),
     field("primary-education", "1차 기본정보", "학력", "primary", "education", text()),

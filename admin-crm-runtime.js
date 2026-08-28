@@ -60,12 +60,18 @@
       return field ? currentFor(item, field) : null;
     };
     const activeCustomerFields = (item) => {
-      const fields = [...registry.primary, ...registry.secondary[genderOf(item)]];
+      const fields = [
+        ...registry.primary.filter((field) => !field.gender || field.gender === genderOf(item)),
+        ...registry.secondary[genderOf(item)],
+      ];
       const get = secondaryGetter(item);
       return fields.filter((field) => !field.when || field.when({ get }));
     };
     const overallCustomerFields = (item) => {
-      const fields = [...registry.primary, ...registry.secondary[genderOf(item)]];
+      const fields = [
+        ...registry.primary.filter((field) => !field.gender || field.gender === genderOf(item)),
+        ...registry.secondary[genderOf(item)],
+      ];
       const get = secondaryGetter(item);
       return fields.filter((field) => !field.when || field.when({ get }));
     };

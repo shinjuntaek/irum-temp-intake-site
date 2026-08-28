@@ -631,8 +631,7 @@
 .af-toast.show{opacity:1}
 .q-main{display:inline-flex;align-items:center;flex:1;min-width:0}
 .q-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pref-tag{font:700 12px/1 var(--sans);font-style:normal;color:var(--gold-btn);margin-left:7px;flex:none}
-.pref-badge{width:16px;height:22px;display:block;flex:none;margin-right:9px;background:url("assets/icon-05_b0703835.svg") center/contain no-repeat}
+
 .af-otherjob{margin-top:2px}
 @keyframes afShine{0%{background-position:0% 0}100%{background-position:-200% 0}}
 @keyframes afUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
@@ -1381,7 +1380,7 @@ section[aria-label*="Notifications"] {
       <p class="fine">검증과 큐레이션으로 연결하는 프라이빗 매칭 클럽</p>
     </div>
     <div><h5>서비스</h5><a class="fl" href="#" data-page="main">이룸 소개</a><a class="fl" href="#" data-page="matching">검증 기반 1:1 매칭</a><a class="fl" href="#" data-page="social">프라이빗 소셜 모임</a></div>
-    <div class="main-footer-policy" data-main-footer-policy><h5>정책 및 문의</h5><a class="fl" href="#" data-legal-svc="matching" data-legal="policy">개인정보 처리방침</a><a class="fl" href="#" data-legal-svc="matching" data-legal="terms">이용약관</a><a class="fl" href="/support/" aria-label="이룸 고객센터 문의">고객센터</a></div>
+    <div data-main-footer-policy><h5>정책 및 문의</h5><a class="fl" href="#" data-legal-svc="matching" data-legal="policy">개인정보 처리방침</a><a class="fl" href="#" data-legal-svc="matching" data-legal="terms">이용약관</a><a class="fl" href="/support/">고객센터</a></div>
   </div>
   <div class="bottom"><span>© 2026 이룸. Curated in Seoul.</span><span>(주)테스커스 대표 양진혁 / 서울특별시 양천구 오목로 215-1 1층 102호 / 사업자 687-86-03375</span></div>
 </footer>
@@ -1397,7 +1396,7 @@ var ov=document.getElementById('legalModal'); if(!ov) return;
 var body=document.getElementById('legalBody');
 function openLg(svc,key){ var g=legalDocs[svc]||{}; var d=g[key]; if(!d) return; body.innerHTML=d.h; ov.hidden=false; document.body.style.overflow='hidden'; body.scrollTop=0; }
 function closeLg(){ ov.hidden=true; var fm=document.getElementById('applyModal'); document.body.style.overflow=(fm&&!fm.hidden)?'hidden':''; }
-document.addEventListener('click',function(e){ var a=e.target.closest?e.target.closest('[data-legal]'):null; if(a){ e.preventDefault(); e.stopPropagation(); var svc=a.getAttribute('data-legal-svc')||'social'; if(svc==='current'){ var page=document.querySelector('.page.on'); svc=page&&page.id==='social'?'social':'matching'; } openLg(svc, a.getAttribute('data-legal')); } });
+document.addEventListener('click',function(e){ var a=e.target.closest?e.target.closest('[data-legal]'):null; if(a){ e.preventDefault(); e.stopPropagation(); openLg(a.getAttribute('data-legal-svc')||'social', a.getAttribute('data-legal')); } });
 document.getElementById('legalClose').addEventListener('click',closeLg);
 document.getElementById('legalDone').addEventListener('click',closeLg);
 ov.addEventListener('click',function(e){ if(e.target===ov) closeLg(); });
@@ -1410,14 +1409,11 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape' && !ov.hidd
 
 /* ==== */
 
-function syncMainFooter(id){ var policy=document.querySelector('[data-main-footer-policy]'); if(policy) policy.hidden=id!=='main'; }
-  function show(id){
+function show(id){
     document.querySelectorAll('.page').forEach(function(x){x.classList.toggle('on',x.id===id)});
     document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.page===id)});
-    syncMainFooter(id);
     window.scrollTo({top:0,behavior:'smooth'});
   }
-  syncMainFooter((document.querySelector('.page.on')||{}).id||'main');
   document.querySelectorAll('[data-page]').forEach(function(x){
     x.addEventListener('click',function(e){e.preventDefault();show(x.dataset.page)});
   });
@@ -1469,7 +1465,7 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
   var svc={ matching:{eyebrow:'검증 기반 1:1 매칭', label:'1:1 매칭 신청'}, social:{eyebrow:'프라이빗 소셜 모임', label:'소셜 모임 신청'} };
   var maleFields=[
     {key:'role',   label:'직업 · 역할',        opts:["전문직","사업가·대표","대기업·금융","공무원·교직","IT·스타트업","프리랜서","투자·자산관리","기타"]},
-    {key:'income', label:'연 소득 · 사업소득',  opts:['8천만~1억','1억~2억','2억~3억','3억 이상','기타']},
+    {key:'income', label:'연 소득 · 사업소득',  opts:["1억 미만","1억~2억","2억~3억","3억 이상","기타"]},
     {key:'assets', label:'개인 순자산',         opts:['1억 이상','5억 이상','10억 이상','20억 이상','50억 이상','기타']}
   ];
   var quals=['전문직','CEO','인플루언서','아이돌 연습생','연예인',OTHER];
@@ -1482,13 +1478,12 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
   var anim=null;
   var lastPct=0;
 
-  function base(){ return {gender:'',role:'',income:'',assets:'',roleOther:'',incomeOther:'',assetsOther:'',qualification:'',otherJob:'',bodyType:'',points:[],name:'',birthdate:'',phone:'',height:'',weight:'',region:'',seoulMeetingAvailability:'',isAdult:false,terms:false,privacy:false,marketing:false,socialAttendanceIntent:'',socialEventId:null,socialEvents:[],socialEventsLoaded:false}; }
+  function base(){ return {gender:'',role:'',income:'',assets:'',roleOther:'',incomeOther:'',assetsOther:'',qualification:'',otherJob:'',bodyType:'',points:[],name:'',birthdate:'',phone:'',height:'',region:'',isAdult:false,terms:false,privacy:false,marketing:false,socialAttendanceIntent:'',socialEventId:null,socialEvents:[],socialEventsLoaded:false}; }
   var esc=function(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); };
   var fmtPhone=function(v){ var d=String(v).replace(/\D/g,'').slice(0,11); return d.length<=3?d:(d.length<=7?(d.slice(0,3)+'-'+d.slice(3)):(d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7))); };
   var fmtBirth=function(v){ var d=String(v).replace(/\D/g,'').slice(0,6); return d.length<=2?d:(d.length<=4?(d.slice(0,2)+'.'+d.slice(2)):(d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4))); };
 
-  function opt(key,val,tag){ var s=S.data[key]===val; return '<button type="button" class="af-opt'+(s?' sel':'')+'" data-pick="'+key+'" data-val="'+esc(val)+'"><span>'+esc(val)+(tag?' <em class="pref-tag">'+tag+'</em>':'')+'</span><span class="tick"></span></button>'; }
-  function qualRow(v,pref){ var s=S.data.qualification===v; return '<button type="button" class="af-opt'+(s?' sel':'')+'" data-pick="qualification" data-val="'+esc(v)+'"><span class="q-main">'+(pref?'<span class="pref-badge"></span>':'')+'<span class="q-txt">'+esc(v)+'</span>'+(pref?'<em class="pref-tag">우대</em>':'')+'</span><span class="tick"></span></button>'; }
+  function opt(key,val){ var s=S.data[key]===val; return '<button type="button" class="af-opt'+(s?' sel':'')+'" data-pick="'+key+'" data-val="'+esc(val)+'"><span>'+esc(val)+'</span><span class="tick"></span></button>'; }
   function pointOpt(val){ var s=S.data.points.indexOf(val)>=0; return '<button type="button" class="af-opt'+(s?' sel':'')+'" data-point="'+esc(val)+'"><span>'+esc(val)+'</span><span class="tick"></span></button>'; }
   function label(t,req,sub){ return '<span class="af-label">'+t+(req?'<i class="rq"></i>':'')+(sub?'<small>'+sub+'</small>':'')+'</span>'; }
 
@@ -1499,10 +1494,9 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
   }
   function maleCore(){ return maleFields.map(function(f){ var isO=(S.data[f.key]===OTHER), ok=f.key+'Other'; return '<div class="af-field">'+label(f.label,true)+'<div class="af-opts col2">'+f.opts.map(function(v){return opt(f.key,v);}).join('')+'</div>'+(isO?'<input class="af-in af-otherjob" data-in="'+ok+'" value="'+esc(S.data[ok]||'')+'" placeholder="직접 입력해 주세요">':'')+'</div>'; }).join(''); }
   function femaleCore(){
-    var isOther=(S.data.qualification===OTHER), h='';
-    h+='<div class="af-field">'+label('직업 선택',true)+'<div class="af-opts">'+qualRow('기타',false)+(isOther?'<input class="af-in af-otherjob" data-in="otherJob" value="'+esc(S.data.otherJob)+'" placeholder="직업 또는 활동을 입력해 주세요">':'')+["전문직","대기업","인플루언서","셀럽/연예인","아이돌 지망생"].map(function(v){return qualRow(v,true);}).join('')+'</div></div>';
-    h+='<div class="af-field">'+label('체형',true)+'<div class="af-opts col2">'+bodies.map(function(v){return opt('bodyType',v,(v==='날씬')?'우대':'');}).join('')+'</div></div>';
-    h+='<div class="af-field">'+label('몸무게',false,'상담 전 확인이 필요한 경우에만 활용합니다.')+'<div class="af-suffix-wrap"><input class="af-in af-in-suffix" data-in="weight" inputmode="numeric" maxlength="3" value="'+esc(S.data.weight||'')+'" placeholder="예: 52"><span class="af-suffix">kg</span></div></div>';
+    var isOther=(S.data.role===OTHER), h='';
+    h+='<div class="af-field">'+label('직업 · 역할',true)+'<div class="af-opts col2">'+["전문직","사업가·대표","대기업·금융","공무원·교직","IT·스타트업","프리랜서","투자·자산관리","기타"].map(function(v){return opt('role',v);}).join('')+'</div>'+(isOther?'<input class="af-in af-otherjob" data-in="roleOther" value="'+esc(S.data.roleOther||'')+'" placeholder="직업 또는 역할을 작성해 주세요">':'')+'</div>';
+    h+='<div class="af-field">'+label('체형',true)+'<div class="af-opts col2">'+bodies.map(function(v){return opt('bodyType',v);}).join('')+'</div></div>';
     h+='<div class="af-field">'+label('매력 포인트',true,'해당하는 것을 모두 선택 · 많을수록 매칭 품질이 올라갑니다.')+'<div class="af-opts">'+points.map(pointOpt).join('')+'</div></div>';
     h+='<div class="af-field">'+label('사진 2장',true,'정면·일상 각 1장 (JPG·PNG·WEBP / 5MB 이하)')+'<div class="af-photos">'+photoBox('front','정면 사진')+photoBox('lifestyle','일상 사진')+'</div></div>';
     return h;
@@ -1513,8 +1507,7 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
       +'<div class="af-field">'+label('생년월일',true)+'<input class="af-in" data-in="birthdate" inputmode="numeric" maxlength="8" value="'+esc(S.data.birthdate)+'" placeholder="ex. 990320"></div>'
       +'<div class="af-field">'+label('휴대전화 번호',true)+'<input class="af-in" data-in="phone" inputmode="numeric" maxlength="13" value="'+esc(S.data.phone)+'" placeholder="010-0000-0000"></div>'
       +'<div class="af-field">'+label('키',true)+'<div class="af-suffix-wrap"><input class="af-in af-in-suffix" data-in="height" inputmode="numeric" maxlength="3" value="'+esc(S.data.height)+'" placeholder="예: 174"><span class="af-suffix">cm</span></div></div>'
-      +'<div class="af-field">'+label('주 활동 지역',true)+'<div class="af-opts col2">'+regions.map(function(v){return opt('region',v);}).join('')+'</div></div>'
-      +'<div class="af-field">'+label('서울 만남 가능 여부',false,'상담·소개 가능 일정 조율에만 활용합니다.')+'<div class="af-opts col2">'+['가능','일정 조율 시 가능','불가능'].map(function(v){return opt('seoulMeetingAvailability',v);}).join('')+'</div></div>';
+      +'<div class="af-field">'+label('주 활동 지역',true)+'<div class="af-opts col2">'+regions.map(function(v){return opt('region',v);}).join('')+'</div></div>';
   }
   function consent(key,title,sub){ return '<label class="af-consent"><input type="checkbox" data-check="'+key+'" '+(S.data[key]?'checked':'')+'><span class="af-box"></span><span class="af-consent-txt"><strong>'+title+'</strong>'+(sub?'<small>'+sub+'</small>':'')+'</span></label>'; }
   function confirmStep(){
@@ -1590,8 +1583,8 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
       if(!S.data.gender) return toast('성별을 선택해 주세요.');
       if(S.data.gender==='male'){ for(var i=0;i<maleFields.length;i++){ if(!S.data[maleFields[i].key]) return toast('직업·소득·자산을 모두 선택해 주세요.'); } }
       if(S.data.gender==='female'){
-        if(!S.data.qualification) return toast('우대사항을 선택해 주세요.');
-        if(S.data.qualification===OTHER && !S.data.otherJob.trim()) return toast('직업을 작성해 주세요.');
+        if(!S.data.role) return toast('직업·역할을 선택해 주세요.');
+        if(S.data.role===OTHER && !S.data.roleOther.trim()) return toast('직업 또는 역할을 작성해 주세요.');
         if(!S.data.bodyType) return toast('체형을 선택해 주세요.');
         if(!S.data.points.length) return toast('매력 포인트를 1개 이상 선택해 주세요.');
         if(!S.photos.front || !S.photos.lifestyle) return toast('정면·일상 사진을 모두 올려 주세요.');
@@ -1619,10 +1612,11 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
       var birthYear=/^(19|20)\d{2}/.test(digits)?Number(digits.slice(0,4)):Number((Number(digits.slice(0,2))<=new Date().getFullYear()%100?'20':'19')+digits.slice(0,2));
       if(!birthYear||birthYear<1970||birthYear>2010) throw new Error('생년월일을 올바르게 입력해 주세요.');
       var params=new URLSearchParams(location.search);
+      var submittedJob=((S.data.role==='기타'?S.data.roleOther:S.data.role)||((S.data.qualification==='기타'?S.data.otherJob:S.data.qualification)||'')).trim();
       var payload={
         external_submission_id:S.externalSubmissionId||(S.externalSubmissionId=(crypto.randomUUID?crypto.randomUUID():'irum-'+Date.now())),
         submission_type:S.service==='social'?'social':'matching',
-        profile:{name:S.data.name||'',gender:S.data.gender||'',birthYear:birthYear,phone:S.data.phone||'',job:((S.data.role==='기타'?S.data.roleOther:S.data.role)||(S.data.qualification==='기타'?S.data.otherJob:S.data.qualification)||'').trim(),region:S.data.region||'',income:S.data.income||'',height:S.data.height||'',weight:S.data.gender==='female'?(S.data.weight||''):undefined,seoulMeetingAvailability:S.data.seoulMeetingAvailability||'',bodyType:S.data.bodyType||'',assets:S.data.assets||'',appealPoints:S.data.points||'',socialAttendanceIntent:S.service==='social'?(S.data.socialAttendanceIntent||''):undefined,socialEventId:S.service==='social'&&S.data.socialAttendanceIntent==='specific_event'?(Number(S.data.socialEventId)||null):null,preferences:{marketing:S.data.marketing||''}},
+        profile:{name:S.data.name||'',gender:S.data.gender||'',birthYear:birthYear,phone:S.data.phone||'',job:submittedJob,region:S.data.region||'',income:S.data.income||'',height:S.data.height||'',bodyType:S.data.bodyType||'',assets:S.data.assets||'',appealPoints:S.data.points||'',socialAttendanceIntent:S.service==='social'?(S.data.socialAttendanceIntent||''):undefined,socialEventId:S.service==='social'&&S.data.socialAttendanceIntent==='specific_event'?(Number(S.data.socialEventId)||null):null,preferences:{marketing:S.data.marketing||''}},
         marketing:{entry_path:location.pathname+location.search,referrer:document.referrer||'',utm:Object.fromEntries(params.entries())},
         consent_at:new Date().toISOString(),
         consent_version:'temporary-v1'
@@ -1648,7 +1642,7 @@ function syncMainFooter(id){ var policy=document.querySelector('[data-main-foote
   function bind(){
     root.querySelectorAll('[data-social-intent]').forEach(function(el){ el.onclick=function(){ var intent=el.getAttribute('data-social-intent'); S.data.socialAttendanceIntent=intent; if(intent==='next_event') S.data.socialEventId=null; render(); }; });
     root.querySelectorAll('[data-social-event]').forEach(function(el){ el.onclick=function(){ S.data.socialAttendanceIntent='specific_event'; S.data.socialEventId=Number(el.getAttribute('data-social-event')); render(); }; });
-    root.querySelectorAll('[data-gender]').forEach(function(el){ el.onclick=function(){ var g=el.getAttribute('data-gender'); ['role','income','assets','qualification','otherJob','bodyType'].forEach(function(k){S.data[k]='';}); S.data.points=[]; S.photos={front:null,lifestyle:null}; S.data.gender=g; anim='gender'; render(); }; });
+    root.querySelectorAll('[data-gender]').forEach(function(el){ el.onclick=function(){ var g=el.getAttribute('data-gender'); ['role','roleOther','income','incomeOther','assets','assetsOther','qualification','otherJob','bodyType'].forEach(function(k){S.data[k]='';}); S.data.points=[]; S.photos={front:null,lifestyle:null}; S.data.gender=g; anim='gender'; render(); }; });
     root.querySelectorAll('[data-pick]').forEach(function(el){ el.onclick=function(){ var k=el.getAttribute('data-pick'), v=el.getAttribute('data-val'); S.data[k]=(S.data[k]===v)?'':v; render(); }; });
     root.querySelectorAll('[data-point]').forEach(function(el){ el.onclick=function(){ var v=el.getAttribute('data-point'); var i=S.data.points.indexOf(v); if(i>=0) S.data.points.splice(i,1); else S.data.points.push(v); render(); }; });
     root.querySelectorAll('[data-in]').forEach(function(el){ el.oninput=function(e){ var k=el.getAttribute('data-in'); var v=e.target.value; if(k==='phone'){ v=fmtPhone(v); e.target.value=v; } else if(k==='birthdate'){ v=fmtBirth(v); e.target.value=v; } S.data[k]=v; }; });
