@@ -59,16 +59,22 @@
       const get = secondaryGetter(item);
       return fields.filter((field) => !field.when || field.when({ get }));
     };
+    const overallCustomerFields = (item) => {
+      const fields = [...registry.primary, ...registry.secondary[genderOf(item)]];
+      const get = secondaryGetter(item);
+      return fields.filter((field) => !field.when || field.when({ get }));
+    };
     const latestValues = (rows, item) => latest(rows.filter((row) => owns(item, row)))?.values || {};
     const healthFollowupRequired = (item) => String(secondaryGetter(item)("healthFlag") || "") === "있음";
     const consultationStarted = (item) => item.consultationStatus !== "before" || state.phoneConsultations.some((row) => owns(item, row));
     const internalStarted = (item) => Boolean(item.reviewed || item.member || state.internalEvaluations.some((row) => owns(item, row)));
-    const completion = (item) => {
-      const rows = activeCustomerFields(item).map((field) => ({ id: field.id, label: field.label, stage: field.stage, required: Boolean(field.required), value: currentFor(item, field) }));
+    const completion = (item, scope = "current") => {
+      const allManagement = scope === "overall";
+      const rows = (allManagement ? overallCustomerFields(item) : activeCustomerFields(item)).map((field) => ({ id: field.id, label: field.label, stage: field.stage, required: Boolean(field.required), value: currentFor(item, field) }));
       const phoneValues = latestValues(state.phoneConsultations, item);
-      if (consultationStarted(item)) registry.phone[genderOf(item)].filter((field) => !field.conditionalHealth || healthFollowupRequired(item) || filled(phoneValues[field.key])).forEach((field) => rows.push({ id: `phone-${field.key}`, label: field.label, stage: "phone", required: Boolean(field.required), value: phoneValues[field.key] }));
+      if (allManagement || consultationStarted(item)) registry.phone[genderOf(item)].filter((field) => !field.conditionalHealth || healthFollowupRequired(item) || filled(phoneValues[field.key])).forEach((field) => rows.push({ id: `phone-${field.key}`, label: field.label, stage: "phone", required: Boolean(field.required), value: phoneValues[field.key] }));
       const internalValues = latestValues(state.internalEvaluations, item);
-      if (internalStarted(item)) registry.internal[genderOf(item)].forEach((field) => rows.push({ id: `internal-${field.key}`, label: field.label, stage: "internal", required: Boolean(field.required), value: internalValues[field.key] }));
+      if (allManagement || internalStarted(item)) registry.internal[genderOf(item)].forEach((field) => rows.push({ id: `internal-${field.key}`, label: field.label, stage: "internal", required: Boolean(field.required), value: internalValues[field.key] }));
       if (matchingCases(item).length) {
         const feedback = latest(state.matchingFeedback.filter((row) => matchingCases(item).some((matchingCase) => matchingCase.id === row.matching_case_id)));
         [["meeting_at", "만남 일시"], ["reunion_intent", "다시 만날 의향"], ["positive_points", "좋았던 점"], ["negative_points", "아쉬웠던 점·거절 이유"], ["next_match_adjustment", "다음 소개 조정사항"], ["admin_note", "운영자 메모"]].forEach(([key, label]) => rows.push({ id: `feedback-${key}`, label, stage: "feedback", required: true, value: feedback?.[key] }));
@@ -78,8 +84,8 @@
     };
 
     const completionMarkup = (item) => {
-      const count = completion(item);
-      return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">현재 진행 단계 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button></section>`;
+      const count = completion(item, "overall");
+      return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button></section>`;
     };
     const valueForDisplay = (value, key = "") => valueLabel(value, key);
     const normalizedControlValue = (node) => {
@@ -179,11 +185,11 @@
       return [...corrections, ...phone, ...internal, ...feedback].sort((a, b) => new Date(b.at) - new Date(a.at));
     };
     const completionRail = (item) => {
-      const count = completion(item);
+      const count = completion(item, "overall");
       const stageOrder = { primary: 0, secondary: 1, phone: 2, internal: 3, feedback: 4 };
       const stageLabel = { primary: "1차 기본정보", secondary: "2차 프로필", phone: "전화 상담", internal: "내부 평가", feedback: "첫 만남" };
       const missing = count.rows.filter((row) => !filled(row.value)).sort((a, b) => Number(Boolean(b.required)) - Number(Boolean(a.required)) || (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99)).slice(0, 3);
-      return `<section class="crm-rail-completion" data-rail-completion><div class="crm-rail-completion-head"><div><h4>프로필 완성도</h4><p>현재 진행 단계 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-rail-progress" role="progressbar" aria-label="프로필 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><p>${count.done} / ${count.total} 입력 · 미입력 ${count.missing}개</p>${missing.length ? `<p class="crm-rail-missing-title">우선 보완할 정보</p><ol class="crm-rail-missing">${missing.map((row) => `<li data-rail-missing-item="${esc(row.id)}"><span>${esc(row.label)}</span><small>${esc(stageLabel[row.stage] || "프로필")}</small></li>`).join("")}</ol>` : '<div class="crm-rail-complete">현재 단계의 필수 정보가 모두 입력되었습니다.</div>'}</section>`;
+      return `<section class="crm-rail-completion" data-rail-completion><div class="crm-rail-completion-head"><div><h4>프로필 완성도</h4><p>전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-rail-progress" role="progressbar" aria-label="프로필 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><p>${count.done} / ${count.total} 입력 · 미입력 ${count.missing}개</p>${missing.length ? `<p class="crm-rail-missing-title">우선 보완할 정보</p><ol class="crm-rail-missing">${missing.map((row) => `<li data-rail-missing-item="${esc(row.id)}"><span>${esc(row.label)}</span><small>${esc(stageLabel[row.stage] || "프로필")}</small></li>`).join("")}</ol>` : '<div class="crm-rail-complete">전체 관리 항목이 모두 입력되었습니다.</div>'}</section>`;
     };
     const historyRail = (item) => {
       const rows = historyRows(item).filter((row) => historyFilter === "all" || row.filter === historyFilter);
