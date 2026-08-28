@@ -32,10 +32,10 @@
   <body>
     <div id="app"></div>
     <script src="/admin-crm-schema.js?v=pasted789-4"></script>
-    <script src="/admin-crm-runtime.js?v=pasted789-14"></script>
+    <script src="/admin-crm-runtime.js?v=pasted789-15"></script>
     <script src="/admin-member-grade-runtime.js?v=member-grade-1"></script>
     <script>
-      const TEMP_ADMIN_BUILD_ID = "temp-admin-black-field-label-20260828-22";
+      const TEMP_ADMIN_BUILD_ID = "temp-admin-common-profile-20260828-23";
       const SLA_HOURS = 24;
       const API_TIMEOUT_MS = 15000;
       const READ_RETRY_ACTIONS = new Set(["admin-list","snapshot-list","operational-list","consultation-import-manifest","secondary-admin-list","admin-operations-list"]);
@@ -50,7 +50,7 @@
       const issuedLinksKey = "irum-temp-secondary-issued-links-v1";
       const loginAuditKey = "irum-temp-admin-login-audit-v1";
       const app = document.getElementById("app");
-      const state = { page:"dashboard", loading:false, loadPromise:null, loadedAt:0, records:[], legacy:[], operational:[], consultations:[], forms:[], documents:[], reviews:[], secondaryEvents:[], workflows:[], workflowEvents:[], schedules:[], members:[], memberGrades:[], matchingCases:[], matchingEvents:[], socialEvents:[], legacySocialEvents:[], audit:[], fieldCorrections:[], phoneConsultations:[], internalEvaluations:[], matchingFeedback:[], addedPhotos:[], selected:null, filters:{ q:"", stage:"all", service:"all", sent:"all", submitted:"all", gender:"all", owner:"all", source:"all", duplicate:"all" } };
+      const state = { page:"dashboard", loading:false, loadPromise:null, loadedAt:0, records:[], legacy:[], operational:[], consultations:[], forms:[], documents:[], reviews:[], secondaryEvents:[], workflows:[], workflowEvents:[], schedules:[], members:[], memberGrades:[], matchingCases:[], matchingEvents:[], socialEvents:[], legacySocialEvents:[], audit:[], fieldCorrections:[], crmSupplements:[], phoneConsultations:[], internalEvaluations:[], matchingFeedback:[], addedPhotos:[], selected:null, filters:{ q:"", stage:"all", service:"all", sent:"all", submitted:"all", gender:"all", owner:"all", source:"all", duplicate:"all" } };
       const esc = (value="") => String(value ?? "").replace(/[&<>'"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c]);
       const text = (value) => String(value ?? "").trim();
       const filterQueryKeys={q:"q",stage:"stage",service:"service",sent:"secondaryLink",submitted:"secondaryCompletion",gender:"gender",owner:"owner",source:"source",duplicate:"duplicate"};
@@ -128,7 +128,7 @@
           const [temp,legacy]=await Promise.all([invokeAdmin("admin-list"),invokeAdmin("snapshot-list")]);
           const [operational,consultation]=await Promise.all([invokeAdmin("operational-list"),invokeAdmin("consultation-import-manifest")]);
           const [secondary,adminOps]=await Promise.all([invokeSecondary("secondary-admin-list"),invokeAdmin("admin-operations-list")]);
-          state.records=temp.records||[];state.legacy=legacy.records||[];state.operational=operational.records||[];state.consultations=consultation.records||[];state.forms=secondary.forms||[];state.documents=secondary.documents||[];state.reviews=secondary.reviews||[];state.secondaryEvents=secondary.profile_events||[];state.workflows=adminOps.workflows||[];state.workflowEvents=adminOps.workflow_events||[];state.schedules=adminOps.schedule_events||[];state.members=adminOps.member_events||[];state.memberGrades=adminOps.member_grade_events||[];state.matchingCases=adminOps.matching_cases||[];state.matchingEvents=adminOps.matching_events||[];state.socialEvents=adminOps.social_events||[];state.legacySocialEvents=adminOps.legacy_social_events||[];state.audit=adminOps.audit_events||[];state.fieldCorrections=adminOps.field_corrections||[];state.phoneConsultations=adminOps.phone_consultation_revisions||[];state.internalEvaluations=adminOps.internal_evaluation_revisions||[];state.matchingFeedback=adminOps.matching_feedback_revisions||[];state.addedPhotos=adminOps.added_photos||[];state.loadedAt=Date.now();
+          state.records=temp.records||[];state.legacy=legacy.records||[];state.operational=operational.records||[];state.consultations=consultation.records||[];state.forms=secondary.forms||[];state.documents=secondary.documents||[];state.reviews=secondary.reviews||[];state.secondaryEvents=secondary.profile_events||[];state.workflows=adminOps.workflows||[];state.workflowEvents=adminOps.workflow_events||[];state.schedules=adminOps.schedule_events||[];state.members=adminOps.member_events||[];state.memberGrades=adminOps.member_grade_events||[];state.matchingCases=adminOps.matching_cases||[];state.matchingEvents=adminOps.matching_events||[];state.socialEvents=adminOps.social_events||[];state.legacySocialEvents=adminOps.legacy_social_events||[];state.audit=adminOps.audit_events||[];state.fieldCorrections=adminOps.field_corrections||[];state.crmSupplements=adminOps.crm_supplements||[];state.phoneConsultations=adminOps.phone_consultation_revisions||[];state.internalEvaluations=adminOps.internal_evaluation_revisions||[];state.matchingFeedback=adminOps.matching_feedback_revisions||[];state.addedPhotos=adminOps.added_photos||[];state.loadedAt=Date.now();
         })();
         try{return await state.loadPromise}finally{state.loading=false;state.loadPromise=null}
       }

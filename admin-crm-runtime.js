@@ -18,6 +18,7 @@
       ));
     };
     const correctionRows = (item) => state.fieldCorrections.filter((row) => owns(item, row)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const crmSupplementRows = (item) => (state.crmSupplements || []).filter((row) => owns(item, row)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const addedPhotosFor = (item) => (state.addedPhotos || []).filter((row) => owns(item, row)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const allPhotoCount = (item) => (item.photoBase?.photoRefs?.length || 0) + addedPhotosFor(item).length;
     const profileForm = (item) => {
@@ -46,7 +47,12 @@
         row.subject_type === source.subject.type && String(row.subject_id) === String(source.subject.id) &&
         String(row.form_id || "") === String(source.form?.id || "")) || null;
     };
-    const currentFor = (item, field) => field.kind === "photos" ? (allPhotoCount(item) ? "attached" : null) : correctionFor(item, field)?.corrected_value ?? sourceFor(item, field).original;
+    const supplementFor = (item, field) => {
+      const source = sourceFor(item, field);
+      if (field.stage !== "secondary" || source.form) return null;
+      return crmSupplementRows(item).find((row) => row.field_key === source.key && row.subject_type === source.subject.type && String(row.subject_id) === String(source.subject.id)) || null;
+    };
+    const currentFor = (item, field) => field.kind === "photos" ? (allPhotoCount(item) ? "attached" : null) : supplementFor(item, field)?.value ?? correctionFor(item, field)?.corrected_value ?? sourceFor(item, field).original;
     const filled = (value) => Array.isArray(value) ? value.length > 0 : value === true || value === false || (value !== null && value !== undefined && String(value).trim() !== "");
     const secondaryGetter = (item) => (key) => {
       const all = registry.secondary[genderOf(item)];
@@ -54,8 +60,7 @@
       return field ? currentFor(item, field) : null;
     };
     const activeCustomerFields = (item) => {
-      const fields = [...registry.primary];
-      if (profileForm(item)) fields.push(...registry.secondary[genderOf(item)]);
+      const fields = [...registry.primary, ...registry.secondary[genderOf(item)]];
       const get = secondaryGetter(item);
       return fields.filter((field) => !field.when || field.when({ get }));
     };
@@ -104,7 +109,8 @@
     const fieldCard = (item, field) => {
       const source = sourceFor(item, field);
       const correction = correctionFor(item, field);
-      const current = correction?.corrected_value ?? source.original;
+      const supplement = supplementFor(item, field);
+      const current = supplement?.value ?? correction?.corrected_value ?? source.original;
       if (field.kind === "photos") {
         const photoCount = allPhotoCount(item);
         const originalCount = item.photoBase?.photoRefs?.length || 0;
@@ -113,10 +119,13 @@
         return `<article class="crm-field crm-photo-field ${photoCount ? "" : "missing"}" data-photo-field><div class="crm-field-head"><label>첨부 사진 <small class="crm-required">필수</small></label><span class="crm-source">사진 관리</span></div><div class="crm-photo-card"><div class="crm-photo-collection">${originalCount ? photoMarkup(item) : ""}${added.map((photo, index) => `<button type="button" class="crm-added-photo" data-added-photo="${esc(photo.id)}" aria-label="추가 사진 ${index + 1} 보기">불러오는 중</button>`).join("")}${!photoCount ? '<div class="crm-photo-empty">등록된 사진이 없습니다.</div>' : ""}</div></div><div class="crm-photo-actions"><input type="file" data-add-photo-input accept="image/jpeg,image/png,image/webp" hidden><button type="button" class="secondary" data-add-photo>사진 추가</button><span>${photoCount ? `총 ${photoCount}장 · 눌러서 크게 보기` : "JPG · PNG · WEBP / 8MB 이하"}</span></div></article>`;
       }
       if (missingOnly && filled(current)) return "";
-      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(field.sourceLabel)}</span></div><div class="crm-original">신청 내용 · ${esc(valueForDisplay(source.original, source.key))}</div><div class="crm-current">전화 상담 확인 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}</article>`;
+      const noSecondaryForm = field.stage === "secondary" && !source.form;
+      const sourceLabel = noSecondaryForm ? "상담 보완" : field.sourceLabel;
+      const originalLabel = noSecondaryForm ? "2차 작성 전" : `신청 내용 · ${valueForDisplay(source.original, source.key)}`;
+      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(sourceLabel)}</span></div><div class="crm-original">${esc(originalLabel)}</div><div class="crm-current">전화 상담 확인 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}</article>`;
     };
     const customerSections = (item) => {
-      const all = activeCustomerFields(item);
+      const all = overallCustomerFields(item);
       const groups = new Map();
       all.forEach((field) => {
         if (!groups.has(`${field.stage}:${field.category}`)) groups.set(`${field.stage}:${field.category}`, []);
@@ -179,10 +188,11 @@
     };
     const historyRows = (item) => {
       const corrections = correctionRows(item).map((row) => ({ filter: row.customer_requested ? "customer" : row.correction_reason === "phone_consultation" ? "phone" : row.correction_reason === "verification" ? "verification" : "all", title: row.field_label, source: row.data_source === "secondary" ? "2차 신청" : row.data_source === "legacy_snapshot" ? "기존 Snapshot" : "1차 신청", original: row.original_value, previous: row.previous_value, next: row.corrected_value, reason: { customer_request: "고객 요청", phone_consultation: "전화상담 확인", verification: "서류·사실 확인", admin_correction: "정보 반영", other: "기타" }[row.correction_reason] || row.correction_reason, reasonNote: row.reason_note, requested: row.customer_requested, who: row.actor_email, at: row.created_at }));
+      const supplements = crmSupplementRows(item).map((row) => ({ filter: "phone", title: row.field_label, source: "상담 보완", original: null, previous: row.previous_value, next: row.value, reason: "전화상담 확인", requested: false, who: row.actor_email, at: row.created_at }));
       const phone = diffRevisionRows(state.phoneConsultations, item, "phone", phoneLabels);
       const internal = diffRevisionRows(state.internalEvaluations, item, "internal", internalLabels);
       const feedback = state.matchingFeedback.filter((row) => matchingCases(item).some((matchingCase) => matchingCase.id === row.matching_case_id)).map((row) => ({ filter: "feedback", title: `첫 만남 피드백 · 매칭 ${row.matching_case_id.slice(0, 8)}`, source: "실제 매칭 건", original: null, previous: null, next: { "만남 일시": date(row.meeting_at), "다시 만날 의향": Object.fromEntries(registry.feedback.intents)[row.reunion_intent] || row.reunion_intent, "좋았던 점": row.positive_points, "좋았던 점 메모": row.positive_note, "아쉬웠던 점": row.negative_points, "아쉬웠던 점 메모": row.negative_note, "다음 소개 조정사항": row.next_match_adjustment, "운영자 메모": row.admin_note }, reason: "첫 만남 피드백", requested: false, who: row.actor_email, at: row.created_at }));
-      return [...corrections, ...phone, ...internal, ...feedback].sort((a, b) => new Date(b.at) - new Date(a.at));
+      return [...corrections, ...supplements, ...phone, ...internal, ...feedback].sort((a, b) => new Date(b.at) - new Date(a.at));
     };
     const completionRail = (item) => {
       const count = completion(item, "overall");
@@ -274,13 +284,17 @@
       bindOptionRows();
       const saveDirectCard = async (card) => {
         if (card.dataset.saving === "true") return;
-        const field = activeCustomerFields(item).find((entry) => entry.id === card.dataset.directField), source = sourceFor(item, field);
+        const field = overallCustomerFields(item).find((entry) => entry.id === card.dataset.directField), source = sourceFor(item, field);
         const control = card.querySelector("[data-edit-value]"), option = card.querySelector("[data-option-group]");
         let value = option ? normalizedControlValue(option) : control.value;
         if (!filled(value) || JSON.stringify(value) === JSON.stringify(currentFor(item, field))) return;
         card.dataset.saving = "true";
         try {
-          await invokeAdmin("admin-field-correction-add", { subject_type: source.subject.type, subject_id: source.subject.id, form_id: source.form?.id || null, field_group: field.group, field_key: source.key, field_label: field.label, corrected_value: value, customer_requested: false, correction_reason: "admin_correction", reason_note: null });
+          if (field.stage === "secondary" && !source.form) {
+            await invokeAdmin("admin-crm-supplement-add", { subject_type: source.subject.type, subject_id: source.subject.id, field_key: source.key, field_label: field.label, value });
+          } else {
+            await invokeAdmin("admin-field-correction-add", { subject_type: source.subject.type, subject_id: source.subject.id, form_id: source.form?.id || null, field_group: field.group, field_key: source.key, field_label: field.label, corrected_value: value, customer_requested: false, correction_reason: "admin_correction", reason_note: null });
+          }
           await refreshSelected(item);
         } catch (error) { card.dataset.saving = ""; toast(`입력값 저장 실패 (${error.code})`, true); }
       };
