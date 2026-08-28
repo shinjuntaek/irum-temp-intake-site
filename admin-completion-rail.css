@@ -12,5 +12,15 @@
 .page[data-consultation-crm-detail] .crm-rail-missing li::before{display:grid;place-items:center;flex:0 0 17px;width:17px;height:17px;border-radius:50%;background:#f2e4dc;color:#8e3f35;font-size:10px;font-weight:800;counter-increment:missing;content:counter(missing)}
 .page[data-consultation-crm-detail] .crm-rail-missing small{overflow:hidden;color:#93897a;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
 .page[data-consultation-crm-detail] .crm-rail-complete{margin-top:10px;padding-top:10px;border-top:1px solid #eee8dd;color:#50724f;font-size:12px;font-weight:700}
-@media(max-width:1120px){.page[data-consultation-crm-detail] .crm-rail-completion{margin:12px 0}.page[data-consultation-crm-detail] .crm-rail-missing{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:640px){.page[data-consultation-crm-detail] .crm-rail-missing{grid-template-columns:1fr}.page[data-consultation-crm-detail] .crm-rail-completion{margin:10px 0}}
+.page[data-consultation-crm-detail] .crm-rail-sections{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.page[data-consultation-crm-detail] .crm-rail-section{padding:8px;border:1px solid #ece4d8;border-radius:8px;background:#fff}
+.page[data-consultation-crm-detail] .crm-rail-section-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.page[data-consultation-crm-detail] .crm-rail-section-head b{color:#38342e;font-size:11px;line-height:1.3}
+.page[data-consultation-crm-detail] .crm-rail-section-head small{color:#9a5d50;font-size:10px;white-space:nowrap}
+.page[data-consultation-crm-detail] .crm-rail-section ul{display:grid;gap:3px;margin:6px 0 0;padding:0;list-style:none}
+.page[data-consultation-crm-detail] .crm-rail-section ul li{position:relative;padding-left:10px;color:#665e54;font-size:11px;line-height:1.35}
+.page[data-consultation-crm-detail] .crm-rail-section ul li::before{position:absolute;left:0;content:"·";color:#b98f4e;font-weight:800}
+.page[data-consultation-crm-detail] .crm-rail-section em{margin-left:4px;color:#9a5d50;font-size:9px;font-style:normal;font-weight:800}
+.page[data-consultation-crm-detail] .crm-rail-section .crm-rail-section-more{color:#93897a}
+@media(max-width:1120px){.page[data-consultation-crm-detail] .crm-rail-completion{margin:12px 0}.page[data-consultation-crm-detail] .crm-rail-sections{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.page[data-consultation-crm-detail] .crm-rail-sections{grid-template-columns:1fr}.page[data-consultation-crm-detail] .crm-rail-completion{margin:10px 0}}

@@ -188,8 +188,17 @@
       const count = completion(item, "overall");
       const stageOrder = { primary: 0, secondary: 1, phone: 2, internal: 3, feedback: 4 };
       const stageLabel = { primary: "1차 기본정보", secondary: "2차 프로필", phone: "전화 상담", internal: "내부 평가", feedback: "첫 만남" };
-      const missing = count.rows.filter((row) => !filled(row.value)).sort((a, b) => Number(Boolean(b.required)) - Number(Boolean(a.required)) || (stageOrder[a.stage] ?? 99) - (stageOrder[b.stage] ?? 99)).slice(0, 3);
-      return `<section class="crm-rail-completion" data-rail-completion><div class="crm-rail-completion-head"><div><h4>프로필 완성도</h4><p>전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-rail-progress" role="progressbar" aria-label="프로필 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><p>${count.done} / ${count.total} 입력 · 미입력 ${count.missing}개</p>${missing.length ? `<p class="crm-rail-missing-title">우선 보완할 정보</p><ol class="crm-rail-missing">${missing.map((row) => `<li data-rail-missing-item="${esc(row.id)}"><span>${esc(row.label)}</span><small>${esc(stageLabel[row.stage] || "프로필")}</small></li>`).join("")}</ol>` : '<div class="crm-rail-complete">전체 관리 항목이 모두 입력되었습니다.</div>'}</section>`;
+      const missingRows = count.rows.filter((row) => !filled(row.value));
+      const sections = Object.keys(stageOrder).map((stage) => {
+        const rows = missingRows.filter((row) => row.stage === stage).sort((a, b) => Number(Boolean(b.required)) - Number(Boolean(a.required)) || a.label.localeCompare(b.label, "ko"));
+        return { stage, rows, required: rows.filter((row) => row.required).length };
+      }).filter((section) => section.rows.length);
+      const sectionMarkup = sections.map((section) => {
+        const items = section.rows.slice(0, 3);
+        const extra = section.rows.length - items.length;
+        return `<li class="crm-rail-section" data-rail-section="${section.stage}"><div class="crm-rail-section-head"><b>${esc(stageLabel[section.stage])}</b><small>미입력 ${section.rows.length}개${section.required ? ` · 필수 ${section.required}개` : ""}</small></div><ul data-rail-section-items>${items.map((row) => `<li data-rail-missing-item="${esc(row.id)}">${esc(row.label)}${row.required ? '<em>필수</em>' : ""}</li>`).join("")}${extra ? `<li class="crm-rail-section-more">외 ${extra}개 항목</li>` : ""}</ul></li>`;
+      }).join("");
+      return `<section class="crm-rail-completion" data-rail-completion><div class="crm-rail-completion-head"><div><h4>프로필 완성도</h4><p>전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-rail-progress" role="progressbar" aria-label="프로필 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><p>${count.done} / ${count.total} 입력 · 미입력 ${count.missing}개</p>${sectionMarkup ? `<p class="crm-rail-missing-title">보완이 필요한 섹션</p><ol class="crm-rail-sections">${sectionMarkup}</ol>` : '<div class="crm-rail-complete">전체 관리 항목이 모두 입력되었습니다.</div>'}</section>`;
     };
     const historyRail = (item) => {
       const rows = historyRows(item).filter((row) => historyFilter === "all" || row.filter === historyFilter);
