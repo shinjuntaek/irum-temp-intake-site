@@ -135,9 +135,16 @@
         const [stage, category] = groupKey.split(":");
         const cards = fields.map((field) => fieldCard(item, field)).join("");
         const done = fields.filter((field) => filled(currentFor(item, field))).length, missing = fields.length - done;
-        if (!cards && missingOnly) return "";
-        return `<section class="crm-category ${stage === "primary" ? "crm-first-stage" : ""}" data-field-category="${esc(category)}"><div class="crm-category-head"><div><h3>${esc(category)} <em class="${missing ? "crm-miss-count" : "crm-ok-count"}">${done}/${fields.length}${missing ? ` · 미입력 ${missing}` : " · 완료"}</em></h3><p class="desc">${stage === "primary" ? "처음 신청 때 작성한 기본 정보" : "2차 신청에서 작성한 정보"}</p></div><small>${stage === "primary" ? "1차 신청" : "2차 신청"}</small></div><div class="crm-field-grid">${cards || '<p class="desc">현재 조건에 해당하는 미입력 항목이 없습니다.</p>'}</div></section>`;
+        const categoryMarkup = !cards && missingOnly ? "" : `<section class="crm-category ${stage === "primary" ? "crm-first-stage" : ""}" data-field-category="${esc(category)}"><div class="crm-category-head"><div><h3>${esc(category)} <em class="${missing ? "crm-miss-count" : "crm-ok-count"}">${done}/${fields.length}${missing ? ` · 미입력 ${missing}` : " · 완료"}</em></h3><p class="desc">${stage === "primary" ? "처음 신청 때 작성한 기본 정보" : "2차 신청에서 작성한 정보"}</p></div><small>${stage === "primary" ? "1차 신청" : "2차 신청"}</small></div><div class="crm-field-grid">${cards || '<p class="desc">현재 조건에 해당하는 미입력 항목이 없습니다.</p>'}</div></section>`;
+        return stage === "primary" ? `${categoryMarkup}${primaryReviewPanel(item)}` : categoryMarkup;
       }).join("");
+    };
+
+    const primaryReviewPanel = (item) => {
+      const hasSubmittedSecondary = item.forms.some((form) => form.status === "submitted");
+      const isRejected = !item.reviewed && item.workflow?.workflow_stage === "rejected";
+      const reason = isRejected ? item.workflow?.reason || "" : "";
+      return `<section class="crm-primary-review" data-primary-review><div class="crm-category-head"><div><h3>1차 심사 결과</h3><p class="desc">2차 신청폼 제출 전, 1차 검토에서 처리하는 운영 결과입니다.</p></div><small>1차 검토</small></div>${hasSubmittedSecondary ? '<div class="crm-stage-note">2차 신청폼이 제출되어 2차 심사 결과에서 처리합니다.</div>' : `<form class="crm-primary-review-form" id="primary-review-form"><select id="primary-review-result" aria-label="1차 심사 결과"><option value="first_review" ${isRejected ? "" : "selected"}>1차 검토 중</option><option value="rejected" ${isRejected ? "selected" : ""}>1차 미승인 (탈락)</option></select><textarea id="primary-review-reason" maxlength="2000" placeholder="미승인 사유를 입력해 주세요.">${esc(reason)}</textarea><button class="action" type="submit">1차 심사 저장</button></form>`}${isRejected ? `<p class="crm-primary-review-status"><span class="chip red">1차 미승인</span> ${esc(reason)} · ${esc(date(item.workflow?.reviewed_at || item.workflow?.updated_at))}</p>` : ""}</section>`;
     };
 
     const revisionControl = (field, value, prefix) => {
@@ -231,7 +238,7 @@
       const workflowStage = document.getElementById("workflow-stage");
       if ([...workflowStage.options].some((option) => option.value === item.workflow?.workflow_stage)) workflowStage.value = item.workflow.workflow_stage;
       document.getElementById("workflow-save").onclick = () => saveWorkflow(item);
-      bindPhotos(); bindAddedPhotos(item); bindReview(item); bindDocuments(); bindLinks(item); bindMemo(item); bindSchedules(item); bindContinuous(item);
+      bindPhotos(); bindAddedPhotos(item); bindReview(item); bindDocuments(); bindLinks(item); bindMemo(item); bindSchedules(item); bindPrimaryReview(item); bindContinuous(item);
     };
 
     const refreshSelected = async (item, message) => {
@@ -239,6 +246,22 @@
       await loadAll(true);
       if (message) toast(message);
       render(groupItems().find((candidate) => candidate.key === item.key) || item);
+    };
+    const bindPrimaryReview = (item) => {
+      const form = document.getElementById("primary-review-form");
+      if (!form) return;
+      form.onsubmit = async (event) => {
+        event.preventDefault();
+        const result = document.getElementById("primary-review-result").value;
+        const reason = text(document.getElementById("primary-review-reason").value);
+        if (result === "rejected" && !reason) { toast("1차 미승인 처리에는 사유를 입력해 주세요.", true); return; }
+        if (result === "rejected" && !confirm("이 신청자를 1차 미승인으로 처리할까요? 기존 신청 내용은 변경되지 않습니다.")) return;
+        const button = form.querySelector("button"); button.disabled = true;
+        try {
+          await invokeAdmin("admin-workflow-set", { subject_type: item.canonical.type, subject_id: item.canonical.id, workflow_stage: result, reason: result === "rejected" ? reason : null, review_scope: result === "rejected" ? "primary" : null });
+          await refreshSelected(item, result === "rejected" ? "1차 미승인으로 처리했습니다." : "1차 검토 상태로 변경했습니다.");
+        } catch (error) { toast(`1차 심사 결과를 저장하지 못했습니다. (${error.code})`, true); } finally { button.disabled = false; }
+      };
     };
     const bindOptionRows = () => document.querySelectorAll("[data-option-group],[data-revision-options],[data-feedback-intent]").forEach((group) => group.querySelectorAll("[data-option-value]").forEach((button) => button.onclick = () => {
       group.dataset.value = button.dataset.optionValue;
