@@ -21,6 +21,9 @@
     const crmSupplementRows = (item) => (state.crmSupplements || []).filter((row) => owns(item, row)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const addedPhotosFor = (item) => (state.addedPhotos || []).filter((row) => owns(item, row)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     const allPhotoCount = (item) => (item.photoBase?.photoRefs?.length || 0) + addedPhotosFor(item).length;
+    const gradeLabels = { s: "S등급", a: "A등급", b: "B등급", c: "C등급", d: "D등급", unassigned: "등급 미정" };
+    const profileGradeFor = (item) => latest((state.memberGrades || []).filter((row) => owns(item, row)))?.member_grade || "unassigned";
+    const profileGradeChip = (item) => genderOf(item) === "male" ? `<span class="chip crm-profile-grade ${profileGradeFor(item) === "unassigned" ? "" : `grade-${profileGradeFor(item)}`}">${esc(gradeLabels[profileGradeFor(item)] || "등급 미정")}</span>` : "";
     const profileForm = (item) => {
       const expected = `profile_${genderOf(item)}`;
       return item.forms.find((form) => form.form_type === expected && ["submitted", "in_progress"].includes(form.status)) ||
@@ -96,7 +99,9 @@
 
     const completionMarkup = (item) => {
       const count = completion(item, "overall");
-      return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button></section>`;
+      const grade = profileGradeFor(item);
+      const gradeControl = genderOf(item) === "male" ? `<div class="crm-grade-control" data-profile-grade-control><label for="profile-grade-select">등급</label><select id="profile-grade-select" aria-label="남성 신청자 등급">${["unassigned", "s", "a", "b", "c", "d"].map((value) => `<option value="${value}" ${value === grade ? "selected" : ""}>${esc(gradeLabels[value])}</option>`).join("")}</select><button type="button" data-profile-grade-save>등급 저장</button></div>` : "";
+      return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button>${gradeControl}</section>`;
     };
     const valueForDisplay = (value, key = "") => valueLabel(value, key);
     const normalizedControlValue = (node) => {
@@ -145,15 +150,12 @@
         const cards = fields.map((field) => fieldCard(item, field)).join("");
         const done = fields.filter((field) => filled(currentFor(item, field))).length, missing = fields.length - done;
         const categoryMarkup = !cards && missingOnly ? "" : `<section class="crm-category ${stage === "primary" ? "crm-first-stage" : ""}" data-field-category="${esc(category)}"><div class="crm-category-head"><div><h3>${esc(category)} <em class="${missing ? "crm-miss-count" : "crm-ok-count"}">${done}/${fields.length}${missing ? ` · 미입력 ${missing}` : " · 완료"}</em></h3><p class="desc">${stage === "primary" ? "처음 신청 때 작성한 기본 정보" : "2차 신청에서 작성한 정보"}</p></div><small>${stage === "primary" ? "1차 신청" : "2차 신청"}</small></div><div class="crm-field-grid">${cards || '<p class="desc">현재 조건에 해당하는 미입력 항목이 없습니다.</p>'}</div></section>`;
-        return stage === "primary" ? `${categoryMarkup}${primaryReviewPanel(item)}` : categoryMarkup;
+        return stage === "primary" ? `${categoryMarkup}${secondaryLinkPanel(item)}` : categoryMarkup;
       }).join("");
     };
 
-    const primaryReviewPanel = (item) => {
-      const hasSubmittedSecondary = item.forms.some((form) => form.status === "submitted");
-      const isRejected = !item.reviewed && item.workflow?.workflow_stage === "rejected";
-      const reason = isRejected ? item.workflow?.reason || "" : "";
-      return `<section class="crm-primary-review" data-primary-review><div class="crm-category-head"><div><h3>1차 심사 결과</h3><p class="desc">2차 신청폼 제출 전, 1차 검토에서 처리하는 운영 결과입니다.</p></div><small>1차 검토</small></div>${hasSubmittedSecondary ? '<div class="crm-stage-note">2차 신청폼이 제출되어 2차 심사 결과에서 처리합니다.</div>' : `<form class="crm-primary-review-form" id="primary-review-form"><select id="primary-review-result" aria-label="1차 심사 결과"><option value="first_review" ${isRejected ? "" : "selected"}>1차 검토 중</option><option value="rejected" ${isRejected ? "selected" : ""}>1차 미승인 (탈락)</option></select><textarea id="primary-review-reason" maxlength="2000" placeholder="미승인 사유를 입력해 주세요.">${esc(reason)}</textarea><button class="action" type="submit">1차 심사 저장</button></form>`}${isRejected ? `<p class="crm-primary-review-status"><span class="chip red">1차 미승인</span> ${esc(reason)} · ${esc(date(item.workflow?.reviewed_at || item.workflow?.updated_at))}</p>` : ""}</section>`;
+    const secondaryLinkPanel = (item) => {
+      return `<section class="crm-category crm-secondary-link-panel" data-secondary-link-panel><div class="crm-category-head"><div><h3>2차 신청폼 링크</h3><p class="desc">고객에게 직접 전달할 개인화 링크를 발급·복사하고 발송 완료를 수동으로 기록합니다.</p></div><small>2차 신청</small></div>${linkPanel(item)}</section>`;
     };
 
     const revisionControl = (field, value, prefix) => {
@@ -166,6 +168,7 @@
       return `<details class="details"><summary>이전 상담 기록 ${revisions.length}건</summary><div class="panel-body history">${revisions.map((row) => `<article><b>${esc(date(row.created_at))} · ${esc(row.actor_email || "운영자")}</b><p>${Object.entries(row.values || {}).map(([key, value]) => `${labelMap[key] || secondaryFieldLabel(key)}: ${valueForDisplay(value, key)}`).join("\n")}</p></article>`).join("") || '<p class="desc">이전 상담 기록이 없습니다.</p>'}</div></details>`;
     };
     const phoneSection = (item) => {
+      if (genderOf(item) === "male") return "";
       const fields = registry.phone[genderOf(item)].filter((field) => !field.conditionalHealth || healthFollowupRequired(item) || filled(latestValues(state.phoneConsultations, item)[field.key]));
       const values = latestValues(state.phoneConsultations, item);
       const labels = Object.fromEntries(registry.phone[genderOf(item)].map((field) => [field.key, field.label]));
@@ -233,21 +236,21 @@
     };
     const operationalSections = (item) => {
       const forms = item.forms.filter((form) => ["submitted", "in_progress"].includes(form.status));
-      return `<details class="crm-operations" open><summary>2차 링크·응답·서류·심사</summary><div class="panel-body">${linkPanel(item)}${forms.map((form) => `<article class="form-card"><div class="form-card-head"><div><h4>${esc(formTypeLabel(form.form_type))}</h4><p class="meta">${esc(formStatusLabel(form.status))} · ${esc(date(form.submitted_at || form.draft_saved_at))}</p></div>${form.status === "submitted" ? '<span class="chip green">심사 가능</span>' : '<span class="chip blue">작성 중</span>'}</div><dl class="fields">${formAnswers(form)}</dl>${documentMarkup(form)}${form.status === "submitted" ? reviewMarkup(item, form) : '<div class="notice" style="margin-top:12px">제출 완료 전에는 심사 결과를 저장할 수 없습니다.</div>'}</article>`).join("") || '<p class="desc">작성 중이거나 제출된 2차 신청이 없습니다.</p>'}</div></details><details class="crm-operations"><summary>통메모장</summary><div class="panel-body">${memoPanel(item)}</div></details><details class="crm-operations"><summary>상담일자·다음 연락일</summary><div class="panel-body">${schedulePanel(item)}</div></details>`;
+      return `<details class="crm-operations" open><summary>2차 응답·서류·심사</summary><div class="panel-body">${forms.map((form) => `<article class="form-card"><div class="form-card-head"><div><h4>${esc(formTypeLabel(form.form_type))}</h4><p class="meta">${esc(formStatusLabel(form.status))} · ${esc(date(form.submitted_at || form.draft_saved_at))}</p></div>${form.status === "submitted" ? '<span class="chip green">심사 가능</span>' : '<span class="chip blue">작성 중</span>'}</div><dl class="fields">${formAnswers(form)}</dl>${documentMarkup(form)}${form.status === "submitted" ? reviewMarkup(item, form) : '<div class="notice" style="margin-top:12px">제출 완료 전에는 심사 결과를 저장할 수 없습니다.</div>'}</article>`).join("") || '<p class="desc">작성 중이거나 제출된 2차 신청이 없습니다.</p>'}</div></details><details class="crm-operations"><summary>통메모장</summary><div class="panel-body">${memoPanel(item)}</div></details><details class="crm-operations"><summary>상담일자·다음 연락일</summary><div class="panel-body">${schedulePanel(item)}</div></details>`;
     };
 
     const render = (item) => {
       state.selected = item;
       const p = item.profile;
       document.querySelector(".layout")?.classList.remove("crm-reference-layout");
-      shell("이룸 상담·심사 CRM", "고객 관리", `<section class="page" data-temp-single-applicant-page data-consultation-crm-detail data-crm-registry="${registry.version}"><button class="secondary" id="back">목록으로</button><section class="profile-head" style="margin-top:14px"><div class="profile-photo">${photoMarkup(item)}</div><div class="profile-copy"><div class="crm-client-summary"><p class="kicker">상담·심사 CRM</p><h2>${esc(p.name || "이름 미입력")} <span class="crm-gender-label">${genderOf(item) === "female" ? "여성" : "남성"}</span></h2><div class="chips">${stageChip(item.stage)}<span class="chip">${esc(serviceLabel(item.services))}</span>${item.duplicate ? '<span class="chip amber">같은 연락처의 신청 기록</span>' : ""}</div><div class="crm-client-details"><p>${esc(formatPhone(p.phone))}</p><p>${esc(p.job || "직업 미입력")} · ${esc(p.region || "지역 미입력")}</p></div></div>${completionMarkup(item)}<div class="quick-grid"><div><span>2차 링크</span><b>${item.form?.sent_at ? "발송 완료" : item.form ? "발송 전" : "미발급"}</b></div><div><span>2차 제출</span><b>${item.form?.status === "submitted" ? "완료" : "미완료"}</b></div><div><span>상담 상태</span><b>${esc({ before: "상담전", in_progress: "상담중", completed: "상담완료" }[item.consultationStatus] || "상담전")}</b></div><div><span>다음 업무</span><b>${esc(nextTask(item))}</b></div></div><div class="workspace-controls"><select id="workflow-stage"><option value="first_review">1차 검토 중</option>${item.reviewed?.result === "approved" ? '<option value="approved">승인</option>' : ""}${item.reviewed?.result === "hold" ? '<option value="hold">보류</option>' : ""}${item.reviewed?.result === "rejected" ? '<option value="rejected">미승인</option>' : ""}</select><input id="workflow-owner" placeholder="담당자" value="${esc(item.workflow?.assigned_to || item.legacyConsult.consultantName || "")}"><button class="action" id="workflow-save">처리 단계 저장</button></div></div></section><div class="crm-flow"><main class="crm-main-flow">${customerSections(item)}${phoneSection(item)}${internalSection(item)}${feedbackSection(item)}${operationalSections(item)}</main>${historyRail(item)}</div></section>`);
+      shell("이룸 상담·심사 CRM", "고객 관리", `<section class="page" data-temp-single-applicant-page data-consultation-crm-detail data-crm-registry="${registry.version}"><button class="secondary" id="back">목록으로</button><section class="profile-head" style="margin-top:14px"><div class="profile-photo">${photoMarkup(item)}</div><div class="profile-copy"><div class="crm-client-summary"><p class="kicker">상담·심사 CRM</p><h2>${esc(p.name || "이름 미입력")} <span class="crm-gender-label">${genderOf(item) === "female" ? "여성" : "남성"}</span></h2><div class="chips">${stageChip(item.stage)}${profileGradeChip(item)}<span class="chip">${esc(serviceLabel(item.services))}</span>${item.duplicate ? '<span class="chip amber">같은 연락처의 신청 기록</span>' : ""}</div><div class="crm-client-details"><p>${esc(formatPhone(p.phone))}</p><p>${esc(p.job || "직업 미입력")} · ${esc(p.region || "지역 미입력")}</p></div></div>${completionMarkup(item)}<div class="quick-grid"><div><span>2차 링크</span><b>${item.form?.sent_at ? "발송 완료" : item.form ? "발송 전" : "미발급"}</b></div><div><span>2차 제출</span><b>${item.form?.status === "submitted" ? "완료" : "미완료"}</b></div><div><span>상담 상태</span><b>${esc({ before: "상담전", in_progress: "상담중", completed: "상담완료" }[item.consultationStatus] || "상담전")}</b></div><div><span>다음 업무</span><b>${esc(nextTask(item))}</b></div></div><div class="workspace-controls"><select id="workflow-stage"><option value="first_review">1차 검토 중</option>${item.reviewed?.result === "approved" ? '<option value="approved">승인</option>' : ""}${item.reviewed?.result === "hold" ? '<option value="hold">보류</option>' : ""}${item.reviewed?.result === "rejected" ? '<option value="rejected">미승인</option>' : ""}</select><input id="workflow-owner" placeholder="담당자" value="${esc(item.workflow?.assigned_to || item.legacyConsult.consultantName || "")}"><button class="action" id="workflow-save">처리 단계 저장</button></div></div></section><div class="crm-flow"><main class="crm-main-flow">${customerSections(item)}${phoneSection(item)}${internalSection(item)}${feedbackSection(item)}${operationalSections(item)}</main>${historyRail(item)}</div></section>`);
       const profileCopy = document.querySelector("[data-consultation-crm-detail] .profile-copy"), crmCompletion = document.querySelector("[data-consultation-crm-detail] .crm-main-flow > [data-crm-completion]"), backButton = document.getElementById("back"), workflowControls = document.querySelector("[data-consultation-crm-detail] .workspace-controls");
       if (workflowControls && backButton) workflowControls.prepend(backButton);
       document.getElementById("back").onclick = () => renderApplicants();
       const workflowStage = document.getElementById("workflow-stage");
       if ([...workflowStage.options].some((option) => option.value === item.workflow?.workflow_stage)) workflowStage.value = item.workflow.workflow_stage;
       document.getElementById("workflow-save").onclick = () => saveWorkflow(item);
-      bindPhotos(); bindAddedPhotos(item); bindReview(item); bindDocuments(); bindLinks(item); bindMemo(item); bindSchedules(item); bindPrimaryReview(item); bindContinuous(item);
+      bindPhotos(); bindAddedPhotos(item); bindReview(item); bindDocuments(); bindLinks(item); bindMemo(item); bindSchedules(item); bindContinuous(item);
     };
 
     const refreshSelected = async (item, message) => {
@@ -255,22 +258,6 @@
       await loadAll(true);
       if (message) toast(message);
       render(groupItems().find((candidate) => candidate.key === item.key) || item);
-    };
-    const bindPrimaryReview = (item) => {
-      const form = document.getElementById("primary-review-form");
-      if (!form) return;
-      form.onsubmit = async (event) => {
-        event.preventDefault();
-        const result = document.getElementById("primary-review-result").value;
-        const reason = text(document.getElementById("primary-review-reason").value);
-        if (result === "rejected" && !reason) { toast("1차 미승인 처리에는 사유를 입력해 주세요.", true); return; }
-        if (result === "rejected" && !confirm("이 신청자를 1차 미승인으로 처리할까요? 기존 신청 내용은 변경되지 않습니다.")) return;
-        const button = form.querySelector("button"); button.disabled = true;
-        try {
-          await invokeAdmin("admin-workflow-set", { subject_type: item.canonical.type, subject_id: item.canonical.id, workflow_stage: result, reason: result === "rejected" ? reason : null, review_scope: result === "rejected" ? "primary" : null });
-          await refreshSelected(item, result === "rejected" ? "1차 미승인으로 처리했습니다." : "1차 검토 상태로 변경했습니다.");
-        } catch (error) { toast(`1차 심사 결과를 저장하지 못했습니다. (${error.code})`, true); } finally { button.disabled = false; }
-      };
     };
     const bindOptionRows = () => document.querySelectorAll("[data-option-group],[data-revision-options],[data-feedback-intent]").forEach((group) => group.querySelectorAll("[data-option-value]").forEach((button) => button.onclick = () => {
       group.dataset.value = button.dataset.optionValue;
@@ -313,6 +300,16 @@
     };
     const bindContinuous = (item) => {
       document.querySelector("[data-missing-toggle]").onclick = () => { missingOnly = !missingOnly; render(item); };
+      const gradeSave = document.querySelector("[data-profile-grade-save]");
+      if (gradeSave) gradeSave.onclick = async () => {
+        const memberGrade = document.getElementById("profile-grade-select")?.value;
+        if (!memberGrade) return;
+        gradeSave.disabled = true;
+        try {
+          await invokeAdmin("admin-member-grade-set", { subject_type: item.canonical.type, subject_id: item.canonical.id, member_grade: memberGrade });
+          await refreshSelected(item, `${gradeLabels[memberGrade] || "등급"}으로 저장했습니다.`);
+        } catch (error) { toast(`등급을 저장하지 못했습니다. (${error.code || "REQUEST_FAILED"})`, true); } finally { gradeSave.disabled = false; }
+      };
       bindOptionRows();
       const saveDirectCard = async (card) => {
         if (card.dataset.saving === "true") return;
@@ -407,6 +404,8 @@
         block.className = "crm-card-completion";
         block.innerHTML = `<p><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></p><div class="crm-progress" role="progressbar" aria-label="전체 관리 항목 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div>`;
         card.querySelector(".next-layer")?.before(block);
+        const chips = card.querySelector(".identity-copy .chips");
+        if (chips && genderOf(item) === "male") chips.insertAdjacentHTML("beforeend", profileGradeChip(item));
       });
     };
     window.renderApplicant = render;
