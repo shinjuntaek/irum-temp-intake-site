@@ -290,6 +290,7 @@
   .foot .cols{max-width:1120px;margin:auto;display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:40px}
   .foot-logo{height:54px;width:auto;margin-bottom:18px}
   .foot .fine{color:var(--on-dark-mute);font-size:13px;line-height:1.4;max-width:30ch}
+  .footer-socials{display:flex;align-items:center;gap:9px;margin-top:20px}.footer-social{display:grid;width:38px;height:38px;place-items:center;border-radius:999px;background:#eceeef;color:#101116;text-decoration:none;transition:transform 160ms var(--ease),background 160ms var(--ease)}.footer-social:hover,.footer-social:focus-visible{background:#fff;transform:translateY(-2px);outline:2px solid var(--gold);outline-offset:3px}.footer-social:active{transform:scale(.96)}.footer-social-naver{font:800 12px Arial,sans-serif;letter-spacing:-.08em}.footer-social svg{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   .foot h5{font-size:12px;letter-spacing:.1em;color:var(--on-dark-mute);margin:0 0 18px;font-weight:600}
   .foot a.fl{display:block;color:var(--on-dark-soft);font-size:14px;margin-bottom:12px;text-decoration:none}
   .foot a.fl:hover{color:var(--gold-hi)}
@@ -370,6 +371,7 @@
   }
   @media(max-width:520px){
     .foot .cols{grid-template-columns:1fr}
+    .footer-socials{margin-top:16px}
     .tierbox{flex-direction:column;align-items:flex-start}
   }
 :root{--couple-a:url("assets/image-06_6dc37d19.jpg");--couple-b:url("assets/image-07_54bab649.jpg")}
@@ -1379,6 +1381,10 @@ section[aria-label*="Notifications"] {
     <div>
       <img loading="lazy" decoding="async" class="foot-logo" src="assets/image-01_f488397a.png" alt="premium 이룸">
       <p class="fine">검증과 큐레이션으로 연결하는 프라이빗 매칭 클럽</p>
+      <nav class="footer-socials" aria-label="이룸 공식 채널">
+        <a class="footer-social footer-social-naver" href="https://blog.naver.com/official_irum" target="_blank" rel="noopener noreferrer" aria-label="이룸 네이버 블로그" title="네이버 블로그">N</a>
+        <a class="footer-social" href="https://www.instagram.com/_official_irum/" target="_blank" rel="noopener noreferrer" aria-label="이룸 Instagram" title="Instagram"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="5"></rect><circle cx="12" cy="12" r="3.7"></circle><path d="M17.4 6.8h.01"></path></svg></a>
+      </nav>
     </div>
     <div><h5>서비스</h5><a class="fl" href="#" data-page="main">이룸 소개</a><a class="fl" href="#" data-page="matching">검증 기반 1:1 매칭</a><a class="fl" href="#" data-page="social">프라이빗 소셜 모임</a></div>
     <div class="main-footer-policy" data-main-footer-policy><h5>정책 및 문의</h5><a class="fl" href="#" data-legal-svc="matching" data-legal="policy">개인정보 처리방침</a><a class="fl" href="#" data-legal-svc="matching" data-legal="terms">이용약관</a><a class="fl" href="tel:01088393764" aria-label="전화 문의 010-8839-3764">전화 문의 010-8839-3764</a></div>

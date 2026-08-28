@@ -344,6 +344,16 @@
       document.querySelectorAll("[data-history-filter]").forEach((button) => button.onclick = () => { historyFilter = button.dataset.historyFilter; render(item); });
     };
 
+    const NEW_RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000;
+    const applicationDateLabel = (raw) => {
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) return "신청일 확인 필요";
+      return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(parsed);
+    };
+    const isFreshReceipt = (item) => {
+      const createdAt = new Date(item.createdAt).getTime();
+      return item.stage === "new" && Number.isFinite(createdAt) && Date.now() - createdAt >= 0 && Date.now() - createdAt < NEW_RECEIPT_WINDOW_MS;
+    };
     const originalApplicants = window.renderApplicants;
     window.renderApplicants = function renderApplicantsWithCompletion() {
       originalApplicants();
@@ -351,6 +361,16 @@
       document.querySelectorAll(".app-card[data-subject]").forEach((card) => {
         const item = items.find((candidate) => candidate.key === card.dataset.subject);
         if (!item) return;
+        const freshReceipt = isFreshReceipt(item);
+        card.querySelectorAll(".chip.blue").forEach((chip) => {
+          if (chip.textContent.trim() === "신규 접수" && !freshReceipt) chip.remove();
+        });
+        card.querySelector("[data-crm-application-date]")?.remove();
+        const dateBlock = document.createElement("p");
+        dateBlock.className = "crm-card-application-date";
+        dateBlock.dataset.crmApplicationDate = "true";
+        dateBlock.innerHTML = `신청일 <time datetime="${esc(item.createdAt || "")}">${esc(applicationDateLabel(item.createdAt))}</time>`;
+        card.querySelector(".next-layer")?.before(dateBlock);
         const count = completion(item, "overall"), block = document.createElement("div");
         block.className = "crm-card-completion";
         block.innerHTML = `<p><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></p><div class="crm-progress" role="progressbar" aria-label="전체 관리 항목 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div>`;
