@@ -328,9 +328,9 @@
       document.querySelectorAll(".app-card[data-subject]").forEach((card) => {
         const item = items.find((candidate) => candidate.key === card.dataset.subject);
         if (!item) return;
-        const count = completion(item), block = document.createElement("div");
+        const count = completion(item, "overall"), block = document.createElement("div");
         block.className = "crm-card-completion";
-        block.innerHTML = `<p><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : `${count.percent}%`}</span></p><div class="crm-progress"><i style="width:${count.percent}%"></i></div>`;
+        block.innerHTML = `<p><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></p><div class="crm-progress" role="progressbar" aria-label="전체 관리 항목 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div>`;
         card.querySelector(".next-layer")?.before(block);
       });
     };
