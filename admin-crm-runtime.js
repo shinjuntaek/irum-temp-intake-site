@@ -23,7 +23,7 @@
     const allPhotoCount = (item) => (item.photoBase?.photoRefs?.length || 0) + addedPhotosFor(item).length;
     const gradeLabels = { s: "S등급", a: "A등급", b: "B등급", c: "C등급", d: "D등급", unassigned: "등급 미정" };
     const profileGradeFor = (item) => latest((state.memberGrades || []).filter((row) => owns(item, row)))?.member_grade || "unassigned";
-    const profileGradeChip = (item) => genderOf(item) === "male" ? `<span class="chip crm-profile-grade ${profileGradeFor(item) === "unassigned" ? "" : `grade-${profileGradeFor(item)}`}">${esc(gradeLabels[profileGradeFor(item)] || "등급 미정")}</span>` : "";
+    const profileGradeChip = (item) => `<span class="chip crm-profile-grade ${profileGradeFor(item) === "unassigned" ? "" : `grade-${profileGradeFor(item)}`}">${esc(gradeLabels[profileGradeFor(item)] || "등급 미정")}</span>`;
     const profileForm = (item) => {
       const expected = `profile_${genderOf(item)}`;
       return item.forms.find((form) => form.form_type === expected && ["submitted", "in_progress"].includes(form.status)) ||
@@ -85,8 +85,6 @@
     const completion = (item, scope = "current") => {
       const allManagement = scope === "overall";
       const rows = (allManagement ? overallCustomerFields(item) : activeCustomerFields(item)).map((field) => ({ id: field.id, label: field.label, stage: field.stage, required: Boolean(field.required), value: currentFor(item, field) }));
-      const phoneValues = latestValues(state.phoneConsultations, item);
-      if (allManagement || consultationStarted(item)) registry.phone[genderOf(item)].filter((field) => !field.conditionalHealth || healthFollowupRequired(item) || filled(phoneValues[field.key])).forEach((field) => rows.push({ id: `phone-${field.key}`, label: field.label, stage: "phone", required: Boolean(field.required), value: phoneValues[field.key] }));
       const internalValues = latestValues(state.internalEvaluations, item);
       if (allManagement || internalStarted(item)) registry.internal[genderOf(item)].forEach((field) => rows.push({ id: `internal-${field.key}`, label: field.label, stage: "internal", required: Boolean(field.required), value: internalValues[field.key] }));
       if (matchingCases(item).length) {
@@ -100,7 +98,7 @@
     const completionMarkup = (item) => {
       const count = completion(item, "overall");
       const grade = profileGradeFor(item);
-      const gradeControl = genderOf(item) === "male" ? `<div class="crm-grade-control" data-profile-grade-control><label for="profile-grade-select">등급</label><select id="profile-grade-select" aria-label="남성 신청자 등급">${["unassigned", "s", "a", "b", "c", "d"].map((value) => `<option value="${value}" ${value === grade ? "selected" : ""}>${esc(gradeLabels[value])}</option>`).join("")}</select><button type="button" data-profile-grade-save>등급 저장</button></div>` : "";
+      const gradeControl = `<div class="crm-grade-control" data-profile-grade-control><label for="profile-grade-select">등급</label><select id="profile-grade-select" aria-label="신청자 등급">${["unassigned", "s", "a", "b", "c", "d"].map((value) => `<option value="${value}" ${value === grade ? "selected" : ""}>${esc(gradeLabels[value])}</option>`).join("")}</select><button type="button" data-profile-grade-save>등급 저장</button></div>`;
       return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button>${gradeControl}</section>`;
     };
     const valueForDisplay = (value, key = "") => valueLabel(value, key);
@@ -144,7 +142,8 @@
         const visible = !entry.when || entry.when({ get: secondaryGetter(item) });
         return `<div class="crm-inline-field" data-inline-car-model data-direct-field="${esc(entry.id)}" ${visible ? "" : "hidden"}><div class="crm-inline-field-head"><label>${esc(entry.label)} <small class="crm-required">${entry.required ? "필수" : "선택"}</small></label><span>${esc(entrySource.form ? entry.sourceLabel : "상담 보완")}</span></div><div class="crm-control" data-direct-autosave>${controlMarkup(entry, entryCurrent)}</div></div>`;
       }).join("");
-      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(sourceLabel)}</span></div><div class="crm-original">${esc(originalLabel)}</div><div class="crm-current">전화 상담 확인 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}${inlineEditors}</article>`;
+      const hasUpdatedValue = Boolean(supplement || correction);
+      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(sourceLabel)}</span></div><div class="crm-original">${esc(originalLabel)}</div>${hasUpdatedValue ? `<div class="crm-current">${esc(valueForDisplay(current, source.key))}</div>` : ""}${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}${inlineEditors}</article>`;
     };
     const customerSections = (item) => {
       const all = overallCustomerFields(item);
@@ -175,16 +174,7 @@
       const revisions = rows.filter((row) => owns(item, row)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       return `<details class="details"><summary>이전 상담 기록 ${revisions.length}건</summary><div class="panel-body history">${revisions.map((row) => `<article><b>${esc(date(row.created_at))} · ${esc(row.actor_email || "운영자")}</b><p>${Object.entries(row.values || {}).map(([key, value]) => `${labelMap[key] || secondaryFieldLabel(key)}: ${valueForDisplay(value, key)}`).join("\n")}</p></article>`).join("") || '<p class="desc">이전 상담 기록이 없습니다.</p>'}</div></details>`;
     };
-    const phoneSection = (item) => {
-      if (genderOf(item) === "male") return "";
-      const fields = registry.phone[genderOf(item)].filter((field) => !field.conditionalHealth || healthFollowupRequired(item) || filled(latestValues(state.phoneConsultations, item)[field.key]));
-      const values = latestValues(state.phoneConsultations, item);
-      const labels = Object.fromEntries(registry.phone[genderOf(item)].map((field) => [field.key, field.label]));
-      const grouped = new Map();
-      fields.forEach((field) => { const category = field.category || "사실 확인"; if (!grouped.has(category)) grouped.set(category, []); grouped.get(category).push(field); });
-      const input = (field) => `<div class="crm-revision-field ${field.control === "textarea" || field.control === "tags" ? "wide" : ""}"><label>${esc(field.label)}</label>${field.control === "tags" ? `<input data-phone-field="${esc(field.key)}" value="${esc(Array.isArray(values[field.key]) ? values[field.key].join(", ") : values[field.key] || "")}" placeholder="쉼표로 구분 · 최대 ${field.max}개">` : revisionControl(field, values[field.key], "phone")}</div>`;
-      return `<section class="crm-category" data-crm-phone><div class="crm-category-head"><div><h3>전화상담 확인 항목</h3><p class="desc">${genderOf(item) === "female" ? "여성 고객 전화상담 확인 항목" : "남성 고객 사실 확인 항목"}</p></div><small>상담 기록</small></div>${!consultationStarted(item) ? '<div class="crm-stage-note">아직 전화상담 전입니다. 처음 저장한 내용부터 상담 기록에 반영됩니다.</div>' : ""}<form id="phone-consultation-form"><div class="crm-phone-groups">${[...grouped.entries()].map(([category, group]) => `<section class="crm-phone-group"><h4>${esc(category)}</h4><div class="crm-revision-form">${group.map(input).join("")}</div></section>`).join("")}</div><button class="action" style="margin-top:11px">전화상담 저장</button></form>${priorRevisionMarkup(state.phoneConsultations, item, labels)}</section>`;
-    };
+    const phoneSection = () => "";
     const internalSection = (item) => {
       const fields = registry.internal[genderOf(item)], values = latestValues(state.internalEvaluations, item);
       const labels = Object.fromEntries(fields.map((field) => [field.key, field.label]));
@@ -197,7 +187,6 @@
       return `<section class="crm-category" data-crm-feedback><div class="crm-category-head"><div><h3>첫 만남 피드백</h3><p class="desc">피드백 제공자를 선택하면 상대방을 피드백 대상으로 저장합니다.</p></div><small>매칭 기록</small></div><form id="matching-feedback-form"><div class="crm-revision-form"><div class="crm-revision-field wide"><label>피드백 대상 매칭</label><select id="feedback-case">${cases.map((matchingCase) => `<option value="${esc(matchingCase.id)}">매칭 ${esc(matchingCase.id.slice(0, 8))} · ${esc(date(matchingCase.updated_at))}</option>`).join("")}</select></div><div class="crm-revision-field"><label>피드백 제공자</label><select id="feedback-provider"></select></div><div class="crm-revision-field"><label>만남 일시</label><input id="feedback-meeting-at" type="datetime-local" required></div><div class="crm-revision-field wide"><label>다시 만날 의향</label><select id="feedback-intent">${registry.feedback.intents.map(([value, label]) => `<option value="${esc(value)}" ${value === "positive" ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></div><div class="crm-revision-field wide"><label>좋았던 점 · 다중선택</label><div class="crm-tags">${registry.feedback.positivePoints.map((point) => `<label><input type="checkbox" name="feedback-positive" value="${esc(point)}">${esc(point)}</label>`).join("")}</div><textarea id="feedback-positive-note" placeholder="좋았던 점 추가 메모"></textarea></div><div class="crm-revision-field wide"><label>아쉬웠던 점·거절 이유 · 다중선택</label><div class="crm-tags">${registry.feedback.negativePoints.map((point) => `<label><input type="checkbox" name="feedback-negative" value="${esc(point)}">${esc(point)}</label>`).join("")}</div><textarea id="feedback-negative-note" placeholder="아쉬웠던 점 추가 메모"></textarea></div><div class="crm-revision-field wide"><label>다음 소개 조정사항</label><textarea id="feedback-adjustment" maxlength="2000"></textarea></div><div class="crm-revision-field wide"><label>운영자 메모</label><textarea id="feedback-note" maxlength="2000"></textarea></div></div><button class="action" style="margin-top:11px">첫 만남 피드백 저장</button></form></section>`;
     };
 
-    const phoneLabels = Object.fromEntries([...registry.phone.female, ...registry.phone.male].map((field) => [field.key, field.label]));
     const internalLabels = Object.fromEntries([...registry.internal.female, ...registry.internal.male].map((field) => [field.key, field.label]));
     const legacyLabels = { consultationConfidence: "상담 신뢰도", marriageView: "결혼관", relationshipValues: "연애 가치관", pastRelationship: "과거 연애", sensitivePoints: "민감 확인사항", familyReaction: "가족 반응", femaleWeightConfirmed: "여성 몸무게 상담 확인", maleToneManner: "말투·매너", maleRelationshipConsistency: "관계관 일치", femaleAppearanceConsistency: "사진·실물 일치", femaleToneManner: "말투·매너", femaleRelationshipConsistency: "관계관 일치", evaluationMemo: "내부평가 메모" };
     const diffRevisionRows = (rows, item, kind, labelMap) => {
@@ -208,23 +197,22 @@
         Object.entries(row.values || {}).forEach(([key, value]) => {
           if (!(key in first)) first[key] = value;
           if (JSON.stringify(previous[key] ?? null) === JSON.stringify(value)) return;
-          events.push({ filter: kind, title: labelMap[key] || legacyLabels[key] || secondaryFieldLabel(key), source: kind === "phone" ? "전화상담" : "내부평가", original: first[key], previous: previous[key] ?? null, next: value, reason: kind === "phone" ? "전화상담 확인" : "내부평가", requested: false, who: row.actor_email, at: row.created_at });
+          events.push({ filter: kind, title: labelMap[key] || legacyLabels[key] || secondaryFieldLabel(key), source: kind === "phone" ? "상담 반영" : "내부평가", original: first[key], previous: previous[key] ?? null, next: value, reason: kind === "phone" ? "상담 반영" : "내부평가", requested: false, who: row.actor_email, at: row.created_at });
         });
       });
       return events;
     };
     const historyRows = (item) => {
-      const corrections = correctionRows(item).map((row) => ({ filter: row.customer_requested ? "customer" : row.correction_reason === "phone_consultation" ? "phone" : row.correction_reason === "verification" ? "verification" : "all", title: row.field_label, source: row.data_source === "secondary" ? "2차 신청" : row.data_source === "legacy_snapshot" ? "기존 Snapshot" : "1차 신청", original: row.original_value, previous: row.previous_value, next: row.corrected_value, reason: { customer_request: "고객 요청", phone_consultation: "전화상담 확인", verification: "서류·사실 확인", admin_correction: "정보 반영", other: "기타" }[row.correction_reason] || row.correction_reason, reasonNote: row.reason_note, requested: row.customer_requested, who: row.actor_email, at: row.created_at }));
-      const supplements = crmSupplementRows(item).map((row) => ({ filter: "phone", title: row.field_label, source: "상담 보완", original: null, previous: row.previous_value, next: row.value, reason: "전화상담 확인", requested: false, who: row.actor_email, at: row.created_at }));
-      const phone = diffRevisionRows(state.phoneConsultations, item, "phone", phoneLabels);
+      const corrections = correctionRows(item).map((row) => ({ filter: row.customer_requested ? "customer" : row.correction_reason === "phone_consultation" ? "phone" : row.correction_reason === "verification" ? "verification" : "all", title: row.field_label, source: row.data_source === "secondary" ? "2차 신청" : row.data_source === "legacy_snapshot" ? "기존 Snapshot" : "1차 신청", original: row.original_value, previous: row.previous_value, next: row.corrected_value, reason: { customer_request: "고객 요청", phone_consultation: "상담 반영", verification: "서류·사실 확인", admin_correction: "정보 반영", other: "기타" }[row.correction_reason] || row.correction_reason, reasonNote: row.reason_note, requested: row.customer_requested, who: row.actor_email, at: row.created_at }));
+      const supplements = crmSupplementRows(item).map((row) => ({ filter: "phone", title: row.field_label, source: "상담 보완", original: null, previous: row.previous_value, next: row.value, reason: "상담 반영", requested: false, who: row.actor_email, at: row.created_at }));
       const internal = diffRevisionRows(state.internalEvaluations, item, "internal", internalLabels);
       const feedback = state.matchingFeedback.filter((row) => matchingCases(item).some((matchingCase) => matchingCase.id === row.matching_case_id)).map((row) => ({ filter: "feedback", title: `첫 만남 피드백 · 매칭 ${row.matching_case_id.slice(0, 8)}`, source: "실제 매칭 건", original: null, previous: null, next: { "만남 일시": date(row.meeting_at), "다시 만날 의향": Object.fromEntries(registry.feedback.intents)[row.reunion_intent] || row.reunion_intent, "좋았던 점": row.positive_points, "좋았던 점 메모": row.positive_note, "아쉬웠던 점": row.negative_points, "아쉬웠던 점 메모": row.negative_note, "다음 소개 조정사항": row.next_match_adjustment, "운영자 메모": row.admin_note }, reason: "첫 만남 피드백", requested: false, who: row.actor_email, at: row.created_at }));
-      return [...corrections, ...supplements, ...phone, ...internal, ...feedback].sort((a, b) => new Date(b.at) - new Date(a.at));
+      return [...corrections, ...supplements, ...internal, ...feedback].sort((a, b) => new Date(b.at) - new Date(a.at));
     };
     const completionRail = (item) => {
       const count = completion(item, "overall");
-      const stageOrder = { primary: 0, secondary: 1, phone: 2, internal: 3, feedback: 4 };
-      const stageLabel = { primary: "1차 기본정보", secondary: "2차 프로필", phone: "전화 상담", internal: "내부 평가", feedback: "첫 만남" };
+      const stageOrder = { primary: 0, secondary: 1, internal: 2, feedback: 3 };
+      const stageLabel = { primary: "1차 기본정보", secondary: "2차 프로필", internal: "내부 평가", feedback: "첫 만남" };
       const missingRows = count.rows.filter((row) => !filled(row.value));
       const sections = Object.keys(stageOrder).map((stage) => {
         const rows = missingRows.filter((row) => row.stage === stage).sort((a, b) => Number(Boolean(b.required)) - Number(Boolean(a.required)) || a.label.localeCompare(b.label, "ko"));
@@ -239,7 +227,7 @@
     };
     const historyRail = (item) => {
       const rows = historyRows(item).filter((row) => historyFilter === "all" || row.filter === historyFilter);
-      const filterOptions = [["all", "전체"], ["customer", "고객 요청"], ["phone", "전화상담 확인"], ["verification", "서류·사실 확인"], ["internal", "내부평가"], ["feedback", "첫 만남 피드백"]];
+      const filterOptions = [["all", "전체"], ["customer", "고객 요청"], ["phone", "상담 반영"], ["verification", "서류·사실 확인"], ["internal", "내부평가"], ["feedback", "첫 만남 피드백"]];
       return `<aside class="crm-change-rail" aria-label="정보 변경 이력"><header><h3>정보 변경 이력</h3><p>신청 내용과 이후 확인 내용을 비교합니다.</p></header>${completionRail(item)}<div class="crm-history-filters">${filterOptions.map(([value, label]) => `<button type="button" class="${historyFilter === value ? "active" : ""}" data-history-filter="${value}">${label}</button>`).join("")}</div><ul class="crm-history-list">${rows.map((row) => `<li><b>${esc(row.title)}</b><small>${esc(row.source)} · ${esc(row.reason)}${row.reasonNote ? ` · ${esc(row.reasonNote)}` : ""}</small>${row.requested ? '<span class="customer-request-badge">고객 요청 변경</span>' : ""}<div class="crm-history-values"><div><span>신청 내용</span><strong>${esc(valueForDisplay(row.original))}</strong></div><div><span>이전 확인 내용</span><strong>${esc(valueForDisplay(row.previous))}</strong></div><div><span>수정 내용</span><strong>${esc(valueForDisplay(row.next))}</strong></div></div><small>${esc(row.who || "운영자")} · ${esc(date(row.at))}</small></li>`).join("") || '<li><small>선택한 조건의 변경 이력이 없습니다.</small></li>'}</ul></aside>`;
     };
     const operationalSections = (item) => {
@@ -428,7 +416,7 @@
         block.innerHTML = `<p><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></p><div class="crm-progress" role="progressbar" aria-label="전체 관리 항목 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div>`;
         card.querySelector(".next-layer")?.before(block);
         const chips = card.querySelector(".identity-copy .chips");
-        if (chips && genderOf(item) === "male") chips.insertAdjacentHTML("beforeend", profileGradeChip(item));
+        if (chips) chips.insertAdjacentHTML("beforeend", profileGradeChip(item));
       });
     };
     window.renderApplicant = render;
