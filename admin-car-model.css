@@ -1,0 +1,5 @@
+.crm-inline-field[hidden]{display:none!important}
+.crm-inline-field{margin-top:10px;border-top:1px dashed #ded4c2;padding-top:9px}
+.crm-inline-field-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.crm-inline-field-head label{color:var(--crm-navy);font-size:10px}
+.crm-inline-field-head span{color:#a99c86;font-size:8px;font-weight:800}

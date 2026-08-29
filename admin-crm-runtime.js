@@ -121,10 +121,12 @@
       return `<input data-edit-value type="${field.control === "date" ? "date" : field.control === "number" ? "number" : "text"}" value="${esc(value ?? "")}" ${field.min !== undefined ? `min="${field.min}"` : ""} ${field.max !== undefined ? `max="${field.max}"` : ""} placeholder="${esc(field.placeholder || "")}">`;
     };
     const fieldCard = (item, field) => {
+      if (field.inlineWith) return "";
       const source = sourceFor(item, field);
       const correction = correctionFor(item, field);
       const supplement = supplementFor(item, field);
       const current = supplement?.value ?? correction?.corrected_value ?? source.original;
+      const linkedFields = registry.secondary[genderOf(item)].filter((entry) => entry.inlineWith === field.id);
       if (field.kind === "photos") {
         const photoCount = allPhotoCount(item);
         const originalCount = item.photoBase?.photoRefs?.length || 0;
@@ -132,11 +134,17 @@
         if (missingOnly && photoCount) return "";
         return `<article class="crm-field crm-photo-field ${photoCount ? "" : "missing"}" data-photo-field><div class="crm-field-head"><label>첨부 사진 <small class="crm-required">필수</small></label><span class="crm-source">사진 관리</span></div><div class="crm-photo-card"><div class="crm-photo-collection">${originalCount ? photoMarkup(item) : ""}${added.map((photo, index) => `<button type="button" class="crm-added-photo" data-added-photo="${esc(photo.id)}" aria-label="추가 사진 ${index + 1} 보기">불러오는 중</button>`).join("")}${!photoCount ? '<div class="crm-photo-empty">등록된 사진이 없습니다.</div>' : ""}</div></div><div class="crm-photo-actions"><input type="file" data-add-photo-input accept="image/jpeg,image/png,image/webp" hidden><button type="button" class="secondary" data-add-photo>사진 추가</button><span>${photoCount ? `총 ${photoCount}장 · 눌러서 크게 보기` : "JPG · PNG · WEBP / 8MB 이하"}</span></div></article>`;
       }
-      if (missingOnly && filled(current)) return "";
+      if (missingOnly && filled(current) && !linkedFields.some((entry) => !filled(currentFor(item, entry)))) return "";
       const noSecondaryForm = field.stage === "secondary" && !source.form;
       const sourceLabel = noSecondaryForm ? "상담 보완" : field.sourceLabel;
       const originalLabel = noSecondaryForm ? "2차 작성 전" : `신청 내용 · ${valueForDisplay(source.original, source.key)}`;
-      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(sourceLabel)}</span></div><div class="crm-original">${esc(originalLabel)}</div><div class="crm-current">전화 상담 확인 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}</article>`;
+      const inlineEditors = linkedFields.map((entry) => {
+        const entrySource = sourceFor(item, entry);
+        const entryCurrent = currentFor(item, entry);
+        const visible = !entry.when || entry.when({ get: secondaryGetter(item) });
+        return `<div class="crm-inline-field" data-inline-car-model data-direct-field="${esc(entry.id)}" ${visible ? "" : "hidden"}><div class="crm-inline-field-head"><label>${esc(entry.label)} <small class="crm-required">${entry.required ? "필수" : "선택"}</small></label><span>${esc(entrySource.form ? entry.sourceLabel : "상담 보완")}</span></div><div class="crm-control" data-direct-autosave>${controlMarkup(entry, entryCurrent)}</div></div>`;
+      }).join("");
+      return `<article class="crm-field ${filled(current) ? "" : "missing"}" data-direct-field="${esc(field.id)}"><div class="crm-field-head"><label>${esc(field.label)} <small class="crm-required">${field.required ? "필수" : "선택"}</small></label><span class="crm-source">${esc(sourceLabel)}</span></div><div class="crm-original">${esc(originalLabel)}</div><div class="crm-current">전화 상담 확인 · ${esc(valueForDisplay(current, source.key))}</div>${field.locked ? '<div class="crm-readonly">기본 정보는 수정할 수 없습니다.</div>' : `<div class="crm-control" data-direct-autosave>${controlMarkup(field, current)}</div>`}${inlineEditors}</article>`;
     };
     const customerSections = (item) => {
       const all = overallCustomerFields(item);
@@ -311,11 +319,14 @@
         } catch (error) { toast(`등급을 저장하지 못했습니다. (${error.code || "REQUEST_FAILED"})`, true); } finally { gradeSave.disabled = false; }
       };
       bindOptionRows();
-      const saveDirectCard = async (card) => {
+      const saveDirectCard = async (card, explicitValue) => {
         if (card.dataset.saving === "true") return;
-        const field = overallCustomerFields(item).find((entry) => entry.id === card.dataset.directField), source = sourceFor(item, field);
+        const allFields = [...registry.primary.filter((entry) => !entry.gender || entry.gender === genderOf(item)), ...registry.secondary[genderOf(item)]];
+        const field = allFields.find((entry) => entry.id === card.dataset.directField);
+        if (!field) return;
+        const source = sourceFor(item, field);
         const control = card.querySelector("[data-edit-value]"), option = card.querySelector("[data-option-group]");
-        let value = option ? normalizedControlValue(option) : control.value;
+        let value = explicitValue ?? (option ? normalizedControlValue(option) : control.value);
         if (!filled(value) || JSON.stringify(value) === JSON.stringify(currentFor(item, field))) return;
         card.dataset.saving = "true";
         try {
@@ -327,12 +338,24 @@
           await refreshSelected(item);
         } catch (error) { card.dataset.saving = ""; toast(`입력값 저장 실패 (${error.code})`, true); }
       };
-      document.querySelectorAll("[data-direct-field] [data-edit-value]").forEach((control) => control.onchange = () => saveDirectCard(control.closest("[data-direct-field]")));
-      document.querySelectorAll("[data-direct-field] [data-option-group]").forEach((group) => group.querySelectorAll("[data-option-value]").forEach((button) => button.onclick = () => {
+      const syncCarModelVisibility = (card, value) => {
+        if (card?.dataset.directField !== "male-car") return;
+        const visible = ["Y", "있음"].includes(String(value || ""));
+        card.querySelectorAll("[data-inline-car-model]").forEach((node) => { node.hidden = !visible; });
+      };
+      document.querySelectorAll("[data-direct-field] [data-edit-value]").forEach((control) => control.onchange = () => {
+        const card = control.closest("[data-direct-field]");
+        syncCarModelVisibility(card, control.value);
+        saveDirectCard(card);
+      });
+      document.querySelectorAll("[data-direct-field] [data-option-group]").forEach((group) => group.querySelectorAll("[data-option-value]").forEach((button) => button.addEventListener("click", () => {
+        const card = button.closest("[data-direct-field]");
+        if (!card) return;
         group.dataset.value = button.dataset.optionValue;
         group.querySelectorAll("[data-option-value]").forEach((option) => option.classList.toggle("selected", option === button));
-        saveDirectCard(button.closest("[data-direct-field]"));
-      }));
+        syncCarModelVisibility(card, button.dataset.optionValue);
+        void saveDirectCard(card, card.dataset.directField === "male-car" ? button.dataset.optionValue : undefined);
+      })));
       document.getElementById("phone-consultation-form")?.addEventListener("submit", async (event) => {
         event.preventDefault();
         const values = {};

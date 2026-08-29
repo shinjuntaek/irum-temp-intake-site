@@ -68,7 +68,7 @@
     ...commonSecondary,
     field("male-body", "신원", "체형", "secondary", "bodyType", select(["마른 편", "보통", "슬림탄탄", "근육질", "통통한 편"])),
     field("male-car", "자산", "차량", "secondary", "car", chips(["Y", "N"]), { aliases: ["carOwned"] }),
-    field("male-car-model", "자산", "차종", "secondary", "carModel", text("예: BMW 5시리즈 · 2023년식"), { aliases: ["car_model"], when: ({ get }) => ["Y", "있음"].includes(String(get("car") || "")) }),
+    field("male-car-model", "자산", "차종", "secondary", "carModel", text("예: BMW 5시리즈 · 2023년식"), { aliases: ["car_model"], inlineWith: "male-car", when: ({ get }) => ["Y", "있음"].includes(String(get("car") || "")) }),
     field("male-housing", "주거", "현재 주거 형태", "secondary", "housing", select(["자가", "전세", "월세", "가족소유"])),
     field("male-job", "직업", "현재 직업", "secondary", "job", text("예: IT 기업 재직 · 의사 · 사업"), { required: true }),
     field("male-company", "직업", "회사 / 기관명", "secondary", "company", text("회사 또는 기관명")),
