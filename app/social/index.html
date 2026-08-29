@@ -1495,7 +1495,7 @@ function show(id){
   function maleCore(){ return maleFields.map(function(f){ var isO=(S.data[f.key]===OTHER), ok=f.key+'Other'; return '<div class="af-field">'+label(f.label,true)+'<div class="af-opts col2">'+f.opts.map(function(v){return opt(f.key,v);}).join('')+'</div>'+(isO?'<input class="af-in af-otherjob" data-in="'+ok+'" value="'+esc(S.data[ok]||'')+'" placeholder="직접 입력해 주세요">':'')+'</div>'; }).join(''); }
   function femaleCore(){
     var isOther=(S.data.role===OTHER), h='';
-    h+='<div class="af-field">'+label('직업 · 역할',true)+'<div class="af-opts col2">'+["전문직","사업가·대표","대기업·금융","공무원·교직","IT·스타트업","프리랜서","투자·자산관리","기타"].map(function(v){return opt('role',v);}).join('')+'</div>'+(isOther?'<input class="af-in af-otherjob" data-in="roleOther" value="'+esc(S.data.roleOther||'')+'" placeholder="직업 또는 역할을 작성해 주세요">':'')+'</div>';
+    h+='<div class="af-field">'+label('직업 · 역할',true)+'<div class="af-opts col2">'+["전문직","사업가·대표","대기업·금융","공무원·교직","프리랜서","아이돌 연습생","인플루언서","모델","기타"].map(function(v){return opt('role',v);}).join('')+'</div>'+(isOther?'<input class="af-in af-otherjob" data-in="roleOther" value="'+esc(S.data.roleOther||'')+'" placeholder="직업 또는 역할을 작성해 주세요">':'')+'</div>';
     h+='<div class="af-field">'+label('체형',true)+'<div class="af-opts col2">'+bodies.map(function(v){return opt('bodyType',v);}).join('')+'</div></div>';
     h+='<div class="af-field">'+label('매력 포인트',true,'해당하는 것을 모두 선택 · 많을수록 매칭 품질이 올라갑니다.')+'<div class="af-opts">'+points.map(pointOpt).join('')+'</div></div>';
     h+='<div class="af-field">'+label('사진 2장',true,'정면·일상 각 1장 (JPG·PNG·WEBP / 5MB 이하)')+'<div class="af-photos">'+photoBox('front','정면 사진')+photoBox('lifestyle','일상 사진')+'</div></div>';
