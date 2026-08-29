@@ -99,7 +99,9 @@
       const count = completion(item, "overall");
       const grade = profileGradeFor(item);
       const gradeControl = `<div class="crm-grade-control" data-profile-grade-control><label for="profile-grade-select">등급</label><select id="profile-grade-select" aria-label="신청자 등급">${["unassigned", "s", "a", "b", "c", "d"].map((value) => `<option value="${value}" ${value === grade ? "selected" : ""}>${esc(gradeLabels[value])}</option>`).join("")}</select><button type="button" data-profile-grade-save>등급 저장</button></div>`;
-      return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button>${gradeControl}</section>`;
+      const assignee = text(item.workflow?.assigned_to || item.legacyConsult?.consultantName);
+      const consultantControl = `<div class="crm-consultant-control" data-profile-consultant-control><label for="profile-consultant-select">상담원</label><select id="profile-consultant-select" aria-label="현재 담당 상담원"><option value="" ${assignee ? "" : "selected"}>미배정</option>${consultantOptions(item).map((name) => `<option value="${esc(name)}" ${name === assignee ? "selected" : ""}>${esc(name)}</option>`).join("")}</select><button type="button" data-profile-consultant-save>상담원 저장</button></div>`;
+      return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button>${gradeControl}${consultantControl}</section>`;
     };
     const valueForDisplay = (value, key = "") => valueLabel(value, key);
     const normalizedControlValue = (node) => {
@@ -308,6 +310,15 @@
           await invokeAdmin("admin-member-grade-set", { subject_type: item.canonical.type, subject_id: item.canonical.id, member_grade: memberGrade });
           await refreshSelected(item, `${gradeLabels[memberGrade] || "등급"}으로 저장했습니다.`);
         } catch (error) { toast(`등급을 저장하지 못했습니다. (${error.code || "REQUEST_FAILED"})`, true); } finally { gradeSave.disabled = false; }
+      };
+      const consultantSave = document.querySelector("[data-profile-consultant-save]");
+      if (consultantSave) consultantSave.onclick = async () => {
+        const assignedTo = text(document.getElementById("profile-consultant-select")?.value);
+        consultantSave.disabled = true;
+        try {
+          await invokeAdmin("admin-consultant-assign", { subject_type: item.canonical.type, subject_id: item.canonical.id, assigned_to: assignedTo });
+          await refreshSelected(item, assignedTo ? `${assignedTo} 상담원으로 지정했습니다.` : "상담원 지정을 해제했습니다.");
+        } catch (error) { toast(`상담원을 저장하지 못했습니다. (${error.code || "REQUEST_FAILED"})`, true); } finally { consultantSave.disabled = false; }
       };
       bindOptionRows();
       const saveDirectCard = async (card, explicitValue) => {

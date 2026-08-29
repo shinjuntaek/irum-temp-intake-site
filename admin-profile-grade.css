@@ -2,9 +2,11 @@
 .crm-grade-control label{color:#e7d5b0;font-size:9px;font-weight:800}
 .crm-grade-control select{min-width:0;flex:1;height:30px;border:1px solid rgba(255,255,255,.25);border-radius:7px;background:#fff;color:var(--crm-ink);padding:0 7px;font-size:10px}
 .crm-grade-control button{height:30px;border:1px solid var(--crm-gold);border-radius:7px;background:var(--crm-gold);padding:0 8px;color:#21170c;font-size:9px;font-weight:900}
+.crm-consultant-control{display:flex;grid-column:1/-1;align-items:center;gap:6px;min-width:0}.crm-consultant-control label{color:#e7d5b0;font-size:9px;font-weight:800}.crm-consultant-control select{min-width:0;flex:1;height:30px;border:1px solid rgba(255,255,255,.25);border-radius:7px;background:#fff;color:var(--crm-ink);padding:0 7px;font-size:10px}.crm-consultant-control button{height:30px;border:1px solid var(--crm-gold);border-radius:7px;background:var(--crm-gold);padding:0 8px;color:#21170c;font-size:9px;font-weight:900}
+.page[data-consultation-crm-detail] .profile-copy>.workspace-controls{display:none!important}
 .crm-profile-grade.grade-s{border-color:#d7b24a;background:#fff6cb;color:#72540a}
 .crm-profile-grade.grade-a{border-color:#b9a45f;background:#f8f2df;color:#65531a}
 .crm-profile-grade.grade-b{border-color:#b8c4cd;background:#f2f6f8;color:#40525d}
 .crm-profile-grade.grade-c{border-color:#c6b8ac;background:#f8f4ef;color:#665b50}
 .crm-profile-grade.grade-d{border-color:#d6adad;background:#fff2f2;color:#934343}
-@media(max-width:760px){.crm-grade-control{grid-column:1/-1}.crm-grade-control button{min-width:70px}}
+@media(max-width:760px){.crm-grade-control,.crm-consultant-control{grid-column:1/-1}.crm-grade-control button,.crm-consultant-control button{min-width:70px}}
