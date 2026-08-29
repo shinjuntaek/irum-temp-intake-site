@@ -100,7 +100,7 @@
       const grade = profileGradeFor(item);
       const gradeControl = `<div class="crm-grade-control" data-profile-grade-control><label for="profile-grade-select">등급</label><select id="profile-grade-select" aria-label="신청자 등급">${["unassigned", "s", "a", "b", "c", "d"].map((value) => `<option value="${value}" ${value === grade ? "selected" : ""}>${esc(gradeLabels[value])}</option>`).join("")}</select><button type="button" data-profile-grade-save>등급 저장</button></div>`;
       const assignee = text(item.workflow?.assigned_to || item.legacyConsult?.consultantName);
-      const consultantControl = `<div class="crm-consultant-control" data-profile-consultant-control><label for="profile-consultant-select">상담원</label><select id="profile-consultant-select" aria-label="현재 담당 상담원"><option value="" ${assignee ? "" : "selected"}>미배정</option>${consultantOptions(item).map((name) => `<option value="${esc(name)}" ${name === assignee ? "selected" : ""}>${esc(name)}</option>`).join("")}</select><button type="button" data-profile-consultant-save>상담원 저장</button></div>`;
+      const consultantControl = `<div class="crm-consultant-control" data-profile-consultant-control><label for="profile-consultant-select">상담원</label><select id="profile-consultant-select" aria-label="현재 담당 상담원"><option value="" ${assignee ? "" : "selected"}>미배정</option>${consultantLegacyOption(assignee)}${consultantOptions().map((name) => `<option value="${esc(name)}" ${name === assignee ? "selected" : ""}>${esc(name)}</option>`).join("")}</select><button type="button" data-profile-consultant-save>상담원 저장</button></div>`;
       return `<section class="crm-completion" data-crm-completion><div class="crm-completion-top"><div><h3>입력 현황</h3><p class="desc">전체 상담 관리 항목 기준</p></div><strong>${count.percent}%</strong></div><div class="crm-progress" role="progressbar" aria-label="입력 완성도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${count.percent}"><i style="width:${count.percent}%"></i></div><div class="crm-completion-meta"><span>${count.done} / ${count.total} 입력</span><span>${count.missing ? `미입력 ${count.missing}개` : "입력 완료"}</span></div><button type="button" class="crm-toggle ${missingOnly ? "active" : ""}" data-missing-toggle>${missingOnly ? "전체 보기" : "미입력만 보기"}</button>${gradeControl}${consultantControl}</section>`;
     };
     const valueForDisplay = (value, key = "") => valueLabel(value, key);
@@ -237,7 +237,11 @@
       return `<details class="crm-operations" open><summary>2차 응답·서류·심사</summary><div class="panel-body">${forms.map((form) => `<article class="form-card"><div class="form-card-head"><div><h4>${esc(formTypeLabel(form.form_type))}</h4><p class="meta">${esc(formStatusLabel(form.status))} · ${esc(date(form.submitted_at || form.draft_saved_at))}</p></div>${form.status === "submitted" ? '<span class="chip green">심사 가능</span>' : '<span class="chip blue">작성 중</span>'}</div><dl class="fields">${formAnswers(form)}</dl>${documentMarkup(form)}${form.status === "submitted" ? reviewMarkup(item, form) : '<div class="notice" style="margin-top:12px">제출 완료 전에는 심사 결과를 저장할 수 없습니다.</div>'}</article>`).join("") || '<p class="desc">작성 중이거나 제출된 2차 신청이 없습니다.</p>'}</div></details><details class="crm-operations"><summary>통메모장</summary><div class="panel-body">${memoPanel(item)}</div></details><details class="crm-operations"><summary>상담일자·다음 연락일</summary><div class="panel-body">${schedulePanel(item)}</div></details>`;
     };
 
-    const consultantOptions = (item) => [...new Set(["이예슬", item.workflow?.assigned_to, item.legacyConsult?.consultantName].map(text).filter(Boolean))];
+    const consultantNames = ["한승재", "신준택", "이예슬", "안수빈"];
+    const consultantOptions = () => consultantNames;
+    const consultantLegacyOption = (assignee) => assignee && !consultantNames.includes(assignee)
+      ? `<option value="${esc(assignee)}" selected disabled>기존 담당 · ${esc(assignee)}</option>`
+      : "";
 
     const render = (item) => {
       state.selected = item;
